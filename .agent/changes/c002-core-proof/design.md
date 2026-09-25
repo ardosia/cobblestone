@@ -14,7 +14,17 @@ Diagnostic proof APIs may expose runtime identity and primitive operations under
 
 ## Workers and completions
 
-A bounded native pool accepts only worker-safe owned/immutable inputs. Worker threads never invoke arbitrary Zend APIs. Completion records target an owning runtime queue; that runtime drains completions and resumes Fibers/dispatches PHP work. Saturation has an explicit backpressure result. Cancellation and shutdown are explicit states, not dropped-message side effects.
+The first worker substrate is intentionally dependency-light and Zend-free. A fixed set of named native threads receives owned jobs from a bounded submission queue. Submission is nonblocking: saturation returns the original job as an explicit `Full` result instead of growing memory without bound.
+
+Each accepted job has a stable `TaskId` and a cooperative `CancellationToken`. Cancellation observed before execution prevents the handler from running. Once execution begins, the handler owns its cancellation points by checking the token.
+
+The completion queue is also bounded. Workers block when the owning side does not drain completions, propagating backpressure until the submission queue also saturates rather than creating an unbounded completion backlog.
+
+Handler panics are contained inside the worker loop and become `Panicked` completions. This is internal worker isolation only; it does not satisfy the separate PHP/Zend FFI panic-boundary proof.
+
+Graceful shutdown drops the sole submission sender, drains every already-accepted job, actively drains completions so workers cannot deadlock on a full completion queue, and then joins every native worker. The mechanism crate has no PHP/Zend dependency, so arbitrary Zend calls from these workers are structurally absent from this surface.
+
+This first implementation uses the standard-library synchronous channels behind the Cobblestone-owned abstraction. It is not a performance claim or a commitment to the final queue implementation; queue/worker measurements decide whether the mechanism changes later.
 
 ## ABI
 

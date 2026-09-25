@@ -39,7 +39,7 @@ acceptance = "Contain Rust panics and convert native failures into safe PHP erro
 
 [[tasks]]
 id = "bounded-workers"
-status = "planned"
+status = "implemented"
 depends_on = ["runtime-id", "immutable-buffer"]
 acceptance = "Implement bounded native workers with explicit saturation/backpressure, cancellation, and shutdown; worker threads never invoke arbitrary Zend APIs."
 

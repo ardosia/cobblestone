@@ -22,3 +22,14 @@ result = "validate (ubuntu-latest) and validate (windows-latest) both completed 
 trust = "runtime-validation"
 confidence = "observed"
 limitations = "This verifies the C002 safe-Rust primitive slice only. It does not validate PHP 8.5 ZTS module loading, Zend/FFI panic boundaries, bounded workers, Fiber wake integration, or benchmarks."
+
+[[evidence]]
+id = "bounded-workers-ci"
+kind = "validation"
+status = "not_run"
+claim = "The bounded worker slice passes the canonical Rust 1.98.0 repository gate on Linux and Windows."
+source = "GitHub check runs on the exact persisted bounded-worker revision"
+result = "Not run yet; update only after the exact persisted revision is checked."
+trust = "runtime-validation"
+confidence = "unknown"
+limitations = "This slice is mechanism-only and does not validate the PHP/Zend adapter, Fiber wake integration, or performance."
