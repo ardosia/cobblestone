@@ -1,0 +1,13 @@
+schema = 1
+change = "c002-core-proof"
+
+[[evidence]]
+id = "primitive-slice-ci"
+kind = "validation"
+status = "not_run"
+claim = "The C002 primitive slice compiles cleanly and its unit tests pass on Linux and Windows with Rust 1.98.0."
+source = "GitHub check runs on the exact persisted primitive-slice revision"
+result = "Not run yet; update only after the exact persisted revision is checked."
+trust = "runtime-validation"
+confidence = "unknown"
+limitations = "The current local environment has no Rust toolchain, so only metadata validation can run before push."

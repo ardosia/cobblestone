@@ -27,6 +27,6 @@ acceptance = "Create one cross-platform validation entrypoint plus Linux/Windows
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "done"
 depends_on = ["program-state", "architecture-provenance", "validation-entrypoint"]
 acceptance = "Run metadata validation and CI on the exact persisted revision, then reconcile evidence/status without overstating unrun checks."

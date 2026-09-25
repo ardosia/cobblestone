@@ -3,13 +3,13 @@ change = "foundation-program"
 
 [[tasks]]
 id = "C001"
-status = "implemented"
+status = "done"
 depends_on = []
 acceptance = "Bootstrap project metadata, repository instructions, accepted foundation requirements, architecture/provenance docs, parent/child changes, and CI/validation entrypoints."
 
 [[tasks]]
 id = "C002"
-status = "planned"
+status = "active"
 depends_on = ["C001"]
 acceptance = "Prove PHP 8.5 ZTS plus cobblestone-core runtime identity, generational handles, immutable buffers, bounded workers, completions/Fiber wake, cancellation, and panic/error boundaries with measurements."
 
