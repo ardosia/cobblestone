@@ -3,25 +3,25 @@ change = "c002-core-proof"
 
 [[tasks]]
 id = "workspace"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Create the pinned Rust workspace/toolchain and a safe independently testable cobblestone-core crate."
 
 [[tasks]]
 id = "runtime-id"
-status = "implemented"
+status = "verified"
 depends_on = ["workspace"]
 acceptance = "Implement explicit nonzero RuntimeId semantics without exposing runtime identity as normal plugin API."
 
 [[tasks]]
 id = "generational-handles"
-status = "implemented"
+status = "verified"
 depends_on = ["workspace"]
 acceptance = "Implement type-safe generational handles/arena with stale rejection, reuse tests, and slot retirement on generation exhaustion."
 
 [[tasks]]
 id = "immutable-buffer"
-status = "implemented"
+status = "verified"
 depends_on = ["workspace"]
 acceptance = "Implement immutable reference-counted native buffers with explicit copy-in/cheap-clone behavior and tests."
 
