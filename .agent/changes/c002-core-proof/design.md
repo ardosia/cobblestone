@@ -22,7 +22,15 @@ The diagnostic extension exposes only proof surfaces:
 
 These functions are C002 diagnostics, not normal plugin APIs. Runtime IDs and raw handles remain implementation concepts.
 
-The separate FFI panic-boundary task is not satisfied merely by ext-php-rs loading successfully. Cobblestone still needs an explicit, tested policy proving Rust panics cannot unwind across the Zend boundary.
+### Panic/error boundary
+
+The pinned ext-php-rs 0.15.15 generated function handler wraps Zend bailout handling, but its internal `try_catch` resumes a captured Rust panic afterward. Cobblestone therefore does not treat substrate bailout handling as its panic policy.
+
+Every Cobblestone-owned diagnostic entry body passes through `php_boundary`, which uses `catch_unwind(AssertUnwindSafe(...))` before returning to the generated Zend handler. A panic becomes the stable PHP exception `Cobblestone native panic contained`.
+
+The smoke test deliberately panics inside this boundary, catches the PHP exception, then reuses the same runtime identity and creates/releases another native probe. That validates that the Cobblestone-owned body panic did not unwind through Zend or poison the extension process.
+
+Argument conversion and generated-handler internals remain part of the pinned ext-php-rs substrate. This proof does not claim that arbitrary third-party macro internals are panic-free; it establishes the boundary for Cobblestone-owned native entry logic.
 
 ## Workers and completions
 

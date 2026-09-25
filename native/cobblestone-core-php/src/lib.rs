@@ -2,6 +2,7 @@
 
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -80,6 +81,18 @@ fn php_error(message: &'static str) -> PhpException {
     PhpException::default(message.to_owned())
 }
 
+/// Contains every Cobblestone-owned panic before control returns to the generated Zend handler.
+///
+/// ext-php-rs 0.15.15 protects Zend bailouts in its generated handler but resumes Rust panics.
+/// Cobblestone therefore catches its own entry-body panics explicitly and translates them into a
+/// stable PHP exception. Argument marshalling remains part of the pinned ext-php-rs substrate.
+fn php_boundary<T>(operation: impl FnOnce() -> PhpResult<T>) -> PhpResult<T> {
+    match catch_unwind(AssertUnwindSafe(operation)) {
+        Ok(result) => result,
+        Err(_) => Err(php_error("Cobblestone native panic contained")),
+    }
+}
+
 fn allocate_runtime_id() -> Result<RuntimeId, &'static str> {
     let raw = NEXT_RUNTIME_ID
         .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
@@ -107,19 +120,19 @@ fn current_runtime_id() -> Result<RuntimeId, &'static str> {
 /// This is a diagnostic proof surface for C002, not part of the normal plugin API.
 #[php_function]
 pub fn cobblestone_core_runtime_id() -> PhpResult<u32> {
-    current_runtime_id().map(RuntimeId::get).map_err(php_error)
+    php_boundary(|| current_runtime_id().map(RuntimeId::get).map_err(php_error))
 }
 
 /// Creates an opaque diagnostic native handle.
 #[php_function]
 pub fn cobblestone_core_probe_create() -> PhpResult<i64> {
-    probes().create().map_err(php_error)
+    php_boundary(|| probes().create().map_err(php_error))
 }
 
 /// Returns whether an opaque diagnostic native handle is currently live.
 #[php_function]
-pub fn cobblestone_core_probe_valid(token: i64) -> bool {
-    probes().is_valid(token)
+pub fn cobblestone_core_probe_valid(token: i64) -> PhpResult<bool> {
+    php_boundary(|| Ok(probes().is_valid(token)))
 }
 
 /// Releases an opaque diagnostic native handle.
@@ -128,7 +141,15 @@ pub fn cobblestone_core_probe_valid(token: i64) -> bool {
 /// access or a native crash.
 #[php_function]
 pub fn cobblestone_core_probe_drop(token: i64) -> PhpResult<()> {
-    probes().remove(token).map_err(php_error)
+    php_boundary(|| probes().remove(token).map_err(php_error))
+}
+
+/// Deliberately triggers a Rust panic inside the Cobblestone-owned PHP boundary.
+///
+/// This exists only to validate C002 panic containment. It must never become a normal plugin API.
+#[php_function]
+pub fn cobblestone_core_probe_panic() -> PhpResult<()> {
+    php_boundary(|| panic!("intentional Cobblestone C002 diagnostic panic"))
 }
 
 /// Registers the diagnostic C002 extension proof.
@@ -141,4 +162,5 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_core_probe_create))
         .function(wrap_function!(cobblestone_core_probe_valid))
         .function(wrap_function!(cobblestone_core_probe_drop))
+        .function(wrap_function!(cobblestone_core_probe_panic))
 }

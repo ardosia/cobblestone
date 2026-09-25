@@ -43,7 +43,28 @@ if (!$staleRejected) {
     fail('stale probe handle did not become a PHP exception');
 }
 
+$panicContained = false;
+try {
+    cobblestone_core_probe_panic();
+} catch (Throwable $error) {
+    $panicContained = str_contains($error->getMessage(), 'native panic contained');
+}
+
+if (!$panicContained) {
+    fail('deliberate native panic did not become a PHP exception');
+}
+
+if (cobblestone_core_runtime_id() !== $runtimeId) {
+    fail('runtime identity changed after contained panic');
+}
+
+$postPanicProbe = cobblestone_core_probe_create();
+if (!cobblestone_core_probe_valid($postPanicProbe)) {
+    fail('extension state was unusable after contained panic');
+}
+cobblestone_core_probe_drop($postPanicProbe);
+
 printf(
-    "cobblestone-core-php: runtime_id=%d stale_handle=rejected\n",
+    "cobblestone-core-php: runtime_id=%d stale_handle=rejected panic=contained\n",
     $runtimeId,
 );
