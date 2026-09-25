@@ -2,9 +2,7 @@ use core::fmt;
 use core::num::NonZeroU64;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{
-    Receiver, RecvError, SyncSender, TryRecvError, TrySendError, sync_channel,
-};
+use std::sync::mpsc::{Receiver, RecvError, SyncSender, TryRecvError, TrySendError, sync_channel};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -281,9 +279,7 @@ impl<J: Send + 'static, R: Send + 'static> WorkerPool<J, R> {
         match sender.try_send(queued) {
             Ok(()) => Ok(TaskHandle { id, cancellation }),
             Err(TrySendError::Full(queued)) => Err(TrySubmitError::Full(queued.job)),
-            Err(TrySendError::Disconnected(queued)) => {
-                Err(TrySubmitError::Shutdown(queued.job))
-            }
+            Err(TrySendError::Disconnected(queued)) => Err(TrySubmitError::Shutdown(queued.job)),
         }
     }
 
@@ -498,11 +494,9 @@ mod tests {
         assert!(completions.iter().any(
             |completion| matches!(completion, Completion::Panicked { id } if *id == panicking.id())
         ));
-        assert!(completions.iter().any(
-            |completion| matches!(
-                completion,
-                Completion::Completed { id, result: 10 } if *id == healthy.id()
-            )
-        ));
+        assert!(completions.iter().any(|completion| matches!(
+            completion,
+            Completion::Completed { id, result: 10 } if *id == healthy.id()
+        )));
     }
 }
