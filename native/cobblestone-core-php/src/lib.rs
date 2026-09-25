@@ -135,6 +135,8 @@ pub fn cobblestone_core_probe_drop(token: i64) -> PhpResult<()> {
 #[php_module]
 pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
     module
+        .name("cobblestone_core_php")
+        .version(env!("CARGO_PKG_VERSION"))
         .function(wrap_function!(cobblestone_core_runtime_id))
         .function(wrap_function!(cobblestone_core_probe_create))
         .function(wrap_function!(cobblestone_core_probe_valid))
