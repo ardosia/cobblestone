@@ -163,7 +163,12 @@ impl<T> Arena<T> {
         let value = slot.value.take()?;
         self.len -= 1;
 
-        if let Some(next) = slot.generation.get().checked_add(1).and_then(NonZeroU32::new) {
+        if let Some(next) = slot
+            .generation
+            .get()
+            .checked_add(1)
+            .and_then(NonZeroU32::new)
+        {
             slot.generation = next;
             self.free.push(handle.index);
         } else {
