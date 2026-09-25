@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install PHP 8.5 ZTS
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3d967b8bc6d6fbb17cb0e2ffd56cf304d0290ba
         with:
           php-version: '8.5.11'
           coverage: none
@@ -49,3 +49,48 @@ jobs:
           command -v phpize
           command -v php-config
           php-config --version
+      - name: Install stable Rust for Linux adapter
+        if: runner.os == 'Linux'
+        shell: bash
+        run: rustup toolchain install 1.98.0 --profile minimal --component clippy --component rustfmt
+      - name: Install pinned nightly Rust for Windows adapter
+        if: runner.os == 'Windows'
+        shell: bash
+        run: rustup toolchain install nightly-2026-09-20 --profile minimal --component clippy --component rustfmt
+      - name: Install libclang development files
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libclang-dev
+      - name: Build Linux PHP adapter
+        if: runner.os == 'Linux'
+        working-directory: native/cobblestone-core-php
+        shell: bash
+        run: |
+          cargo +1.98.0 fmt --check
+          cargo +1.98.0 check
+          cargo +1.98.0 clippy -- -D warnings
+          cargo +1.98.0 build --release
+      - name: Build Windows PHP adapter
+        if: runner.os == 'Windows'
+        working-directory: native/cobblestone-core-php
+        shell: pwsh
+        env:
+          LIBCLANG_PATH: C:\Program Files\LLVM\bin
+        run: |
+          cargo +nightly-2026-09-20 fmt --check
+          cargo +nightly-2026-09-20 check
+          cargo +nightly-2026-09-20 clippy -- -D warnings
+          cargo +nightly-2026-09-20 build --release
+      - name: Load Linux PHP adapter
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          php -n -d "extension=$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so" tools/php-extension-smoke.php
+      - name: Load Windows PHP adapter
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $extension = (Resolve-Path "native/cobblestone-core-php/target/release/cobblestone_core_php.dll").Path
+          php -n -d "extension=$extension" tools/php-extension-smoke.php

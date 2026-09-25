@@ -8,9 +8,21 @@
 
 ## PHP/Zend adapter
 
-The adapter targets a controlled PHP 8.5 ZTS build. The mechanism crate stays independent of Zend. Entry points validate thread/runtime affinity, convert invalid/stale handles into safe PHP errors, and contain Rust panics before they can cross FFI.
+The first diagnostic adapter is isolated from the stable mechanism workspace in `native/cobblestone-core-php`. It uses `ext-php-rs = 0.15.15` as an implementation substrate because that release supports PHP 8.5. The dependency is not part of Cobblestone's public plugin API and may be replaced without changing gameplay APIs.
 
-Diagnostic proof APIs may expose runtime identity and primitive operations under an internal namespace, but runtime IDs/handles are not ordinary plugin concepts.
+Linux builds the diagnostic adapter with the pinned Rust 1.98.0 toolchain. The current ext-php-rs Windows substrate requires Rust nightly for the unstable `vectorcall` ABI, so the Windows proof uses a separately pinned nightly toolchain only for this isolated adapter crate. The stable `cobblestone-core` workspace remains Rust 1.98.0 on both platforms.
+
+CI installs exact PHP 8.5.11 thread-safe/ZTS builds on Linux and Windows and first asserts the runtime reports `PHP_ZTS`/`ZEND_THREAD_SAFE`.
+
+The diagnostic extension exposes only proof surfaces:
+
+- a positive internal runtime identity stored per PHP execution thread;
+- creation/validation/release of opaque native probe tokens backed by the real generational `Arena`;
+- stale/unknown probe release translated into a PHP exception instead of unchecked native access.
+
+These functions are C002 diagnostics, not normal plugin APIs. Runtime IDs and raw handles remain implementation concepts.
+
+The separate FFI panic-boundary task is not satisfied merely by ext-php-rs loading successfully. Cobblestone still needs an explicit, tested policy proving Rust panics cannot unwind across the Zend boundary.
 
 ## Workers and completions
 

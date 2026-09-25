@@ -1,0 +1,16 @@
+[package]
+name = "cobblestone-core-php"
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.98"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cobblestone-core = { path = "../cobblestone-core" }
+ext-php-rs = "=0.15.15"
+
+[workspace]
+resolver = "3"
