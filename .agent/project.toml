@@ -1,0 +1,14 @@
+schema = 1
+id = "cobblestone"
+repositories = ["ardosia/cobblestone"]
+primary_repository = "ardosia/cobblestone"
+default_branch = "main"
+state_directory = ".agent"
+spec_directory = ".agent/specs"
+change_directory = ".agent/changes"
+action_directory = ".agent/actions"
+
+control_repository = "millesant/.gpt"
+control_branch = "bleeding"
+architecture = "docs/architecture/FOUNDATION.md"
+provenance = "docs/provenance/ARDOSIA_REUSE.md"

@@ -1,0 +1,27 @@
+schema = 1
+id = "foundation-program"
+kind = "php-native-server-foundation"
+size = "S3"
+status = "active"
+workflow = "feature"
+control_revision = "2b7c8b9245a64560cc9e986d554d99233e34b8c5"
+base_revision = "0c77d0b2402fa6adb75064d07f42f86e24dade8e"
+acceptance = [
+  "keep the initial target fixed to Minecraft Windows 10 Edition Beta / MCPE 0.15.10, game protocol 84, and RakNet protocol 8",
+  "keep PHP responsible for gameplay semantics and normal plugin/developer APIs while native modules own mechanisms and measured hot paths",
+  "prove the PHP/native ownership, handle, worker, and completion foundations before substantial gameplay work",
+  "treat multi-runtime PHP gameplay as a gated experiment before production adoption",
+  "execute dependency-ordered bounded child changes with exact-revision validation and durable evidence",
+  "converge requirements, specs, implementation, tests, documentation, decisions, tasks, evidence, and repository state before the program is done"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "aligned"
+implementation = "pending"
+tests = "pending"
+documentation = "aligned"
+decisions = "aligned"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

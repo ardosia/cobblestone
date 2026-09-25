@@ -1,0 +1,29 @@
+schema = 1
+id = "c002-core-proof"
+kind = "native-core-proof"
+size = "S2"
+status = "planned"
+workflow = "feature"
+control_revision = "2b7c8b9245a64560cc9e986d554d99233e34b8c5"
+base_revision = "0c77d0b2402fa6adb75064d07f42f86e24dade8e"
+parent_change = "foundation-program"
+acceptance = [
+  "a pinned Rust workspace provides independently testable cobblestone-core mechanisms",
+  "type-safe generational handles reject stale identities and retire exhausted generations without wraparound",
+  "immutable native buffers have explicit copy/clone semantics",
+  "a PHP 8.5 ZTS extension proof loads on Linux and Windows targets and attaches explicit runtime identity",
+  "native worker/completion paths are bounded, cancellable, and never call arbitrary Zend APIs from worker threads",
+  "Rust panic/error handling cannot unwind across the PHP/native boundary",
+  "benchmarks measure FFI, handle, buffer, worker submission, completion wake, and copy costs before performance claims"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "aligned"
+implementation = "pending"
+tests = "pending"
+documentation = "aligned"
+decisions = "aligned"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

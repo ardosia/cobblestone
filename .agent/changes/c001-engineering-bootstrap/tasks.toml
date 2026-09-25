@@ -1,0 +1,32 @@
+schema = 1
+change = "c001-engineering-bootstrap"
+
+[[tasks]]
+id = "project-state"
+status = "implemented"
+depends_on = []
+acceptance = "Create .agent/project.toml, repository instructions, stable foundation specs, and exact fixed-target identity."
+
+[[tasks]]
+id = "program-state"
+status = "implemented"
+depends_on = ["project-state"]
+acceptance = "Create the S3 foundation parent and concrete C001-C003 child change state with dependency-aware tasks."
+
+[[tasks]]
+id = "architecture-provenance"
+status = "implemented"
+depends_on = ["project-state"]
+acceptance = "Document C001-C003 architecture and distinguish Ardosia code reuse, behavior oracles, direct target evidence, and deferred evidence."
+
+[[tasks]]
+id = "validation-entrypoint"
+status = "implemented"
+depends_on = ["project-state"]
+acceptance = "Create one cross-platform validation entrypoint plus Linux/Windows CI that can grow with the Rust workspace."
+
+[[tasks]]
+id = "verify"
+status = "planned"
+depends_on = ["program-state", "architecture-provenance", "validation-entrypoint"]
+acceptance = "Run metadata validation and CI on the exact persisted revision, then reconcile evidence/status without overstating unrun checks."

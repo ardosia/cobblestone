@@ -1,0 +1,28 @@
+schema = 1
+id = "c003-multiruntime-torture"
+kind = "concurrency-prototype"
+size = "S2"
+status = "planned"
+workflow = "feature"
+control_revision = "2b7c8b9245a64560cc9e986d554d99233e34b8c5"
+base_revision = "0c77d0b2402fa6adb75064d07f42f86e24dade8e"
+parent_change = "foundation-program"
+acceptance = [
+  "run at least two persistent PHP runtimes concurrently through a Cobblestone-owned abstraction",
+  "route at least one million integrity-checked messages through bounded queues while exercising backpressure",
+  "stress handle create/destroy/reuse, stale handles, concurrent native completions, PHP cyclic GC, cancellation, shutdown, and restart",
+  "exercise wrong-owner commands and ownership changes without arbitrary cross-runtime Zend object access",
+  "record Linux and Windows evidence where the controlled PHP 8.5 ZTS substrate is available",
+  "produce an evidence-backed go/no-go decision before production gameplay depends on multi-runtime PHP"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "aligned"
+implementation = "pending"
+tests = "pending"
+documentation = "aligned"
+decisions = "pending"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

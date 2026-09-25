@@ -1,0 +1,62 @@
+schema = 1
+change = "c002-core-proof"
+
+[[tasks]]
+id = "workspace"
+status = "planned"
+depends_on = []
+acceptance = "Create the pinned Rust workspace/toolchain and a safe independently testable cobblestone-core crate."
+
+[[tasks]]
+id = "runtime-id"
+status = "planned"
+depends_on = ["workspace"]
+acceptance = "Implement explicit nonzero RuntimeId semantics without exposing runtime identity as normal plugin API."
+
+[[tasks]]
+id = "generational-handles"
+status = "planned"
+depends_on = ["workspace"]
+acceptance = "Implement type-safe generational handles/arena with stale rejection, reuse tests, and slot retirement on generation exhaustion."
+
+[[tasks]]
+id = "immutable-buffer"
+status = "planned"
+depends_on = ["workspace"]
+acceptance = "Implement immutable reference-counted native buffers with explicit copy-in/cheap-clone behavior and tests."
+
+[[tasks]]
+id = "php-zts-module"
+status = "planned"
+depends_on = ["runtime-id", "generational-handles", "immutable-buffer"]
+acceptance = "Load the diagnostic extension on controlled PHP 8.5 ZTS Linux and Windows targets with explicit runtime identity and safe invalid-handle errors."
+
+[[tasks]]
+id = "panic-error-boundary"
+status = "planned"
+depends_on = ["php-zts-module"]
+acceptance = "Contain Rust panics and convert native failures into safe PHP errors without unwinding through FFI."
+
+[[tasks]]
+id = "bounded-workers"
+status = "planned"
+depends_on = ["runtime-id", "immutable-buffer"]
+acceptance = "Implement bounded native workers with explicit saturation/backpressure, cancellation, and shutdown; worker threads never invoke arbitrary Zend APIs."
+
+[[tasks]]
+id = "completion-fiber"
+status = "planned"
+depends_on = ["php-zts-module", "bounded-workers", "panic-error-boundary"]
+acceptance = "Route completions to the owning runtime and resume waiting Fibers without blocking the server thread."
+
+[[tasks]]
+id = "benchmarks"
+status = "planned"
+depends_on = ["completion-fiber"]
+acceptance = "Measure empty native call, handle lookup, buffer handoff sizes, worker submission, completion/Fiber wake, saturation, and copied bytes on exact revisions."
+
+[[tasks]]
+id = "verify"
+status = "planned"
+depends_on = ["benchmarks"]
+acceptance = "Run all applicable Linux/Windows compile/tests/benchmarks on exact persisted revisions and reconcile C002 evidence without invented results."

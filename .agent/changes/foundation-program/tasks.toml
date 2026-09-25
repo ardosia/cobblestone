@@ -1,0 +1,80 @@
+schema = 1
+change = "foundation-program"
+
+[[tasks]]
+id = "C001"
+status = "implemented"
+depends_on = []
+acceptance = "Bootstrap project metadata, repository instructions, accepted foundation requirements, architecture/provenance docs, parent/child changes, and CI/validation entrypoints."
+
+[[tasks]]
+id = "C002"
+status = "planned"
+depends_on = ["C001"]
+acceptance = "Prove PHP 8.5 ZTS plus cobblestone-core runtime identity, generational handles, immutable buffers, bounded workers, completions/Fiber wake, cancellation, and panic/error boundaries with measurements."
+
+[[tasks]]
+id = "C003"
+status = "planned"
+depends_on = ["C002"]
+acceptance = "Run the persistent multi-runtime PHP torture prototype and record a go/no-go decision before distributed gameplay depends on it."
+
+[[tasks]]
+id = "C004"
+status = "planned"
+depends_on = ["C002", "C003"]
+acceptance = "Finalize type-safe handle ownership metadata, wrong-owner behavior, reclamation, and immutable shared-native data semantics."
+
+[[tasks]]
+id = "C005"
+status = "planned"
+depends_on = ["C002"]
+acceptance = "Extract and adapt the proven Ardosia protocol-8 RakNet core into cobblestone-network without coupling transport to gameplay."
+
+[[tasks]]
+id = "C006"
+status = "planned"
+depends_on = ["C002", "C005"]
+acceptance = "Implement protocol-84 codec, batch/compression, required NBT/wire mechanisms, and native-buffer integration without leaking wire types into domain APIs."
+
+[[tasks]]
+id = "C007"
+status = "planned"
+depends_on = ["C002", "C005", "C006"]
+acceptance = "Build the single-runtime PHP server kernel with lifecycle, sessions, events, commands, plugin loading, scheduler, and Fiber integration."
+
+[[tasks]]
+id = "C008"
+status = "planned"
+depends_on = ["C002", "C007"]
+acceptance = "Introduce cobblestone-world native structures only where useful, exposing safe bulk/snapshot APIs and measuring the boundary."
+
+[[tasks]]
+id = "C009"
+status = "planned"
+depends_on = ["C004", "C007", "C008"]
+acceptance = "Port proven gameplay semantics deliberately from Ardosia evidence, retaining native pieces only where ownership and measurements justify them."
+
+[[tasks]]
+id = "C010"
+status = "planned"
+depends_on = ["C007"]
+acceptance = "Instrument PHP/native memory, GC, queues, worker/runtime utilization, latency, FFI calls, copies, packet behavior, and tick/work behavior before tuning."
+
+[[tasks]]
+id = "C011"
+status = "planned"
+depends_on = ["C003", "C004", "C007", "C009", "C010"]
+acceptance = "Introduce internal multi-runtime gameplay ownership without exposing region/thread ceremony and with an explicit plugin-state/lifecycle model."
+
+[[tasks]]
+id = "C012"
+status = "planned"
+depends_on = ["C008", "C009", "C010"]
+acceptance = "Implement remaining world generation/storage systems high-level first where sensible, promoting measured hotspots native."
+
+[[tasks]]
+id = "C013"
+status = "planned"
+depends_on = ["C005", "C006", "C007", "C008", "C009", "C010", "C011", "C012"]
+acceptance = "Converge exact compatibility fixtures and realistic performance/load evidence without declaring completion before all applicable gates run."

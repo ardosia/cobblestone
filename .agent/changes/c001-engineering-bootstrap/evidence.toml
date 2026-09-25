@@ -1,0 +1,35 @@
+schema = 1
+change = "c001-engineering-bootstrap"
+
+[[evidence]]
+id = "control-pin"
+kind = "repository-identity"
+status = "passed"
+claim = "The bootstrap round is governed by the pinned current bleeding control-plane revision."
+source = "millesant/.gpt@bleeding"
+result = "Resolved control revision 2b7c8b9245a64560cc9e986d554d99233e34b8c5 before mutation and read the required bootstrap/control/context/CI/request contracts."
+trust = "control-plane"
+confidence = "observed"
+limitations = "This evidence establishes the control revision for this bounded round only."
+
+[[evidence]]
+id = "target-base"
+kind = "repository-identity"
+status = "passed"
+claim = "C001 was prepared against the resolved clean Cobblestone main head."
+source = "ardosia/cobblestone@main"
+result = "Resolved base revision 0c77d0b2402fa6adb75064d07f42f86e24dade8e; the root contained only README.md before this bootstrap."
+trust = "target-repository"
+confidence = "observed"
+limitations = "The branch head must be checked again immediately before the ref-moving write."
+
+[[evidence]]
+id = "c001-validation"
+kind = "validation"
+status = "not_run"
+claim = "The persisted C001 revision passes repository metadata validation and CI."
+source = "python tools/ci.py all + GitHub commit checks"
+result = "Not run yet; this entry must be updated only after the exact persisted revision is validated."
+trust = "runtime-validation"
+confidence = "unknown"
+limitations = "No validation claim is made yet."
