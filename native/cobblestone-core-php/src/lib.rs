@@ -107,9 +107,7 @@ fn current_runtime_id() -> Result<RuntimeId, &'static str> {
 /// This is a diagnostic proof surface for C002, not part of the normal plugin API.
 #[php_function]
 pub fn cobblestone_core_runtime_id() -> PhpResult<u32> {
-    current_runtime_id()
-        .map(RuntimeId::get)
-        .map_err(php_error)
+    current_runtime_id().map(RuntimeId::get).map_err(php_error)
 }
 
 /// Creates an opaque diagnostic native handle.
