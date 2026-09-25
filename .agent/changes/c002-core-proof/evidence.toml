@@ -44,3 +44,14 @@ result = "validate (ubuntu-latest) and validate (windows-latest) both completed 
 trust = "runtime-validation"
 confidence = "observed"
 limitations = "This verifies bounded submission/backpressure, cooperative pre-start cancellation, graceful drain/join shutdown, completion draining, and worker-handler panic containment in the Zend-free mechanism crate. It does not validate PHP/Zend loading, FFI panic conversion, Fiber wake integration, or performance."
+
+[[evidence]]
+id = "php-zts-environment"
+kind = "validation"
+status = "not_run"
+claim = "The CI foundation provides PHP 8.5.11 ZTS on both Linux and Windows, with Unix development tools available for extension builds."
+source = "GitHub check runs on the exact persisted PHP ZTS probe revision"
+result = "Not run yet; update only after the exact persisted revision is checked."
+trust = "runtime-validation"
+confidence = "unknown"
+limitations = "This probe validates the runtime substrate only; it does not prove that a Cobblestone extension can build or load."

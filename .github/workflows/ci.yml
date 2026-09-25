@@ -22,3 +22,30 @@ jobs:
         run: rustup toolchain install 1.98.0 --profile minimal --component clippy --component rustfmt
       - name: Validate repository
         run: python tools/ci.py all
+
+  php-zts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP 8.5 ZTS
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5.11'
+          coverage: none
+          tools: none
+        env:
+          phpts: ts
+          fail-fast: true
+      - name: Verify PHP ZTS runtime
+        run: php tools/php-zts-probe.php
+      - name: Verify Unix PHP development tools
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          command -v phpize
+          command -v php-config
+          php-config --version

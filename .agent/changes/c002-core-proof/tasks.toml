@@ -27,7 +27,7 @@ acceptance = "Implement immutable reference-counted native buffers with explicit
 
 [[tasks]]
 id = "php-zts-module"
-status = "planned"
+status = "active"
 depends_on = ["runtime-id", "generational-handles", "immutable-buffer"]
 acceptance = "Load the diagnostic extension on controlled PHP 8.5 ZTS Linux and Windows targets with explicit runtime identity and safe invalid-handle errors."
 
