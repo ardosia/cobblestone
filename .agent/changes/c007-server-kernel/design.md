@@ -22,7 +22,9 @@ The harness is deliberately not a production server CLI. It:
 
 The historical matching source sends LoginSuccess before StartGame and then initial time/spawn/difficulty state. The first real-client run reached protocol-84 Login successfully and then emitted packet 0x3d (RequestChunkRadius) while remaining on Generating Terrain. That observation matches the historical flow: the server acknowledges with ChunkRadiusUpdated, streams FullChunkData, and only then reports PLAYER_SPAWN.
 
-The second harness slice therefore acknowledges a bounded radius of two chunks, sends a 5x5 batch of historical layered-format empty chunks, and emits PLAYER_SPAWN. The synthetic chunks are compatibility probes only; they are not a world implementation and deliberately remain under tests/.
+The second harness slice therefore acknowledges a bounded radius of two chunks, sends a 5x5 batch of historical layered-format empty chunks, and emits PLAYER_SPAWN. The actual 0.15.10 client crossed that boundary and entered the world, displaying void terrain as expected. After spawn it immediately emitted normal gameplay traffic including MovePlayer (0x10), MobArmorEquipment (0x1c), and PlayerAction (0x20), demonstrating that the client had transitioned out of the loading state.
+
+The synthetic chunks are compatibility probes only; they are not a world implementation and deliberately remain under tests/. Their all-air contents, tiny accepted radius, and extreme zlib compressibility make this join path unrepresentative of production terrain load time.
 
 ## Production kernel direction
 

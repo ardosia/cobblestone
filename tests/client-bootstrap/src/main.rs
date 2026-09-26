@@ -121,10 +121,7 @@ async fn send_raw_packet(
 
 async fn send_frame(connection: &Connection, frame: &[u8]) -> Result<(), Box<dyn Error>> {
     connection
-        .send(
-            Bytes::copy_from_slice(frame),
-            Reliability::ReliableOrdered,
-        )
+        .send(Bytes::copy_from_slice(frame), Reliability::ReliableOrdered)
         .await?;
     Ok(())
 }

@@ -33,3 +33,14 @@ result = "RequestChunkRadius carries one big-endian int radius. ChunkRadiusUpdat
 trust = "pinned-matching-historical-source"
 confidence = "observed"
 limitations = "The C007 probe uses all-air synthetic layered chunks solely to test the client transition; production chunk generation/storage remains later foundation work."
+
+[[evidence]]
+id = "real-client-joined-world"
+kind = "real-client"
+status = "passed"
+claim = "The actual fixed Minecraft 0.15.10 client crosses the chunk-radius/spawn boundary and enters a playable session through Cobblestone's RakNet-8 transport and protocol-84 bootstrap probe."
+source = "user-supplied Fedora run against ardosia/cobblestone@d8913787b16389960565d12570bf9280c8b4e3cf"
+result = "Client requested chunk radius 12; the probe acknowledged radius 2, sent 25 synthetic layered chunks and PLAYER_SPAWN, and the client entered the world showing void terrain. Subsequent client traffic included packet ids 0x10 MovePlayer, 0x1c MobArmorEquipment, and 0x20 PlayerAction until disconnect."
+trust = "real-fixed-target-client"
+confidence = "observed"
+limitations = "The probe sends all-air synthetic chunks with a capped radius and does not measure real terrain generation, storage, serialization, or representative join latency. This revision also had a rustfmt-only canonical validation failure fixed by the following cleanup commit."
