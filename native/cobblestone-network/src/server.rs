@@ -1,3 +1,6 @@
+// Adapted for Cobblestone from Ardosia network transport code under Apache-2.0.
+// See docs/provenance/ARDOSIA_REUSE.md for exact source revisions and modifications.
+
 use raknet_rust::server::RaknetServer;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;

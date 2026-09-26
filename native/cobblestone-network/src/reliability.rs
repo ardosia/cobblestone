@@ -1,3 +1,6 @@
+// Adapted for Cobblestone from Ardosia network transport code under Apache-2.0.
+// See docs/provenance/ARDOSIA_REUSE.md for exact source revisions and modifications.
+
 /// Delivery semantics requested for one outbound connected payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reliability {
