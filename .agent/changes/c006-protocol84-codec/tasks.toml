@@ -1,0 +1,50 @@
+schema = 1
+change = "c006-protocol84-codec"
+
+[[tasks]]
+id = "artifact-identity"
+status = "verified"
+depends_on = []
+acceptance = "Pin hashes and fixed-target identity for the supplied 0.15.10 executable/assets before deriving compatibility-sensitive behavior."
+
+[[tasks]]
+id = "source-oracle"
+status = "verified"
+depends_on = ["artifact-identity"]
+acceptance = "Pin a matching protocol-84 historical source oracle and cross-check its version/packet vocabulary against the fixed-target executable."
+
+[[tasks]]
+id = "primitive-codec"
+status = "planned"
+depends_on = ["source-oracle"]
+acceptance = "Implement bounded endian/string primitives and typed malformed-input errors without panics on untrusted bytes."
+
+[[tasks]]
+id = "frame-batch"
+status = "planned"
+depends_on = ["primitive-codec"]
+acceptance = "Implement the 0xfe game marker, packet-id envelope, protocol-84 BatchPacket length framing, zlib compression, and bounded inner packet iteration."
+
+[[tasks]]
+id = "login-bootstrap"
+status = "planned"
+depends_on = ["primitive-codec", "frame-batch"]
+acceptance = "Implement Login, PlayStatus, and Disconnect wire codecs while keeping JWT/auth semantics outside the binary codec."
+
+[[tasks]]
+id = "nbt"
+status = "planned"
+depends_on = ["primitive-codec"]
+acceptance = "Implement only the NBT encoding modes actually required by protocol-84 packet coverage, with exact fixtures and bounds."
+
+[[tasks]]
+id = "fixtures"
+status = "planned"
+depends_on = ["frame-batch", "login-bootstrap"]
+acceptance = "Add exact protocol-84 fixtures for marker/packet IDs, login envelope, status/disconnect, batch compression, malformed lengths, and decompression bounds."
+
+[[tasks]]
+id = "verify"
+status = "planned"
+depends_on = ["fixtures", "nbt"]
+acceptance = "Run canonical Linux and Windows validation on the exact persisted C006 revision and record evidence before closure."
