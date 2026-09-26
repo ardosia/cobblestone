@@ -67,7 +67,13 @@ The first implementation slice types only the packets needed to prove the bounda
 - Disconnect encode/decode with the protocol-84 string primitive;
 - Batch encode/decode and raw inner packet framing.
 
-Handshake, StartGame, SetTime, NBT-bearing packets, chunks, inventory, and gameplay packets remain explicit follow-up tasks in C006.
+Handshake, StartGame, SetTime, chunks, inventory, and gameplay packets remain explicit follow-up tasks in C006.
+
+## Little-endian NBT
+
+Protocol-84 network block entities use the historical little-endian NBT mode, not Java big-endian NBT and not modern Bedrock network-varint NBT. The matching source constructs block-entity payloads with `NBT::LITTLE_ENDIAN`; tag names and strings use little-endian unsigned 16-bit lengths, list/array counts use little-endian signed 32-bit lengths, and numeric tag payloads use little-endian fixed-width primitives.
+
+Cobblestone implements this one named-root NBT mode with the protocol-84 tag table `End..IntArray`. Decoding is bounded by total document bytes, recursion depth, collection length, and string bytes. TAG_End is accepted only as a compound terminator or an empty-list element type. Other NBT dialects are intentionally absent.
 
 ## Failure model
 

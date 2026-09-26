@@ -26,8 +26,24 @@ impl<'a> Reader<'a> {
         Ok(&self.input[start..self.offset])
     }
 
+    pub(crate) fn read_u8(&mut self) -> Result<u8, CodecError> {
+        Ok(self.read_exact(1)?[0])
+    }
+
+    pub(crate) fn read_i8(&mut self) -> Result<i8, CodecError> {
+        Ok(i8::from_ne_bytes([self.read_u8()?]))
+    }
+
     pub(crate) fn read_u16_be(&mut self) -> Result<u16, CodecError> {
         Ok(u16::from_be_bytes(self.read_array()?))
+    }
+
+    pub(crate) fn read_u16_le(&mut self) -> Result<u16, CodecError> {
+        Ok(u16::from_le_bytes(self.read_array()?))
+    }
+
+    pub(crate) fn read_i16_le(&mut self) -> Result<i16, CodecError> {
+        Ok(i16::from_le_bytes(self.read_array()?))
     }
 
     pub(crate) fn read_u32_be(&mut self) -> Result<u32, CodecError> {
@@ -40,6 +56,18 @@ impl<'a> Reader<'a> {
 
     pub(crate) fn read_i32_le(&mut self) -> Result<i32, CodecError> {
         Ok(i32::from_le_bytes(self.read_array()?))
+    }
+
+    pub(crate) fn read_i64_le(&mut self) -> Result<i64, CodecError> {
+        Ok(i64::from_le_bytes(self.read_array()?))
+    }
+
+    pub(crate) fn read_f32_le(&mut self) -> Result<f32, CodecError> {
+        Ok(f32::from_bits(u32::from_le_bytes(self.read_array()?)))
+    }
+
+    pub(crate) fn read_f64_le(&mut self) -> Result<f64, CodecError> {
+        Ok(f64::from_bits(u64::from_le_bytes(self.read_array()?)))
     }
 
     pub(crate) fn read_string_u16(&mut self) -> Result<String, CodecError> {
@@ -75,14 +103,34 @@ impl Writer {
         Self { output: Vec::new() }
     }
 
+    pub(crate) fn len(&self) -> usize {
+        self.output.len()
+    }
+
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             output: Vec::with_capacity(capacity),
         }
     }
 
+    pub(crate) fn put_u8(&mut self, value: u8) {
+        self.output.push(value);
+    }
+
+    pub(crate) fn put_i8(&mut self, value: i8) {
+        self.output.extend_from_slice(&value.to_ne_bytes());
+    }
+
     pub(crate) fn put_u16_be(&mut self, value: u16) {
         self.output.extend_from_slice(&value.to_be_bytes());
+    }
+
+    pub(crate) fn put_u16_le(&mut self, value: u16) {
+        self.output.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub(crate) fn put_i16_le(&mut self, value: i16) {
+        self.output.extend_from_slice(&value.to_le_bytes());
     }
 
     pub(crate) fn put_u32_be(&mut self, value: u32) {
@@ -95,6 +143,18 @@ impl Writer {
 
     pub(crate) fn put_i32_le(&mut self, value: i32) {
         self.output.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub(crate) fn put_i64_le(&mut self, value: i64) {
+        self.output.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub(crate) fn put_f32_le(&mut self, value: f32) {
+        self.output.extend_from_slice(&value.to_bits().to_le_bytes());
+    }
+
+    pub(crate) fn put_f64_le(&mut self, value: f64) {
+        self.output.extend_from_slice(&value.to_bits().to_le_bytes());
     }
 
     pub(crate) fn put_bytes(&mut self, bytes: &[u8]) {

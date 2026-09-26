@@ -17,6 +17,14 @@ pub enum LimitKind {
     InnerPacketCount,
     /// Evidence-backed maximum decompressed Login payload.
     LoginDecompressed,
+    /// Complete little-endian NBT document bytes.
+    NbtBytes,
+    /// Recursive NBT nesting depth.
+    NbtDepth,
+    /// NBT list/array/compound element count.
+    NbtCollection,
+    /// UTF-8 bytes in one NBT name or string.
+    NbtString,
 }
 
 /// Typed failures returned for malformed or resource-invalid protocol-84 input.
@@ -99,6 +107,29 @@ pub enum CodecError {
     /// A text field was not valid UTF-8.
     #[error("invalid UTF-8 string")]
     InvalidUtf8,
+
+    /// An NBT type byte is not part of the protocol-84 little-endian NBT table.
+    #[error("invalid NBT tag type {id}")]
+    InvalidNbtTag {
+        /// Observed tag type byte.
+        id: u8,
+    },
+
+    /// A list declared TAG_End while also declaring elements.
+    #[error("NBT list uses TAG_End with nonzero length {length}")]
+    InvalidNbtList {
+        /// Declared list length.
+        length: usize,
+    },
+
+    /// An encoded list value did not match its declared element type.
+    #[error("NBT list type mismatch: expected {expected}, got {actual}")]
+    NbtListTypeMismatch {
+        /// Declared list tag type.
+        expected: u8,
+        /// Actual value tag type.
+        actual: u8,
+    },
 
     /// Zlib compression or decompression failed.
     #[error("zlib failure: {message}")]

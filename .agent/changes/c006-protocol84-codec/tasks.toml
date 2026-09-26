@@ -33,7 +33,7 @@ acceptance = "Implement Login, PlayStatus, and Disconnect wire codecs while keep
 
 [[tasks]]
 id = "nbt"
-status = "planned"
+status = "implemented"
 depends_on = ["primitive-codec"]
 acceptance = "Implement only the NBT encoding modes actually required by protocol-84 packet coverage, with exact fixtures and bounds."
 
