@@ -2,7 +2,7 @@ use std::error::Error;
 use std::io;
 use std::time::Instant;
 
-use cobblestone_core::{OwnedArena, OwnedHandle, OwnershipError, OwnershipEpoch, RuntimeId};
+use cobblestone_core::{OwnedArena, OwnedHandle, OwnershipEpoch, OwnershipError, RuntimeId};
 
 const ITERATIONS: u64 = 250_000;
 
@@ -101,10 +101,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn assert_stale(
-    arena: &OwnedArena<u64>,
-    handle: OwnedHandle<u64>,
-) -> Result<(), Box<dyn Error>> {
+fn assert_stale(arena: &OwnedArena<u64>, handle: OwnedHandle<u64>) -> Result<(), Box<dyn Error>> {
     match arena.metadata(handle) {
         Err(OwnershipError::StaleHandle) => Ok(()),
         other => {

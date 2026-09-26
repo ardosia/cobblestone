@@ -1,5 +1,5 @@
 use cobblestone_codec::{
-    BatchPacket, BootstrapPacket, CodecLimits, NbtDocument, NbtLimits, NbtValue, NamedNbt,
+    BatchPacket, BootstrapPacket, CodecLimits, NamedNbt, NbtDocument, NbtLimits, NbtValue,
     RawPacket, decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame,
     encode_game_frame,
 };

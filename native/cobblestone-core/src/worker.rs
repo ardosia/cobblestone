@@ -1,9 +1,12 @@
 use core::fmt;
 use core::num::NonZeroU64;
+use crossbeam_channel::{
+    Receiver, Sender, TryRecvError as CrossbeamTryRecvError, TrySendError, bounded,
+};
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use crossbeam_channel::{Receiver, RecvError, Sender, TryRecvError, TrySendError, bounded};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::{RecvError, TryRecvError};
 use std::thread::{self, JoinHandle};
 
 /// Stable identity for one accepted native worker task.
@@ -285,12 +288,15 @@ impl<J: Send + 'static, R: Send + 'static> WorkerPool<J, R> {
 
     /// Attempts to receive one completion without blocking.
     pub fn try_recv_completion(&self) -> Result<Completion<R>, TryRecvError> {
-        self.completions.try_recv()
+        self.completions.try_recv().map_err(|error| match error {
+            CrossbeamTryRecvError::Empty => TryRecvError::Empty,
+            CrossbeamTryRecvError::Disconnected => TryRecvError::Disconnected,
+        })
     }
 
     /// Waits for one completion.
     pub fn recv_completion(&self) -> Result<Completion<R>, RecvError> {
-        self.completions.recv()
+        self.completions.recv().map_err(|_| RecvError)
     }
 
     /// Stops accepting work, drains accepted jobs/completions, and joins all workers.
@@ -346,7 +352,6 @@ fn worker_loop<J: Send + 'static, R: Send + 'static>(
     handler: Arc<dyn Fn(J, CancellationToken) -> R + Send + Sync>,
 ) {
     while let Ok(queued) = jobs.recv() {
-
         let completion = if queued.cancellation.is_cancelled() {
             Completion::Cancelled { id: queued.id }
         } else {

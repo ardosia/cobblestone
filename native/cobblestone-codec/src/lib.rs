@@ -20,7 +20,6 @@ pub use limits::{CodecLimits, LOGIN_MAX_DECOMPRESSED_BYTES};
 pub use nbt::{NamedNbt, NbtDocument, NbtLimits, NbtTag, NbtValue};
 pub use packet::{
     AdventureFlags, AdventureSettingsPacket, BootstrapPacket, DisconnectPacket, LoginPacket,
-    PROTOCOL_VERSION,
-    PlayStatusPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket, StartGamePacket,
-    decode_bootstrap_frame, encode_bootstrap_frame, packet_id,
+    PROTOCOL_VERSION, PlayStatusPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket,
+    StartGamePacket, decode_bootstrap_frame, encode_bootstrap_frame, packet_id,
 };
