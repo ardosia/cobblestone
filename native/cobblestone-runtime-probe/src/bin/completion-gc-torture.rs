@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -29,6 +29,35 @@ struct NativeResult {
     checksum: u64,
 }
 
+struct ExpectedNative {
+    job: NativeJob,
+    submitted_at: Instant,
+}
+
+#[derive(Default)]
+struct LatencyStats {
+    samples: u64,
+    total_ns: u128,
+    max_ns: u128,
+}
+
+impl LatencyStats {
+    fn observe(&mut self, elapsed: Duration) {
+        let elapsed_ns = elapsed.as_nanos();
+        self.samples += 1;
+        self.total_ns += elapsed_ns;
+        self.max_ns = self.max_ns.max(elapsed_ns);
+    }
+
+    fn average_ns(&self) -> u128 {
+        if self.samples == 0 {
+            0
+        } else {
+            self.total_ns / u128::from(self.samples)
+        }
+    }
+}
+
 #[derive(Default)]
 struct GcStats {
     completed: u64,
@@ -36,6 +65,7 @@ struct GcStats {
     max_memory_bytes: u64,
     overlap_completions: u64,
     backpressure_events: u64,
+    latency: LatencyStats,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -61,7 +91,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut expected_native = HashMap::with_capacity(usize::try_from(NATIVE_TASKS)?);
-    let mut expected_gc: HashSet<(u32, u64)> = HashSet::new();
+    let mut expected_gc: HashMap<(u32, u64), Instant> = HashMap::new();
     let mut pending_gc_one = VecDeque::new();
     let mut pending_gc_two = VecDeque::new();
     let mut next_sequence = 1_u64;
@@ -70,6 +100,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut owner_one_completed = 0_u64;
     let mut owner_two_completed = 0_u64;
     let mut worker_backpressure_events = 0_u64;
+    let mut max_native_inflight = 0_usize;
+    let mut max_gc_inflight = 0_usize;
+    let mut native_latency = LatencyStats::default();
     let mut gc_stats = GcStats::default();
     let started = Instant::now();
 
@@ -103,9 +136,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             match pool.try_submit(job) {
                 Ok(handle) => {
-                    if expected_native.insert(handle.id().get(), job).is_some() {
+                    let expected = ExpectedNative {
+                        job,
+                        submitted_at: Instant::now(),
+                    };
+                    if expected_native.insert(handle.id().get(), expected).is_some() {
                         return Err(io::Error::other("native task id was reused while live").into());
                     }
+                    max_native_inflight = max_native_inflight.max(expected_native.len());
                     next_sequence += 1;
                     made_progress = true;
 
@@ -148,6 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &mut expected_gc,
             &mut gc_stats,
         )?;
+        max_gc_inflight = max_gc_inflight.max(expected_gc.len());
 
         let drained = drain_native(
             &pool,
@@ -155,6 +194,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &mut native_completed,
             &mut owner_one_completed,
             &mut owner_two_completed,
+            &mut native_latency,
             runtime_one,
             runtime_two,
         )?;
@@ -193,10 +233,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         ))
         .into());
     }
-    if gc_stats.completed == 0 || gc_stats.overlap_completions == 0 {
+    if native_latency.samples != NATIVE_TASKS {
         return Err(io::Error::other(format!(
-            "PHP cyclic GC was not observed during native completion pressure: gc_completed={} overlap={}",
-            gc_stats.completed, gc_stats.overlap_completions
+            "native latency accounting mismatch: samples={} expected={NATIVE_TASKS}",
+            native_latency.samples
+        ))
+        .into());
+    }
+    if gc_stats.completed == 0
+        || gc_stats.overlap_completions == 0
+        || gc_stats.latency.samples != gc_stats.completed
+    {
+        return Err(io::Error::other(format!(
+            "PHP cyclic GC pressure evidence incomplete: gc_completed={} overlap={} latency_samples={}",
+            gc_stats.completed, gc_stats.overlap_completions, gc_stats.latency.samples
         ))
         .into());
     }
@@ -225,12 +275,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     run_restart_probe(&php, &worker, runtime_one, runtime_two)?;
 
     println!(
-        "completion-gc-torture: native_tasks={NATIVE_TASKS} owner_one={owner_one_completed} owner_two={owner_two_completed} worker_backpressure_events={worker_backpressure_events} gc_completions={} gc_cycles={} max_php_memory_bytes={} gc_overlap_completions={} runtime_backpressure_events={} cancellation=verified restart_rounds={RESTART_ROUNDS} elapsed_ms={}",
+        "completion-gc-torture: native_tasks={NATIVE_TASKS} owner_one={owner_one_completed} owner_two={owner_two_completed} worker_backpressure_events={worker_backpressure_events} max_native_inflight={max_native_inflight} native_completion_avg_ns={} native_completion_max_ns={} gc_completions={} gc_cycles={} max_php_memory_bytes={} gc_overlap_completions={} runtime_backpressure_events={} max_gc_inflight={max_gc_inflight} gc_roundtrip_avg_ns={} gc_roundtrip_max_ns={} cancellation=verified restart_rounds={RESTART_ROUNDS} elapsed_ms={}",
+        native_latency.average_ns(),
+        native_latency.max_ns,
         gc_stats.completed,
         gc_stats.cycles,
         gc_stats.max_memory_bytes,
         gc_stats.overlap_completions,
         gc_stats.backpressure_events,
+        gc_stats.latency.average_ns(),
+        gc_stats.latency.max_ns,
         started.elapsed().as_millis()
     );
     Ok(())
@@ -240,7 +294,7 @@ fn submit_pending_gc(
     runtime: &RuntimeProcess,
     owner: RuntimeId,
     pending: &mut VecDeque<u64>,
-    expected: &mut HashSet<(u32, u64)>,
+    expected: &mut HashMap<(u32, u64), Instant>,
     stats: &mut GcStats,
 ) -> Result<bool, Box<dyn Error>> {
     let mut submitted = false;
@@ -248,7 +302,10 @@ fn submit_pending_gc(
         match runtime.try_submit(RuntimeCommand::CollectGc { sequence }) {
             Ok(()) => {
                 pending.pop_front();
-                if !expected.insert((owner.get(), sequence)) {
+                if expected
+                    .insert((owner.get(), sequence), Instant::now())
+                    .is_some()
+                {
                     return Err(io::Error::other(format!(
                         "duplicate GC sequence scheduled: owner={} sequence={sequence}",
                         owner.get()
@@ -286,10 +343,11 @@ fn submit_pending_gc(
 #[allow(clippy::too_many_arguments)]
 fn drain_native(
     pool: &WorkerPool<NativeJob, NativeResult>,
-    expected: &mut HashMap<u64, NativeJob>,
+    expected: &mut HashMap<u64, ExpectedNative>,
     completed: &mut u64,
     owner_one_completed: &mut u64,
     owner_two_completed: &mut u64,
+    latency: &mut LatencyStats,
     runtime_one: RuntimeId,
     runtime_two: RuntimeId,
 ) -> Result<usize, Box<dyn Error>> {
@@ -297,12 +355,13 @@ fn drain_native(
     loop {
         match pool.try_recv_completion() {
             Ok(Completion::Completed { id, result }) => {
-                let job = expected.remove(&id.get()).ok_or_else(|| {
+                let expected = expected.remove(&id.get()).ok_or_else(|| {
                     io::Error::other(format!(
                         "native completion referenced unknown task {}",
                         id.get()
                     ))
                 })?;
+                let job = expected.job;
                 if result.owner != job.owner
                     || result.sequence != job.sequence
                     || result.checksum != native_checksum(job.sequence, job.owner)
@@ -312,6 +371,7 @@ fn drain_native(
                     ))
                     .into());
                 }
+                latency.observe(expected.submitted_at.elapsed());
                 if result.owner == runtime_one {
                     *owner_one_completed += 1;
                 } else if result.owner == runtime_two {
@@ -347,7 +407,7 @@ fn drain_native(
 fn drain_gc(
     runtime: &RuntimeProcess,
     owner: RuntimeId,
-    expected: &mut HashSet<(u32, u64)>,
+    expected: &mut HashMap<(u32, u64), Instant>,
     stats: &mut GcStats,
     native_completed: u64,
 ) -> Result<usize, Box<dyn Error>> {
@@ -359,16 +419,18 @@ fn drain_gc(
                 cycles,
                 memory_bytes,
             }) => {
-                if !expected.remove(&(owner.get(), sequence)) {
-                    return Err(io::Error::other(format!(
-                        "unexpected or duplicate GC completion: owner={} sequence={sequence}",
-                        owner.get()
-                    ))
-                    .into());
-                }
+                let submitted_at = expected
+                    .remove(&(owner.get(), sequence))
+                    .ok_or_else(|| {
+                        io::Error::other(format!(
+                            "unexpected or duplicate GC completion: owner={} sequence={sequence}",
+                            owner.get()
+                        ))
+                    })?;
                 stats.completed += 1;
                 stats.cycles += u64::from(cycles);
                 stats.max_memory_bytes = stats.max_memory_bytes.max(memory_bytes);
+                stats.latency.observe(submitted_at.elapsed());
                 if native_completed < NATIVE_TASKS {
                     stats.overlap_completions += 1;
                 }
@@ -524,9 +586,7 @@ fn expect_gc(runtime: &RuntimeProcess, sequence: u64) -> Result<(), Box<dyn Erro
 }
 
 const fn native_checksum(sequence: u64, owner: RuntimeId) -> u64 {
-    sequence.rotate_left(19)
-        ^ ((owner.get() as u64) << 32)
-        ^ 0x9e37_79b9_7f4a_7c15
+    sequence.rotate_left(19) ^ ((owner.get() as u64) << 32) ^ 0x9e37_79b9_7f4a_7c15
 }
 
 const fn lifecycle_checksum(sequence: u64, producer: RuntimeId, target: RuntimeId) -> u64 {
