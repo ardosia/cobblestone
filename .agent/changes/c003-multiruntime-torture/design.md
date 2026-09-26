@@ -4,6 +4,14 @@
 
 A native scheduler owns N persistent PHP runtimes. Each runtime has bounded inbound command and completion queues. PHP-local plugin/runtime state never moves implicitly between runtimes. Native-backed identities may be referenced by handles, while mutation remains owner-gated.
 
+## Initial runtime substrate
+
+The first C003 substrate is deliberately process-isolated. The private `cobblestone-runtime-probe` Rust crate owns persistent controlled PHP 8.5 ZTS CLI children through a Cobblestone-owned `RuntimeProcess` abstraction. Each child keeps its Zend heap, cyclic GC state, and arbitrary PHP execution local to that runtime process.
+
+Each `RuntimeProcess` owns a bounded Rust command mailbox and bounded completion mailbox around one transport thread. Submission is nonblocking. If completion draining stops, completion delivery blocks the transport thread, which stops draining commands and eventually surfaces explicit command-queue backpressure instead of allowing unbounded growth. Shutdown drops external mailbox endpoints, drains already accepted commands inside the transport thread, sends an explicit stop command, waits for the PHP process, and joins the transport thread.
+
+This is a C003 experiment substrate, not a public plugin API or a final production topology decision. It intentionally establishes a conservative cross-platform isolation baseline before considering a same-process embedded or threaded Zend substrate. Process isolation does not prove shared-address-space PHP runtimes safe; later C003 evidence must account for that limitation when the go/no-go decision is recorded.
+
 ## Message integrity
 
 Every torture-run message carries a test sequence and logical producer/target identity so the harness can detect loss, duplication, corruption, and misrouting. Queue capacity is intentionally exceeded during saturation phases; the accepted behavior is explicit backpressure, never silent unbounded growth.

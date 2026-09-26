@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "native/cobblestone-core",
+    "native/cobblestone-runtime-probe",
 ]
 exclude = [
     "native/cobblestone-core-php",

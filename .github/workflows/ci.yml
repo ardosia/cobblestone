@@ -49,10 +49,12 @@ jobs:
           command -v phpize
           command -v php-config
           php-config --version
-      - name: Install stable Rust for Linux adapter
-        if: runner.os == 'Linux'
+      - name: Install stable Rust for runtime probe
         shell: bash
         run: rustup toolchain install 1.98.0 --profile minimal --component clippy --component rustfmt
+      - name: Run multi-runtime PHP substrate smoke
+        shell: bash
+        run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin runtime-smoke
       - name: Install pinned nightly Rust for Windows adapter
         if: runner.os == 'Windows'
         shell: bash

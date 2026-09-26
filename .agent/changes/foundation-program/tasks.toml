@@ -15,7 +15,7 @@ acceptance = "Prove PHP 8.5 ZTS plus cobblestone-core runtime identity, generati
 
 [[tasks]]
 id = "C003"
-status = "planned"
+status = "active"
 depends_on = ["C002"]
 acceptance = "Run the persistent multi-runtime PHP torture prototype and record a go/no-go decision before distributed gameplay depends on it."
 
