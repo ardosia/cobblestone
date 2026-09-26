@@ -1,0 +1,24 @@
+schema = 1
+change = "c005-raknet-transport"
+
+[[evidence]]
+id = "raknet-consumer-pin"
+kind = "source-review"
+status = "passed"
+claim = "C005 uses the exact RakNet revision recorded as the active Ardosia network consumer pin rather than substituting a moving hardfork branch."
+source = "ardosia/ardosia-network@57ff9201c0f6bfc9f1317936be22fefa088e0f1a Cargo.toml and ardosia/ardosia-raknet@b2f9160db15e3a5c0d6faf1ea89c8be59bf5fc3b CONSUMER-PINS.md"
+result = "Both sources record raknet-rust revision 55b57787b6715ef2a931631ef4b690e3df0651e5 as the active consumer pin. The hardfork main branch is explicitly documented as potentially ahead and not automatically verified for consumers."
+trust = "repository-source"
+confidence = "observed"
+limitations = "This establishes dependency provenance and selection, not Cobblestone compile/runtime behavior."
+
+[[evidence]]
+id = "network-facade-oracle"
+kind = "source-review"
+status = "passed"
+claim = "The Ardosia network facade demonstrates the intended game-agnostic boundary and protocol-8 transport fixtures against the selected RakNet pin."
+source = "ardosia/ardosia-network@57ff9201c0f6bfc9f1317936be22fefa088e0f1a"
+result = "The facade keeps Minecraft/gameplay types out of transport, uses bounded command and per-connection queues, translates protocol-8 transport configuration, tests protocol-8 acceptance and incompatible-version rejection, and tests reliable-ordered fragmentation/reassembly."
+trust = "repository-source"
+confidence = "observed"
+limitations = "Cobblestone adapts and narrows this design; source behavior does not replace validation of the Cobblestone revision."

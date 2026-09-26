@@ -3,7 +3,7 @@ change = "c005-raknet-transport"
 
 [[tasks]]
 id = "source-pin"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Pin the exact verified Ardosia RakNet consumer revision and record why moving main is not used implicitly."
 
