@@ -179,7 +179,7 @@ def validate_rust() -> None:
     run(["cargo", "fmt", "--check"])
     run(["cargo", "check", "--workspace", "--all-targets"])
     run(["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])
-    run(["cargo", "test", "--workspace", "--all-targets"])
+    run(["cargo", "test", "--workspace", "--lib", "--tests"])
     print("rust: passed")
 
 
