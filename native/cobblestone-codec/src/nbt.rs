@@ -391,11 +391,7 @@ fn write_collection_len(
     len: usize,
     limits: NbtLimits,
 ) -> Result<(), CodecError> {
-    check_limit(
-        LimitKind::NbtCollection,
-        len,
-        limits.max_collection_len,
-    )?;
+    check_limit(LimitKind::NbtCollection, len, limits.max_collection_len)?;
     write_i32_len(writer, field, len)
 }
 

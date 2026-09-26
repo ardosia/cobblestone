@@ -172,7 +172,8 @@ impl Writer {
     }
 
     pub(crate) fn put_f64_le(&mut self, value: f64) {
-        self.output.extend_from_slice(&value.to_bits().to_le_bytes());
+        self.output
+            .extend_from_slice(&value.to_bits().to_le_bytes());
     }
 
     pub(crate) fn put_bytes(&mut self, bytes: &[u8]) {
