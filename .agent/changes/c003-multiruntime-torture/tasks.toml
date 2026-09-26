@@ -21,7 +21,7 @@ acceptance = "Route at least one million sequenced messages, detect loss/duplica
 
 [[tasks]]
 id = "handle-churn"
-status = "planned"
+status = "implemented"
 depends_on = ["runtime-harness"]
 acceptance = "Stress native handle creation/destruction/reuse, stale probes, wrong-owner operations, and ownership-transfer epochs."
 

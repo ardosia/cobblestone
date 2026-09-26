@@ -29,7 +29,6 @@ while (($line = fgets(STDIN)) !== false) {
 
     if ($kind === 'MSG' && count($fields) === 5) {
         printf("MSG\t%s\t%s\t%s\t%s\n", $fields[1], $fields[2], $fields[3], $fields[4]);
-        fflush(STDOUT);
         continue;
     }
 
@@ -41,6 +40,17 @@ while (($line = fgets(STDIN)) !== false) {
         unset($left, $right);
         $cycles = gc_collect_cycles();
         printf("GC\t%s\t%d\t%d\n", $fields[1], $cycles, memory_get_usage(true));
+        continue;
+    }
+
+    if ($kind === 'FLUSH' && count($fields) === 2) {
+        $countRaw = $fields[1];
+        $count = (int) $countRaw;
+        if ($count <= 0 || (string) $count !== $countRaw) {
+            fwrite(STDERR, "invalid runtime batch size\n");
+            exit(5);
+        }
+        printf("FLUSHED\t%d\n", $count);
         fflush(STDOUT);
         continue;
     }

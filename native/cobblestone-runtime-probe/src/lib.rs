@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{
@@ -10,6 +10,10 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use cobblestone_core::RuntimeId;
+
+mod ownership;
+
+pub use ownership::{OwnedProbeArena, OwnershipError, ProbeHandle, ProbeSnapshot};
 
 /// Handshake reported by one persistent PHP runtime process.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -57,7 +61,7 @@ pub enum RuntimeCompletion {
 
 struct RuntimeIoState {
     child: Option<Child>,
-    stdin: ChildStdin,
+    stdin: BufWriter<ChildStdin>,
     stdout: BufReader<ChildStdout>,
 }
 
@@ -136,7 +140,7 @@ impl RuntimeProcess {
         };
         let mut state = RuntimeIoState {
             child: Some(child),
-            stdin,
+            stdin: BufWriter::new(stdin),
             stdout: BufReader::new(stdout),
         };
 
@@ -229,21 +233,45 @@ impl Drop for RuntimeProcess {
     }
 }
 
+const RUNTIME_BATCH_LIMIT: usize = 64;
+
 fn runtime_loop(
     mut state: RuntimeIoState,
     commands: Receiver<RuntimeCommand>,
     completions: SyncSender<RuntimeCompletion>,
 ) -> io::Result<ExitStatus> {
-    for command in commands {
-        write_command(&mut state.stdin, command)?;
-        let completion = read_completion(&mut state.stdout)?;
-        if !completion_matches(command, completion) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("runtime completion did not match command: {completion:?}"),
-            ));
+    loop {
+        let first = match commands.recv() {
+            Ok(command) => command,
+            Err(_) => break,
+        };
+        let mut batch = Vec::with_capacity(RUNTIME_BATCH_LIMIT);
+        batch.push(first);
+
+        while batch.len() < RUNTIME_BATCH_LIMIT {
+            match commands.try_recv() {
+                Ok(command) => batch.push(command),
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+            }
         }
-        let _ = completions.send(completion);
+
+        for command in &batch {
+            write_command(&mut state.stdin, *command)?;
+        }
+        writeln!(state.stdin, "FLUSH\t{}", batch.len())?;
+        state.stdin.flush()?;
+
+        for command in batch.iter().copied() {
+            let completion = read_completion(&mut state.stdout)?;
+            if !completion_matches(command, completion) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("runtime completion did not match command: {completion:?}"),
+                ));
+            }
+            let _ = completions.send(completion);
+        }
+        read_flush_ack(&mut state.stdout, batch.len())?;
     }
 
     writeln!(state.stdin, "STOP\t0")?;
@@ -259,7 +287,7 @@ fn runtime_loop(
     state.wait()
 }
 
-fn write_command(stdin: &mut ChildStdin, command: RuntimeCommand) -> io::Result<()> {
+fn write_command(stdin: &mut BufWriter<ChildStdin>, command: RuntimeCommand) -> io::Result<()> {
     match command {
         RuntimeCommand::Message(message) => writeln!(
             stdin,
@@ -271,7 +299,32 @@ fn write_command(stdin: &mut ChildStdin, command: RuntimeCommand) -> io::Result<
         )?,
         RuntimeCommand::CollectGc { sequence } => writeln!(stdin, "GC\t{sequence}")?,
     }
-    stdin.flush()
+    Ok(())
+}
+
+fn read_flush_ack(stdout: &mut BufReader<ChildStdout>, expected: usize) -> io::Result<()> {
+    let mut line = String::new();
+    if stdout.read_line(&mut line)? == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            "runtime closed stdout before batch acknowledgement",
+        ));
+    }
+    let fields: Vec<&str> = line.trim_end().split('\t').collect();
+    if fields.len() != 2 || fields[0] != "FLUSHED" {
+        return Err(invalid_data(&format!(
+            "invalid runtime batch acknowledgement: {line:?}"
+        )));
+    }
+    let actual = fields[1]
+        .parse::<usize>()
+        .map_err(|_| invalid_data("runtime batch acknowledgement was not a usize"))?;
+    if actual != expected {
+        return Err(invalid_data(&format!(
+            "runtime batch acknowledgement mismatch: expected={expected} actual={actual}"
+        )));
+    }
+    Ok(())
 }
 
 fn read_completion(stdout: &mut BufReader<ChildStdout>) -> io::Result<RuntimeCompletion> {

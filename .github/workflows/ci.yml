@@ -58,6 +58,9 @@ jobs:
       - name: Run multi-runtime message torture
         shell: bash
         run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin runtime-torture
+      - name: Run ownership and handle torture
+        shell: bash
+        run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin ownership-torture
       - name: Install pinned nightly Rust for Windows adapter
         if: runner.os == 'Windows'
         shell: bash
