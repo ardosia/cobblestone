@@ -178,10 +178,7 @@ impl RuntimeProcess {
     }
 
     /// Attempts to enqueue a command without blocking.
-    pub fn try_submit(
-        &self,
-        command: RuntimeCommand,
-    ) -> Result<(), TrySendError<RuntimeCommand>> {
+    pub fn try_submit(&self, command: RuntimeCommand) -> Result<(), TrySendError<RuntimeCommand>> {
         match self.commands.as_ref() {
             Some(sender) => sender.try_send(command),
             None => Err(TrySendError::Disconnected(command)),
@@ -309,14 +306,14 @@ fn parse_boot(line: &str) -> io::Result<RuntimeBoot> {
 fn parse_completion(line: &str) -> io::Result<RuntimeCompletion> {
     let fields: Vec<&str> = line.trim_end().split('\t').collect();
     match fields.as_slice() {
-        ["MSG", sequence, producer, target, checksum] => Ok(RuntimeCompletion::Message(
-            RoutedMessage {
+        ["MSG", sequence, producer, target, checksum] => {
+            Ok(RuntimeCompletion::Message(RoutedMessage {
                 sequence: parse_u64(sequence, "message sequence")?,
                 producer: parse_runtime(producer, "message producer")?,
                 target: parse_runtime(target, "message target")?,
                 checksum: parse_u64(checksum, "message checksum")?,
-            },
-        )),
+            }))
+        }
         ["GC", sequence, cycles, memory_bytes] => Ok(RuntimeCompletion::Gc {
             sequence: parse_u64(sequence, "GC sequence")?,
             cycles: cycles

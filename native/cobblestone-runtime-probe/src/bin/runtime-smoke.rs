@@ -4,9 +4,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use cobblestone_core::RuntimeId;
-use cobblestone_runtime_probe::{
-    RoutedMessage, RuntimeCommand, RuntimeCompletion, RuntimeProcess,
-};
+use cobblestone_runtime_probe::{RoutedMessage, RuntimeCommand, RuntimeCompletion, RuntimeProcess};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let php = std::env::var_os("PHP_BINARY")
