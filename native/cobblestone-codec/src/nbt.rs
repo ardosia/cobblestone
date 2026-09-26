@@ -232,7 +232,7 @@ fn read_payload(
             if element_type == NbtTag::End && len != 0 {
                 return Err(CodecError::InvalidNbtList { length: len });
             }
-            let mut values = Vec::with_capacity(len);
+            let mut values = Vec::new();
             for _ in 0..len {
                 values.push(read_payload(reader, element_type, limits, depth + 1)?);
             }
@@ -261,7 +261,7 @@ fn read_payload(
         }
         NbtTag::IntArray => {
             let len = read_collection_len(reader, "NBT int array length", limits)?;
-            let mut values = Vec::with_capacity(len);
+            let mut values = Vec::new();
             for _ in 0..len {
                 values.push(reader.read_i32_le()?);
             }
@@ -363,7 +363,14 @@ fn write_string(
         value: value.len(),
         max: usize::from(u16::MAX),
     })?;
-    ensure_output_room(writer, 2 + value.len(), limits)?;
+    let additional = 2_usize
+        .checked_add(value.len())
+        .ok_or(CodecError::LimitExceeded {
+            kind: LimitKind::NbtBytes,
+            limit: limits.max_bytes,
+            actual: usize::MAX,
+        })?;
+    ensure_output_room(writer, additional, limits)?;
     writer.put_u16_le(len);
     writer.put_bytes(value.as_bytes());
     Ok(())
