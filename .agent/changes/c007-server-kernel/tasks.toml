@@ -15,7 +15,7 @@ acceptance = "Run the actual fixed 0.15.10 client against the bootstrap harness,
 
 [[tasks]]
 id = "session-kernel"
-status = "planned"
+status = "implemented"
 depends_on = ["real-client-probe"]
 acceptance = "Implement production session lifecycle above cobblestone-network and cobblestone-codec with explicit bounded ingress/egress, malformed-input handling, disconnect, and shutdown behavior."
 

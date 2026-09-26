@@ -25,6 +25,7 @@ Initial module families are:
 - `cobblestone-core`: runtime identity, generational handles, bounded workers, completion/future plumbing, Fiber wake integration, cancellation, immutable buffers, telemetry, panic/error boundaries, and any deliberately versioned sibling-module ABI.
 - `cobblestone-network`: protocol-8 RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
 - `cobblestone-codec`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
+- `cobblestone-session`: stable gameplay-session identity and lifecycle above transport/codec; it hides RakNet connection objects and Batch envelopes from the owning runtime while preserving bounded backpressure and malformed-input behavior.
 - `cobblestone-world`: native world/chunk structures only where profiling/evidence justifies them, favoring snapshots and bulk operations.
 - `cobblestone-storage`: introduced only when storage-native mechanisms justify a separate module.
 
@@ -150,6 +151,12 @@ Login preserves the fixed game protocol 84 and the observed 2 MiB decompressed-l
 Network NBT is the historical named-root little-endian mode: little-endian fixed-width numeric values, little-endian 16-bit name/string lengths, and little-endian 32-bit list/array counts. Decoding is bounded by total bytes, recursion depth, collection length, and string bytes. Java big-endian NBT and modern Bedrock network-varint NBT are not silently accepted.
 
 The initial typed session subset covers Login, PlayStatus, Disconnect, Batch, SetTime, StartGame, SetSpawnPosition, AdventureSettings, and SetDifficulty. Authentication/JWT verification, PlayerList, chunks, inventory, and broader gameplay packet semantics remain separate follow-up surfaces.
+
+## C007 — single-runtime server/session kernel
+
+C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts protocol-84 payloads through `cobblestone-network`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-codec`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
+
+The session layer is still internal wire/session infrastructure. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
 ## GC posture
 

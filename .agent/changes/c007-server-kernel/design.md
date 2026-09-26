@@ -28,8 +28,8 @@ The synthetic chunks are compatibility probes only; they are not a world impleme
 
 ## Production kernel direction
 
-After the real-client checkpoint, session state gets a stable lifecycle independent of the transport object. Session ingress is bounded and decoded through explicit codec limits. Session egress selects RakNet reliability without exposing RakNet types to PHP gameplay APIs.
+After the real-client checkpoint, session state gets a stable lifecycle independent of the transport object. The first production slice lives in `native/cobblestone-session`: it assigns non-reused process-local session IDs, hides `Connection`/RakNet types, removes the outer game marker, flattens Batch/compression before delivery to the owner, validates outbound frames before transport submission, closes malformed peers, and propagates the transport's bounded ingress/command backpressure as typed session errors. The session layer still carries protocol packet IDs/bodies internally; those are not plugin/domain APIs.
 
-The PHP kernel owns lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. Native completions are delivered back to the owning PHP runtime through the already-proven completion boundary. Arbitrary Zend calls remain forbidden on native worker/network threads.
+The PHP kernel owns lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. Native completions are delivered back to the owning PHP runtime through the already-proven completion boundary. Arbitrary Zend calls remain forbidden on native worker/network threads. The next slice exposes this session mechanism to the single owning PHP runtime without exposing RakNet objects, queues, or thread primitives.
 
 Shutdown order is explicit: stop accepting sessions, reject new gameplay work, drain or cancel accepted work according to its contract, disconnect sessions, stop native mechanisms, then tear down PHP-owned state.

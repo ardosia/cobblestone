@@ -29,4 +29,4 @@ python tools/ci.py bench
 
 C001-C003 are complete. C003 validated the process-isolated persistent-runtime topology as an experiment; its subprocess harness lives under `tests/` and is not a server CLI or plugin API.
 
-C004 productionizes owner/epoch enforcement in `cobblestone-core`. C005 provides the fixed protocol-8 RakNet transport. C006 provides the protocol-84 wire codec, batch/compression, initial session bootstrap packets, and the required little-endian NBT mode. C007 is the next foundation slice: the single-runtime PHP server/session kernel that wires transport and codec into an actual client login flow.
+C004 productionizes owner/epoch enforcement in `cobblestone-core`. C005 provides the fixed protocol-8 RakNet transport. C006 provides the protocol-84 wire codec, batch/compression, initial session bootstrap packets, and the required little-endian NBT mode. C007 is active: the real 0.15.10 client now reaches PLAYER_SPAWN through the fixed-target probe, and `cobblestone-session` is the production session boundary that hides RakNet objects plus Batch/compression from the owning runtime before the PHP kernel is attached.
