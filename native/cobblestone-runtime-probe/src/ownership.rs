@@ -1,26 +1,11 @@
-use core::fmt;
+use cobblestone_core::{
+    InsertError, OwnedArena, OwnedHandle, OwnershipEpoch, RuntimeId,
+};
 
-use cobblestone_core::{Arena, Handle, InsertError, RuntimeId};
-
-struct ProbeState {
-    owner: RuntimeId,
-    epoch: u64,
-    value: u64,
-}
+pub use cobblestone_core::OwnershipError;
 
 /// Opaque identity for one C003 ownership probe.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct ProbeHandle(Handle<ProbeState>);
-
-impl ProbeHandle {
-    pub const fn index(self) -> u32 {
-        self.0.index()
-    }
-
-    pub const fn generation(self) -> u32 {
-        self.0.generation()
-    }
-}
+pub type ProbeHandle = OwnedHandle<u64>;
 
 /// Observable state used by the C003 ownership torture harness.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -44,54 +29,18 @@ impl ProbeSnapshot {
     }
 }
 
-/// Safe rejection modes for owner-gated C003 probe operations.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum OwnershipError {
-    StaleHandle,
-    WrongOwner {
-        requester: RuntimeId,
-        current: RuntimeId,
-    },
-    StaleEpoch {
-        expected: u64,
-        current: u64,
-    },
-    EpochExhausted,
-}
-
-impl fmt::Display for OwnershipError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::StaleHandle => f.write_str("ownership probe handle is stale"),
-            Self::WrongOwner { requester, current } => write!(
-                f,
-                "runtime {} does not own probe held by runtime {}",
-                requester.get(),
-                current.get()
-            ),
-            Self::StaleEpoch { expected, current } => write!(
-                f,
-                "ownership epoch mismatch: command={expected} current={current}"
-            ),
-            Self::EpochExhausted => f.write_str("ownership epoch space exhausted"),
-        }
-    }
-}
-
-impl std::error::Error for OwnershipError {}
-
-/// C003-private owner-gated native probe storage.
+/// C003 compatibility wrapper over the production C004 owner-gated arena.
 ///
-/// This is deliberately narrower than the eventual C004 ownership model. It exists to torture
-/// stale-handle and ownership-transfer behavior before production gameplay depends on it.
+/// Keeping the torture harness on this wrapper preserves its experiment-facing API while making
+/// the stress workload exercise the production cobblestone-core ownership implementation.
 pub struct OwnedProbeArena {
-    arena: Arena<ProbeState>,
+    arena: OwnedArena<u64>,
 }
 
 impl OwnedProbeArena {
     pub const fn new() -> Self {
         Self {
-            arena: Arena::new(),
+            arena: OwnedArena::new(),
         }
     }
 
@@ -99,30 +48,23 @@ impl OwnedProbeArena {
         self.arena.len()
     }
 
-    /// Returns true when no ownership probes are live.
     pub const fn is_empty(&self) -> bool {
         self.arena.is_empty()
     }
 
     pub fn create(&mut self, owner: RuntimeId, value: u64) -> Result<ProbeHandle, InsertError> {
-        self.arena
-            .insert(ProbeState {
-                owner,
-                epoch: 0,
-                value,
-            })
-            .map(ProbeHandle)
+        self.arena.insert(owner, value).map(|(handle, _)| handle)
     }
 
     pub fn snapshot(&self, handle: ProbeHandle) -> Result<ProbeSnapshot, OwnershipError> {
-        let state = self
+        let metadata = self.arena.metadata(handle)?;
+        let value = *self
             .arena
-            .get(handle.0)
-            .ok_or(OwnershipError::StaleHandle)?;
+            .get(handle, metadata.owner(), metadata.epoch())?;
         Ok(ProbeSnapshot {
-            owner: state.owner,
-            epoch: state.epoch,
-            value: state.value,
+            owner: metadata.owner(),
+            epoch: metadata.epoch().get(),
+            value,
         })
     }
 
@@ -133,12 +75,11 @@ impl OwnedProbeArena {
         expected_epoch: u64,
         value: u64,
     ) -> Result<(), OwnershipError> {
-        let state = self
-            .arena
-            .get_mut(handle.0)
-            .ok_or(OwnershipError::StaleHandle)?;
-        assert_owner_and_epoch(state, requester, expected_epoch)?;
-        state.value = value;
+        *self.arena.get_mut(
+            handle,
+            requester,
+            OwnershipEpoch::new(expected_epoch),
+        )? = value;
         Ok(())
     }
 
@@ -149,19 +90,14 @@ impl OwnedProbeArena {
         expected_epoch: u64,
         new_owner: RuntimeId,
     ) -> Result<u64, OwnershipError> {
-        let state = self
-            .arena
-            .get_mut(handle.0)
-            .ok_or(OwnershipError::StaleHandle)?;
-        assert_owner_and_epoch(state, requester, expected_epoch)?;
-
-        let next_epoch = state
-            .epoch
-            .checked_add(1)
-            .ok_or(OwnershipError::EpochExhausted)?;
-        state.owner = new_owner;
-        state.epoch = next_epoch;
-        Ok(next_epoch)
+        self.arena
+            .transfer(
+                handle,
+                requester,
+                OwnershipEpoch::new(expected_epoch),
+                new_owner,
+            )
+            .map(OwnershipEpoch::get)
     }
 
     pub fn remove(
@@ -170,22 +106,13 @@ impl OwnedProbeArena {
         requester: RuntimeId,
         expected_epoch: u64,
     ) -> Result<ProbeSnapshot, OwnershipError> {
-        {
-            let state = self
-                .arena
-                .get(handle.0)
-                .ok_or(OwnershipError::StaleHandle)?;
-            assert_owner_and_epoch(state, requester, expected_epoch)?;
-        }
-
-        let state = self
+        let value = self
             .arena
-            .remove(handle.0)
-            .ok_or(OwnershipError::StaleHandle)?;
+            .remove(handle, requester, OwnershipEpoch::new(expected_epoch))?;
         Ok(ProbeSnapshot {
-            owner: state.owner,
-            epoch: state.epoch,
-            value: state.value,
+            owner: requester,
+            epoch: expected_epoch,
+            value,
         })
     }
 }
@@ -194,26 +121,6 @@ impl Default for OwnedProbeArena {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn assert_owner_and_epoch(
-    state: &ProbeState,
-    requester: RuntimeId,
-    expected_epoch: u64,
-) -> Result<(), OwnershipError> {
-    if state.owner != requester {
-        return Err(OwnershipError::WrongOwner {
-            requester,
-            current: state.owner,
-        });
-    }
-    if state.epoch != expected_epoch {
-        return Err(OwnershipError::StaleEpoch {
-            expected: expected_epoch,
-            current: state.epoch,
-        });
-    }
-    Ok(())
 }
 
 #[cfg(test)]

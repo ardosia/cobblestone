@@ -20,9 +20,9 @@ acceptance = [
 [convergence]
 requirements = "aligned"
 specs = "aligned"
-implementation = "gap"
-tests = "gap"
-documentation = "pending"
+implementation = "aligned"
+tests = "pending"
+documentation = "aligned"
 decisions = "aligned"
 tasks = "aligned"
 evidence = "pending"

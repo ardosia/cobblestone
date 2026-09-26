@@ -3,7 +3,8 @@ use std::sync::Arc;
 /// Immutable native-owned byte storage.
 ///
 /// Constructing a buffer copies or takes ownership explicitly. Cloning the Rust value shares
-/// the immutable allocation and does not duplicate the bytes.
+/// the immutable allocation and does not duplicate the bytes. A clone carries data only; it does
+/// not transfer or grant mutable ownership authority for any gameplay object that produced it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NativeBuffer {
     bytes: Arc<[u8]>,
