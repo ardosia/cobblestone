@@ -16,11 +16,24 @@ Cobblestone does **not** inherit T009's crate layout, locks, gameplay ownership 
 
 Ardosia's Rust toolchain pin (`1.98.0`, edition 2024) is accepted as a practical starting toolchain for the first Cobblestone Rust proof because it is already used by the related implementation. Cobblestone may change this through a later evidence-backed change.
 
-## Planned code reuse later
+## C005 RakNet reuse
 
-The existing Ardosia protocol-8 RakNet implementation is a planned code-reuse source for C005. Handshake, reliability, ACK/NACK, sequencing, ordering, fragmentation/reassembly, retransmission/recovery, MTU behavior, abuse controls, fixed-target quirks, and transport tests should be extracted/reworked rather than rewritten without cause.
+C005 pins the transport mechanism to:
 
-No RakNet code is copied during C001-C003.
+- repository: `ardosia/ardosia-raknet`
+- revision: `55b57787b6715ef2a931631ef4b690e3df0651e5`
+- role: exact Ardosia network consumer pin recorded by `ardosia-network`
+
+The moving `ardosia-raknet/main` head was inspected separately at `b2f9160db15e3a5c0d6faf1ea89c8be59bf5fc3b`, but it is not substituted for the verified consumer pin automatically.
+
+The Cobblestone facade and transport fixture structure are adapted from:
+
+- repository: `ardosia/ardosia-network`
+- revision: `57ff9201c0f6bfc9f1317936be22fefa088e0f1a`
+
+Only generic transport behavior is reused: handshake/profile translation, connection lifecycle, reliability mapping, bounded queues/backpressure, shutdown, protocol-version tests, and fragmentation/reassembly tests. MCPE packet semantics, gameplay/session policy, world state, and Ardosia application lifecycle are not imported.
+
+Because this slice derives from Apache-2.0 Ardosia transport/facade code, `cobblestone-network` is explicitly Apache-2.0 rather than inheriting the workspace's dual-license declaration.
 
 ## Planned oracle use later
 
@@ -28,7 +41,7 @@ Ardosia gameplay implementations/tests from the proven identity/entity/world/tic
 
 ## Fixed-target artifacts
 
-The available target executable/assets are primary or near-primary evidence for compatibility-sensitive questions. C001-C003 do not require packet/game-behavior reverse engineering, so these artifacts are intentionally not inspected in this round. A later change must name the concrete compatibility question before consulting them.
+The available target executable/assets are primary or near-primary evidence for compatibility-sensitive questions. C001-C005 do not require packet/game-behavior reverse engineering, so these artifacts are intentionally not inspected in these rounds. A later change must name the concrete compatibility question before consulting them.
 
 ## Rule
 

@@ -27,7 +27,7 @@ acceptance = "Finalize type-safe handle ownership metadata, wrong-owner behavior
 
 [[tasks]]
 id = "C005"
-status = "planned"
+status = "active"
 depends_on = ["C002"]
 acceptance = "Extract and adapt the proven Ardosia protocol-8 RakNet core into cobblestone-network without coupling transport to gameplay."
 

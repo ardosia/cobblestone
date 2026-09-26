@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "native/cobblestone-core",
+    "native/cobblestone-network",
     "native/cobblestone-runtime-probe",
 ]
 exclude = [
@@ -13,3 +14,9 @@ edition = "2024"
 rust-version = "1.98"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ardosia/cobblestone"
+
+[workspace.dependencies]
+bytes = "1.8"
+thiserror = "2.0"
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
+raknet-rust = { git = "https://github.com/ardosia/ardosia-raknet", rev = "55b57787b6715ef2a931631ef4b690e3df0651e5" }
