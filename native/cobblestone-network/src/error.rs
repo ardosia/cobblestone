@@ -30,9 +30,13 @@ pub enum NetworkError {
     #[error("connection is closed")]
     ConnectionClosed,
 
-    /// Cobblestone closed the peer because a bounded queue reached its backpressure limit.
-    #[error("connection closed by Cobblestone backpressure policy")]
+    /// Cobblestone closed the peer because its bounded inbound queue filled.
+    #[error("connection closed by Cobblestone inbound backpressure policy")]
     Backpressure,
+
+    /// The bounded backend command queue is currently full.
+    #[error("network command queue is full")]
+    CommandBackpressure,
 
     /// The asynchronous network backend is no longer available.
     #[error("network backend stopped")]

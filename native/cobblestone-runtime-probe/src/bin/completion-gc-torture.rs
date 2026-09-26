@@ -586,7 +586,9 @@ fn expect_gc(runtime: &RuntimeProcess, sequence: u64) -> Result<(), Box<dyn Erro
 }
 
 const fn native_checksum(sequence: u64, owner: RuntimeId) -> u64 {
-    sequence.rotate_left(19) ^ ((owner.get() as u64) << 32) ^ 0x9e37_79b9_7f4a_7c15
+    sequence.rotate_left(19)
+        ^ ((owner.get() as u64) << 32)
+        ^ 0x9e37_79b9_7f4a_7c15
 }
 
 const fn lifecycle_checksum(sequence: u64, producer: RuntimeId, target: RuntimeId) -> u64 {

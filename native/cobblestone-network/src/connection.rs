@@ -79,15 +79,15 @@ impl Connection {
         }
 
         let (response_tx, response_rx) = oneshot::channel();
-        self.commands
-            .send(BackendCommand::Send {
+        try_send_command(
+            &self.commands,
+            BackendCommand::Send {
                 peer_id: self.peer_id,
                 payload,
                 reliability,
                 response: response_tx,
-            })
-            .await
-            .map_err(|_| NetworkError::BackendStopped)?;
+            },
+        )?;
 
         response_rx
             .await
@@ -101,17 +101,28 @@ impl Connection {
         }
 
         let (response_tx, response_rx) = oneshot::channel();
-        self.commands
-            .send(BackendCommand::Disconnect {
+        try_send_command(
+            &self.commands,
+            BackendCommand::Disconnect {
                 peer_id: self.peer_id,
                 response: response_tx,
-            })
-            .await
-            .map_err(|_| NetworkError::BackendStopped)?;
+            },
+        )?;
 
         response_rx
             .await
             .map_err(|_| NetworkError::BackendStopped)?
+    }
+}
+
+fn try_send_command(
+    commands: &mpsc::Sender<BackendCommand>,
+    command: BackendCommand,
+) -> Result<(), NetworkError> {
+    match commands.try_send(command) {
+        Ok(()) => Ok(()),
+        Err(mpsc::error::TrySendError::Full(_)) => Err(NetworkError::CommandBackpressure),
+        Err(mpsc::error::TrySendError::Closed(_)) => Err(NetworkError::BackendStopped),
     }
 }
 
@@ -120,5 +131,49 @@ fn close_state_error(state: CloseState) -> Option<NetworkError> {
         CloseState::Open => None,
         CloseState::Closed => Some(NetworkError::ConnectionClosed),
         CloseState::Backpressure => Some(NetworkError::Backpressure),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+    use raknet_rust::server::PeerId;
+    use tokio::sync::{mpsc, oneshot};
+
+    use super::try_send_command;
+    use crate::backend::BackendCommand;
+    use crate::{NetworkError, Reliability};
+
+    fn command(peer_id: PeerId) -> BackendCommand {
+        let (response, _receiver) = oneshot::channel();
+        BackendCommand::Send {
+            peer_id,
+            payload: Bytes::from_static(b"payload"),
+            reliability: Reliability::Reliable,
+            response,
+        }
+    }
+
+    #[test]
+    fn full_command_queue_reports_backpressure() {
+        let (sender, _receiver) = mpsc::channel(1);
+        try_send_command(&sender, command(PeerId::from_u64(1)))
+            .expect("first command should fit");
+
+        assert!(matches!(
+            try_send_command(&sender, command(PeerId::from_u64(2))),
+            Err(NetworkError::CommandBackpressure)
+        ));
+    }
+
+    #[test]
+    fn closed_command_queue_reports_backend_stopped() {
+        let (sender, receiver) = mpsc::channel(1);
+        drop(receiver);
+
+        assert!(matches!(
+            try_send_command(&sender, command(PeerId::from_u64(1))),
+            Err(NetworkError::BackendStopped)
+        ));
     }
 }

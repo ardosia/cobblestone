@@ -20,10 +20,16 @@ No generic protocol list or cookie toggle is exposed yet. This keeps the impleme
 
 ## Backpressure
 
-Backend commands use a bounded queue. Each connected peer receives a bounded inbound queue. If a peer's inbound queue fills, the transport disconnects that peer and surfaces a backpressure terminal state instead of accumulating unbounded payloads.
+Backend commands use a bounded queue. Connection send/disconnect requests use nonblocking submission: when that queue is full, callers receive `NetworkError::CommandBackpressure` instead of accumulating an unbounded waiter backlog.
+
+Each connected peer receives a bounded inbound queue. If a peer's inbound queue fills, the transport disconnects that peer and surfaces an inbound-backpressure terminal state instead of accumulating unbounded payloads.
+
+Listener acceptance also uses a bounded queue sized from the configured connection capacity. These mechanisms keep all application-facing transport crossings bounded while making the saturation behavior explicit.
 
 ## Verification
 
-Integration tests use the pinned hardfork itself as a protocol peer. They require raw protocol-8 Request1 acceptance, protocol-11 incompatibility rejection, a completed protocol-8 connection, and reassembly of a 4096-byte reliable-ordered payload that must fragment at the RakNet layer.
+Integration tests use the pinned hardfork itself as a protocol peer. They require raw protocol-8 Request1 acceptance, protocol-11 incompatibility rejection, a completed protocol-8 connection, bidirectional reliable-ordered payload flow, and reassembly of a 4096-byte reliable-ordered payload that must fragment at the RakNet layer.
+
+Focused unit tests also force command-queue and per-peer inbound saturation so the explicit backpressure branches are exercised deterministically rather than relying on timing-sensitive load.
 
 These tests validate generic RakNet mechanics only. Exact MCPE protocol-84 compatibility remains C006 and later end-to-end fixture work.
