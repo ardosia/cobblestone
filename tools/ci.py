@@ -78,6 +78,17 @@ def validate_fixed_target() -> None:
         require(token in joined, f"fixed-target marker missing: {token}")
 
 
+def validate_ci_workflow() -> None:
+    path = ROOT / ".github/workflows/ci.yml"
+    require(path.is_file(), "missing .github/workflows/ci.yml")
+    text = path.read_text(encoding="utf-8")
+    require("\\${{" not in text, ".github/workflows/ci.yml: escaped GitHub Actions expression")
+    require(
+        text.count("runs-on: ${{ matrix.os }}") == 2,
+        ".github/workflows/ci.yml: validate/php-zts matrix runner expressions must be intact",
+    )
+
+
 def validate_specs() -> None:
     ids: dict[str, Path] = {}
     specs = sorted((ROOT / ".agent/specs").glob("*.md"))
@@ -148,6 +159,7 @@ def validate_changes() -> None:
 def validate_metadata() -> None:
     validate_project()
     validate_fixed_target()
+    validate_ci_workflow()
     validate_specs()
     validate_changes()
     print("metadata: passed")

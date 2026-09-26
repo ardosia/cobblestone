@@ -106,6 +106,8 @@ mod tests {
         assert_eq!(RAKNET_PROTOCOL, 8);
         assert_eq!(transport.supported_protocols, vec![8]);
         assert!(!transport.send_cookie);
+        assert!(transport.allow_legacy_request2_fallback);
+        assert!(!transport.reject_ambiguous_request2);
         assert_eq!(transport.advertisement, "cobblestone-network-test");
     }
 
