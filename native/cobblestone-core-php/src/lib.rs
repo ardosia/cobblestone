@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::TryRecvError;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use cobblestone_core::{Arena, Completion, Handle, RuntimeId, WorkerPool};
+use cobblestone_core::{Arena, Completion, Handle, NativeBuffer, RuntimeId, WorkerPool};
 use ext_php_rs::exception::{PhpException, PhpResult};
 use ext_php_rs::prelude::*;
 
@@ -270,6 +270,24 @@ fn current_runtime_id() -> Result<RuntimeId, &'static str> {
     })
 }
 
+/// Empty diagnostic PHP-to-native call used only for C002 boundary measurement.
+#[php_function]
+pub fn cobblestone_core_ping() -> PhpResult<i64> {
+    php_boundary(|| Ok(0))
+}
+
+/// Copies a PHP string into an immutable native buffer and returns its length.
+///
+/// This is a diagnostic measurement surface, not a gameplay API.
+#[php_function]
+pub fn cobblestone_core_buffer_copy_len(value: String) -> PhpResult<i64> {
+    php_boundary(|| {
+        let buffer = NativeBuffer::copy_from_slice(value.as_bytes());
+        i64::try_from(buffer.len())
+            .map_err(|_| php_error("Cobblestone native buffer length exceeds PHP integer range"))
+    })
+}
+
 /// Returns the internal runtime identity attached to the current PHP execution thread.
 ///
 /// This is a diagnostic proof surface for C002, not part of the normal plugin API.
@@ -362,6 +380,8 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .name("cobblestone_core_php")
         .version(env!("CARGO_PKG_VERSION"))
         .shutdown_function(cobblestone_core_shutdown)
+        .function(wrap_function!(cobblestone_core_ping))
+        .function(wrap_function!(cobblestone_core_buffer_copy_len))
         .function(wrap_function!(cobblestone_core_runtime_id))
         .function(wrap_function!(cobblestone_core_probe_create))
         .function(wrap_function!(cobblestone_core_probe_valid))

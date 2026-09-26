@@ -83,16 +83,19 @@ jobs:
           cargo +nightly-2026-09-20 check
           cargo +nightly-2026-09-20 clippy -- -D warnings
           cargo +nightly-2026-09-20 build --release
-      - name: Load Linux PHP adapter
+      - name: Load and benchmark Linux PHP adapter
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          php -n -d "extension=$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so" tools/php-extension-smoke.php
-          php -n -d "extension=$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so" tools/php-fiber-smoke.php
-      - name: Load Windows PHP adapter
+          extension="$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so"
+          php -n -d "extension=$extension" tools/php-extension-smoke.php
+          php -n -d "extension=$extension" tools/php-fiber-smoke.php
+          php -n -d "extension=$extension" tools/php-benchmark.php
+      - name: Load and benchmark Windows PHP adapter
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $extension = (Resolve-Path "native/cobblestone-core-php/target/release/cobblestone_core_php.dll").Path
           php -n -d "extension=$extension" tools/php-extension-smoke.php
           php -n -d "extension=$extension" tools/php-fiber-smoke.php
+          php -n -d "extension=$extension" tools/php-benchmark.php

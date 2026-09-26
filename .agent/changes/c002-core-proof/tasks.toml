@@ -45,13 +45,13 @@ acceptance = "Implement bounded native workers with explicit saturation/backpres
 
 [[tasks]]
 id = "completion-fiber"
-status = "implemented"
+status = "verified"
 depends_on = ["php-zts-module", "bounded-workers", "panic-error-boundary"]
 acceptance = "Route completions to the owning runtime and resume waiting Fibers without blocking the server thread."
 
 [[tasks]]
 id = "benchmarks"
-status = "planned"
+status = "implemented"
 depends_on = ["completion-fiber"]
 acceptance = "Measure empty native call, handle lookup, buffer handoff sizes, worker submission, completion/Fiber wake, saturation, and copied bytes on exact revisions."
 

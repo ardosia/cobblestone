@@ -171,15 +171,27 @@ def validate_rust() -> None:
     print("rust: passed")
 
 
+def benchmark_rust() -> None:
+    cargo_toml = ROOT / "Cargo.toml"
+    if not cargo_toml.is_file():
+        print("bench: workspace not present yet; C002 has not started")
+        return
+    require(shutil.which("cargo") is not None, "cargo is required for the native benchmark")
+    run(["cargo", "run", "--release", "-p", "cobblestone-core", "--example", "bench_core"])
+    print("bench: completed")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("metadata", "rust", "all"), nargs="?", default="all")
+    parser.add_argument("mode", choices=("metadata", "rust", "bench", "all"), nargs="?", default="all")
     args = parser.parse_args()
     try:
         if args.mode in {"metadata", "all"}:
             validate_metadata()
         if args.mode in {"rust", "all"}:
             validate_rust()
+        if args.mode in {"bench", "all"}:
+            benchmark_rust()
     except (ValidationError, subprocess.CalledProcessError) as exc:
         print(f"validation failed: {exc}", file=sys.stderr)
         return 1

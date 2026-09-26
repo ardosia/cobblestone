@@ -70,3 +70,24 @@ Sibling native extensions must not reach through private Rust layouts. If cross-
 ## Measurement
 
 Benchmarks are added with the mechanism they measure. Results record build/profile/target and exact revision. No throughput/player-count claims are accepted from microbenchmarks alone.
+
+## C002 benchmark interpretation
+
+C002 benchmarks are diagnostic baselines, not performance gates. Shared CI runners are noisy and do not represent the eventual server workload.
+
+The native benchmark records:
+
+- direct generational arena lookup;
+- explicit `NativeBuffer::copy_from_slice` at multiple payload sizes, including the exact payload byte count copied;
+- bounded worker submission;
+- time to fill a deliberately blocked bounded queue and observation of the explicit `Full` backpressure result.
+
+The PHP/ZTS benchmark records:
+
+- an empty PHP-to-native diagnostic call including the Cobblestone panic boundary;
+- a live generational handle lookup through the PHP boundary;
+- PHP string -> immutable native-buffer copy for multiple payload sizes;
+- native worker submission through the PHP boundary;
+- complete native task -> owner-runtime polling -> `Fiber::resume()` cycles.
+
+The PHP buffer byte count is the explicit payload copied into `NativeBuffer`, not a claim that ext-php-rs/Zend performed no additional marshalling or allocation. Results are retained with platform and exact revision. No player-count or production-throughput claim may be inferred from these microbenchmarks.
