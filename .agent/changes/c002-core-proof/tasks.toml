@@ -33,7 +33,7 @@ acceptance = "Load the diagnostic extension on controlled PHP 8.5 ZTS Linux and 
 
 [[tasks]]
 id = "panic-error-boundary"
-status = "implemented"
+status = "verified"
 depends_on = ["php-zts-module"]
 acceptance = "Contain Rust panics and convert native failures into safe PHP errors without unwinding through FFI."
 
@@ -45,7 +45,7 @@ acceptance = "Implement bounded native workers with explicit saturation/backpres
 
 [[tasks]]
 id = "completion-fiber"
-status = "planned"
+status = "implemented"
 depends_on = ["php-zts-module", "bounded-workers", "panic-error-boundary"]
 acceptance = "Route completions to the owning runtime and resume waiting Fibers without blocking the server thread."
 

@@ -4,14 +4,16 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::mpsc::TryRecvError;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use cobblestone_core::{Arena, Handle, RuntimeId};
+use cobblestone_core::{Arena, Completion, Handle, RuntimeId, WorkerPool};
 use ext_php_rs::exception::{PhpException, PhpResult};
 use ext_php_rs::prelude::*;
 
 static NEXT_RUNTIME_ID: AtomicU32 = AtomicU32::new(1);
 static PROBES: OnceLock<Mutex<ProbeRegistry>> = OnceLock::new();
+static ASYNC: Mutex<Option<AsyncRegistry>> = Mutex::new(None);
 
 thread_local! {
     static RUNTIME_ID: Cell<Option<RuntimeId>> = const { Cell::new(None) };
@@ -69,12 +71,165 @@ impl ProbeRegistry {
     }
 }
 
+#[derive(Copy, Clone)]
+struct AsyncJob {
+    owner: RuntimeId,
+    value: i64,
+}
+
+#[derive(Copy, Clone)]
+struct AsyncResult {
+    owner: RuntimeId,
+    value: i64,
+}
+
+enum AsyncReady {
+    Completed { owner: RuntimeId, value: i64 },
+    Cancelled { owner: RuntimeId },
+    Panicked { owner: RuntimeId },
+}
+
+impl AsyncReady {
+    const fn owner(&self) -> RuntimeId {
+        match self {
+            Self::Completed { owner, .. }
+            | Self::Cancelled { owner }
+            | Self::Panicked { owner } => *owner,
+        }
+    }
+}
+
+struct AsyncRegistry {
+    pool: WorkerPool<AsyncJob, AsyncResult>,
+    owners: HashMap<i64, RuntimeId>,
+    ready: HashMap<i64, AsyncReady>,
+}
+
+impl AsyncRegistry {
+    fn new() -> Result<Self, &'static str> {
+        let pool = WorkerPool::new(2, 64, 64, |job: AsyncJob, _| AsyncResult {
+            owner: job.owner,
+            value: job.value.wrapping_mul(2),
+        })
+        .map_err(|_| "failed to initialize Cobblestone diagnostic worker pool")?;
+
+        Ok(Self {
+            pool,
+            owners: HashMap::new(),
+            ready: HashMap::new(),
+        })
+    }
+
+    fn submit(&mut self, owner: RuntimeId, value: i64) -> Result<i64, &'static str> {
+        let handle = self
+            .pool
+            .try_submit(AsyncJob { owner, value })
+            .map_err(|_| "Cobblestone diagnostic worker queue is saturated or unavailable")?;
+        let task = i64::try_from(handle.id().get())
+            .map_err(|_| "Cobblestone diagnostic task identity exceeds PHP integer range")?;
+        self.owners.insert(task, owner);
+        Ok(task)
+    }
+
+    fn refresh(&mut self) -> Result<(), &'static str> {
+        loop {
+            let completion = match self.pool.try_recv_completion() {
+                Ok(completion) => completion,
+                Err(TryRecvError::Empty) => return Ok(()),
+                Err(TryRecvError::Disconnected) => {
+                    return Err("Cobblestone diagnostic completion channel disconnected");
+                }
+            };
+
+            let task = i64::try_from(completion.id().get())
+                .map_err(|_| "Cobblestone diagnostic task identity exceeds PHP integer range")?;
+            let owner = *self
+                .owners
+                .get(&task)
+                .ok_or("Cobblestone diagnostic completion referenced an unknown task")?;
+
+            let ready = match completion {
+                Completion::Completed { result, .. } => {
+                    if result.owner != owner {
+                        return Err("Cobblestone diagnostic completion owner mismatch");
+                    }
+                    AsyncReady::Completed {
+                        owner,
+                        value: result.value,
+                    }
+                }
+                Completion::Cancelled { .. } => AsyncReady::Cancelled { owner },
+                Completion::Panicked { .. } => AsyncReady::Panicked { owner },
+            };
+
+            if self.ready.insert(task, ready).is_some() {
+                return Err("Cobblestone diagnostic task completed more than once");
+            }
+        }
+    }
+
+    fn assert_owner(&self, runtime: RuntimeId, task: i64) -> Result<(), &'static str> {
+        let owner = self
+            .owners
+            .get(&task)
+            .ok_or("unknown Cobblestone diagnostic async task")?;
+        if *owner != runtime {
+            return Err("Cobblestone diagnostic async task belongs to another runtime");
+        }
+        Ok(())
+    }
+
+    fn is_ready(&mut self, runtime: RuntimeId, task: i64) -> Result<bool, &'static str> {
+        self.refresh()?;
+        self.assert_owner(runtime, task)?;
+        Ok(self.ready.contains_key(&task))
+    }
+
+    fn take(&mut self, runtime: RuntimeId, task: i64) -> Result<i64, &'static str> {
+        self.refresh()?;
+        self.assert_owner(runtime, task)?;
+
+        let ready = self
+            .ready
+            .remove(&task)
+            .ok_or("Cobblestone diagnostic async task is not ready")?;
+        if ready.owner() != runtime {
+            return Err("Cobblestone diagnostic ready completion owner mismatch");
+        }
+        self.owners.remove(&task);
+
+        match ready {
+            AsyncReady::Completed { value, .. } => Ok(value),
+            AsyncReady::Cancelled { .. } => Err("Cobblestone diagnostic async task was cancelled"),
+            AsyncReady::Panicked { .. } => Err("Cobblestone diagnostic async task panicked"),
+        }
+    }
+}
+
 fn probes() -> MutexGuard<'static, ProbeRegistry> {
     let registry = PROBES.get_or_init(|| Mutex::new(ProbeRegistry::new()));
     match registry.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     }
+}
+
+fn with_async_registry<T>(
+    operation: impl FnOnce(&mut AsyncRegistry) -> Result<T, &'static str>,
+) -> Result<T, &'static str> {
+    let mut state = match ASYNC.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    if state.is_none() {
+        *state = Some(AsyncRegistry::new()?);
+    }
+
+    let registry = state
+        .as_mut()
+        .ok_or("Cobblestone diagnostic async registry was unavailable")?;
+    operation(registry)
 }
 
 fn php_error(message: &'static str) -> PhpException {
@@ -152,15 +307,67 @@ pub fn cobblestone_core_probe_panic() -> PhpResult<()> {
     php_boundary(|| panic!("intentional Cobblestone C002 diagnostic panic"))
 }
 
+/// Submits a tiny diagnostic native job owned by the current PHP runtime.
+///
+/// The worker receives only owned native values and never touches Zend/PHP state.
+#[php_function]
+pub fn cobblestone_core_async_submit(value: i64) -> PhpResult<i64> {
+    php_boundary(|| {
+        let runtime = current_runtime_id().map_err(php_error)?;
+        with_async_registry(|registry| registry.submit(runtime, value)).map_err(php_error)
+    })
+}
+
+/// Returns whether the current runtime's diagnostic task has a native completion ready.
+#[php_function]
+pub fn cobblestone_core_async_ready(task: i64) -> PhpResult<bool> {
+    php_boundary(|| {
+        let runtime = current_runtime_id().map_err(php_error)?;
+        with_async_registry(|registry| registry.is_ready(runtime, task)).map_err(php_error)
+    })
+}
+
+/// Takes a ready diagnostic completion on its owning PHP runtime.
+#[php_function]
+pub fn cobblestone_core_async_take(task: i64) -> PhpResult<i64> {
+    php_boundary(|| {
+        let runtime = current_runtime_id().map_err(php_error)?;
+        with_async_registry(|registry| registry.take(runtime, task)).map_err(php_error)
+    })
+}
+
+/// Stops the diagnostic native worker pool while PHP is still inside module shutdown.
+///
+/// No Rust panic is permitted to leave this raw Zend callback.
+unsafe extern "C" fn cobblestone_core_shutdown(_type: i32, _module_number: i32) -> i32 {
+    match catch_unwind(AssertUnwindSafe(|| {
+        let registry = {
+            let mut state = match ASYNC.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            state.take()
+        };
+        drop(registry);
+    })) {
+        Ok(()) => 0,
+        Err(_) => -1,
+    }
+}
+
 /// Registers the diagnostic C002 extension proof.
 #[php_module]
 pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
     module
         .name("cobblestone_core_php")
         .version(env!("CARGO_PKG_VERSION"))
+        .shutdown_function(cobblestone_core_shutdown)
         .function(wrap_function!(cobblestone_core_runtime_id))
         .function(wrap_function!(cobblestone_core_probe_create))
         .function(wrap_function!(cobblestone_core_probe_valid))
         .function(wrap_function!(cobblestone_core_probe_drop))
         .function(wrap_function!(cobblestone_core_probe_panic))
+        .function(wrap_function!(cobblestone_core_async_submit))
+        .function(wrap_function!(cobblestone_core_async_ready))
+        .function(wrap_function!(cobblestone_core_async_take))
 }

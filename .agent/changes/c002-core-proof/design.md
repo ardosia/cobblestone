@@ -40,11 +40,28 @@ Each accepted job has a stable `TaskId` and a cooperative `CancellationToken`. C
 
 The completion queue is also bounded. Workers block when the owning side does not drain completions, propagating backpressure until the submission queue also saturates rather than creating an unbounded completion backlog.
 
-Handler panics are contained inside the worker loop and become `Panicked` completions. This is internal worker isolation only; it does not satisfy the separate PHP/Zend FFI panic-boundary proof.
+Handler panics are contained inside the worker loop and become `Panicked` completions.
 
-Graceful shutdown drops the sole submission sender, drains every already-accepted job, actively drains completions so workers cannot deadlock on a full completion queue, and then joins every native worker. The mechanism crate has no PHP/Zend dependency, so arbitrary Zend calls from these workers are structurally absent from this surface.
+Graceful shutdown drops the sole submission sender, drains every already-accepted job, actively drains completions so workers cannot deadlock on a full completion queue, and then joins every native worker. The PHP diagnostic adapter registers a module-shutdown callback that drops its lazy worker registry while PHP still owns the shutdown thread; that raw callback also contains Rust panics before returning to Zend.
 
 This first implementation uses the standard-library synchronous channels behind the Cobblestone-owned abstraction. It is not a performance claim or a commitment to the final queue implementation; queue/worker measurements decide whether the mechanism changes later.
+
+### Owner-runtime Fiber wake proof
+
+The diagnostic adapter submits a tiny owned-value job to the real bounded `WorkerPool` and records the submitting `RuntimeId`. Native completions remain data only. Workers never call a PHP callback, resume a Fiber, or touch Zend.
+
+PHP exposes a nonblocking readiness/take proof surface. The PHP smoke loop starts a `Fiber`, lets it suspend on the task identity, polls the native completion from the same owning runtime, and calls `Fiber::resume()` itself with the result. The Fiber confirms the runtime identity is unchanged and terminates with the expected result.
+
+This proves the intended control flow:
+
+```text
+PHP Fiber -> native submit -> bounded worker -> completion queue
+     ^                                      |
+     |                                      v
+owning PHP runtime polls/takes completion and resumes Fiber
+```
+
+The polling functions and arithmetic job are diagnostics, not the final server scheduler or plugin API. C007 will own the real PHP scheduling/event-loop integration.
 
 ## ABI
 

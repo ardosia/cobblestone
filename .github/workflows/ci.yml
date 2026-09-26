@@ -88,9 +88,11 @@ jobs:
         shell: bash
         run: |
           php -n -d "extension=$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so" tools/php-extension-smoke.php
+          php -n -d "extension=$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so" tools/php-fiber-smoke.php
       - name: Load Windows PHP adapter
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $extension = (Resolve-Path "native/cobblestone-core-php/target/release/cobblestone_core_php.dll").Path
           php -n -d "extension=$extension" tools/php-extension-smoke.php
+          php -n -d "extension=$extension" tools/php-fiber-smoke.php
