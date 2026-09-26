@@ -22,3 +22,14 @@ result = "validate (ubuntu-latest), validate (windows-latest), php-zts (ubuntu-l
 trust = "runtime-validation"
 confidence = "observed"
 limitations = "This is a process-isolated baseline and does not prove same-process or cross-thread Zend runtime safety. It does not yet satisfy the one-million-message/backpressure torture, handle churn and ownership-transfer cases, concurrent completion/Fiber pressure, cancellation/restart stress, or the final C003 go/no-go decision."
+
+[[evidence]]
+id = "multiruntime-torture-final-ci"
+kind = "validation"
+status = "passed"
+claim = "The complete C003 process-isolated multi-runtime torture suite satisfies the required correctness, ownership, bounded-queue, GC, cancellation, shutdown, restart, and Linux/Windows gates on the exact validated revision."
+source = "ardosia/cobblestone@48654ca56a2f929231235312c27155dbac135860 GitHub checks: ai-ci-summary 108377549694; validate ubuntu 108376714138; validate windows 108376713935; php-zts ubuntu 108376714050; php-zts windows 108376714044"
+result = "All required checks completed successfully. The php-zts matrix executes runtime-smoke, the one-million-message runtime-torture, ownership-torture, completion-gc-torture, and the platform PHP adapter validation on both Ubuntu and Windows. The validate matrix executes metadata validation, rustfmt, cargo check, Clippy with warnings denied, workspace tests, and the canonical benchmark entrypoint."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This evidence validates the process-isolated persistent-runtime topology only. It does not establish same-process or cross-thread Zend runtime safety, and the successful job logs are not re-fetched after terminal CI success."

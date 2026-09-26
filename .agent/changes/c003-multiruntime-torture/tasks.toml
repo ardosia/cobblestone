@@ -15,36 +15,36 @@ acceptance = "Start at least two persistent runtimes with bounded command/comple
 
 [[tasks]]
 id = "message-torture"
-status = "implemented"
+status = "verified"
 depends_on = ["runtime-harness"]
 acceptance = "Route at least one million sequenced messages, detect loss/duplication/misrouting, and exercise queue saturation/backpressure."
 
 [[tasks]]
 id = "handle-churn"
-status = "implemented"
+status = "verified"
 depends_on = ["runtime-harness"]
 acceptance = "Stress native handle creation/destruction/reuse, stale probes, wrong-owner operations, and ownership-transfer epochs."
 
 [[tasks]]
 id = "completion-gc"
-status = "implemented"
+status = "verified"
 depends_on = ["runtime-harness"]
 acceptance = "Stress concurrent native completions and PHP cyclic GC while recording queue/memory/latency behavior."
 
 [[tasks]]
 id = "shutdown-restart"
-status = "implemented"
+status = "verified"
 depends_on = ["message-torture", "handle-churn", "completion-gc"]
 acceptance = "Repeat cancellation, orderly shutdown, and runtime restart without deadlock, stale completion execution, or use-after-destroy behavior."
 
 [[tasks]]
 id = "platforms"
-status = "planned"
+status = "verified"
 depends_on = ["shutdown-restart"]
 acceptance = "Run the prototype on Linux and Windows where the controlled PHP 8.5 ZTS substrate is available and record platform limitations explicitly."
 
 [[tasks]]
 id = "decision"
-status = "planned"
+status = "done"
 depends_on = ["platforms"]
 acceptance = "Record the evidence-backed go/no-go decision and alternatives if the initial substrate is unstable before production gameplay proceeds."

@@ -9,30 +9,30 @@ acceptance = "Pin the exact verified Ardosia RakNet consumer revision and record
 
 [[tasks]]
 id = "transport-crate"
-status = "implemented"
+status = "verified"
 depends_on = ["source-pin"]
 acceptance = "Create cobblestone-network as an independently testable game-agnostic transport crate."
 
 [[tasks]]
 id = "protocol8-profile"
-status = "implemented"
+status = "verified"
 depends_on = ["transport-crate"]
 acceptance = "Translate Cobblestone's fixed target into RakNet protocol 8 with the legacy cookie-less handshake."
 
 [[tasks]]
 id = "bounded-facade"
-status = "implemented"
+status = "verified"
 depends_on = ["transport-crate"]
 acceptance = "Expose bounded listener/connection command and inbound paths with explicit backpressure and clean shutdown."
 
 [[tasks]]
 id = "transport-fixtures"
-status = "implemented"
+status = "verified"
 depends_on = ["protocol8-profile", "bounded-facade"]
 acceptance = "Add protocol-version, connection, and fragmented reliable-ordered transport regression tests."
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "done"
 depends_on = ["transport-fixtures"]
 acceptance = "Run the canonical Rust validation and transport tests on the exact persisted revision and record evidence before closing C005."

@@ -22,3 +22,14 @@ result = "The facade keeps Minecraft/gameplay types out of transport, uses bound
 trust = "repository-source"
 confidence = "observed"
 limitations = "Cobblestone adapts and narrows this design; source behavior does not replace validation of the Cobblestone revision."
+
+[[evidence]]
+id = "cobblestone-network-final-ci"
+kind = "validation"
+status = "passed"
+claim = "The C005 Cobblestone RakNet transport crate, fixed protocol-8 profile, bounded facade, and transport fixtures pass canonical exact-revision validation on Linux and Windows."
+source = "ardosia/cobblestone@48654ca56a2f929231235312c27155dbac135860 GitHub checks: ai-ci-summary 108377549694; validate ubuntu 108376714138; validate windows 108376713935"
+result = "Both validate jobs completed successfully. Canonical validation runs rustfmt, cargo check --workspace --all-targets, Clippy with warnings denied, cargo test --workspace --all-targets, and the project benchmark entrypoint. Because cobblestone-network is a workspace member, this executes its protocol-8 acceptance/rejection, connection roundtrip, fragmentation/reassembly, public-surface, and deterministic bounded-queue backpressure tests."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This validates generic RakNet transport mechanics for the fixed protocol-8 profile. MCPE protocol-84 packet semantics, batch/compression, NBT, and end-to-end client compatibility remain C006/C013 work."

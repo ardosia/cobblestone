@@ -15,7 +15,7 @@ acceptance = "Prove PHP 8.5 ZTS plus cobblestone-core runtime identity, generati
 
 [[tasks]]
 id = "C003"
-status = "active"
+status = "done"
 depends_on = ["C002"]
 acceptance = "Run the persistent multi-runtime PHP torture prototype and record a go/no-go decision before distributed gameplay depends on it."
 
@@ -27,7 +27,7 @@ acceptance = "Finalize type-safe handle ownership metadata, wrong-owner behavior
 
 [[tasks]]
 id = "C005"
-status = "active"
+status = "done"
 depends_on = ["C002"]
 acceptance = "Extract and adapt the proven Ardosia protocol-8 RakNet core into cobblestone-network without coupling transport to gameplay."
 
