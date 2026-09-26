@@ -19,10 +19,10 @@ acceptance = [
 [convergence]
 requirements = "aligned"
 specs = "aligned"
-implementation = "gap"
-tests = "gap"
+implementation = "aligned"
+tests = "pending"
 documentation = "aligned"
 decisions = "aligned"
 tasks = "aligned"
-evidence = "aligned"
+evidence = "pending"
 repository = "pending"

@@ -92,7 +92,19 @@ The prototype must exercise:
 
 C003 may proceed to a production ownership design only if the prototype demonstrates deterministic routing/integrity, safe stale-handle behavior, bounded memory/queues under saturation, clean shutdown/restart, and a substrate that remains stable under sustained concurrent execution. Throughput/latency are recorded as measurements, not converted into invented pass thresholds before a representative workload exists.
 
-If the initial PHP multi-runtime substrate is unstable, Cobblestone investigates alternatives before gameplay depends on it.
+The validated C003 outcome is **GO for the process-isolated persistent-runtime topology**. It does not prove same-process or cross-thread embedded Zend safety; adopting such a topology later requires a separate proof.
+
+## C004 — production ownership mechanism
+
+C004 promotes the owner-plus-epoch behavior proven by C003 into reusable `cobblestone-core` mechanism.
+
+`OwnedArena<T>` layers exactly-one-owner metadata over the type-safe generational `Arena`. `OwnedHandle<T>` remains identity only. Mutable/shared authoritative access and reclamation require both the current `RuntimeId` and current `OwnershipEpoch`. Wrong-owner, stale-epoch, stale-handle, and epoch-exhaustion failures are typed and safe.
+
+A successful ownership transfer advances the epoch before the new owner may mutate. Delayed work carrying the previous epoch therefore fails after transfer. If the epoch cannot advance, transfer fails without partially changing owner or value. Removal still delegates slot invalidation to the generational arena, so reused slots reject every old handle.
+
+Semantic routing remains above `cobblestone-core`: higher layers may inspect current metadata and route an operation to the owner when API semantics permit, but core never silently performs cross-runtime mutation. The C003 ownership torture now wraps the production arena so the stress oracle and production mechanism do not diverge.
+
+Immutable native values such as `NativeBuffer` may be cloned/shared across runtimes. Sharing immutable data never transfers mutable authority for the authoritative object that produced it.
 
 ## C005 — protocol-8 RakNet transport
 
@@ -126,6 +138,18 @@ Backend commands and per-peer inbound payloads use bounded queues. A peer that e
 C005 fixtures require raw protocol-8 Request1 acceptance, incompatible protocol rejection, completed protocol-8 connection establishment, bidirectional reliable-ordered payload flow, and reassembly of a payload large enough to exercise RakNet fragmentation.
 
 These fixtures validate transport mechanics only. Protocol-84 packet compatibility belongs to C006 and later end-to-end fixed-target evidence.
+
+## C006 — protocol-84 wire codec
+
+C006 introduces `cobblestone-codec` above the RakNet transport boundary. It is fixed to MCPE 0.15.10 game protocol 84 and derives compatibility-sensitive wire facts from the supplied fixed-target artifacts plus the pinned matching historical source recorded in `docs/provenance/PROTOCOL84.md`.
+
+The codec owns the `0xfe` connected game marker, one-byte protocol-84 packet IDs, fixed-endian packet primitives, Login and Batch zlib framing, the initial login/session bootstrap packet subset, and the little-endian NBT dialect required by protocol-84 network data. It consumes and produces immutable native byte buffers and does not own RakNet reliability, sessions, players, worlds, plugins, authentication policy, or gameplay semantics.
+
+Login preserves the fixed game protocol 84 and the observed 2 MiB decompressed-login cap. Batch contents are a zlib stream of repeated big-endian 32-bit packet length plus raw packet bytes. Operational batch/frame limits remain explicit caller policy rather than invented modern-Bedrock constants.
+
+Network NBT is the historical named-root little-endian mode: little-endian fixed-width numeric values, little-endian 16-bit name/string lengths, and little-endian 32-bit list/array counts. Decoding is bounded by total bytes, recursion depth, collection length, and string bytes. Java big-endian NBT and modern Bedrock network-varint NBT are not silently accepted.
+
+The initial typed session subset covers Login, PlayStatus, Disconnect, Batch, SetTime, StartGame, SetSpawnPosition, AdventureSettings, and SetDifficulty. Authentication/JWT verification, PlayerList, chunks, inventory, and broader gameplay packet semantics remain separate follow-up surfaces.
 
 ## GC posture
 
