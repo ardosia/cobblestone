@@ -17,10 +17,10 @@ fn limits() -> CodecLimits {
 }
 
 fn hex(input: &str) -> Vec<u8> {
-    assert!(input.len().is_multiple_of(2));
-    input
-        .as_bytes()
-        .chunks_exact(2)
+    let (pairs, remainder) = input.as_bytes().as_chunks::<2>();
+    assert!(remainder.is_empty());
+    pairs
+        .iter()
         .map(|pair| {
             let text = std::str::from_utf8(pair).expect("ASCII hex");
             u8::from_str_radix(text, 16).expect("valid hex")
