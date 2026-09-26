@@ -101,7 +101,9 @@ mod tests {
             NonZeroUsize::new(20).expect("nonzero"),
             "cobblestone-network-test",
         );
-        let transport = config.to_transport_config().expect("valid transport config");
+        let transport = config
+            .to_transport_config()
+            .expect("valid transport config");
 
         assert_eq!(RAKNET_PROTOCOL, 8);
         assert_eq!(transport.supported_protocols, vec![8]);

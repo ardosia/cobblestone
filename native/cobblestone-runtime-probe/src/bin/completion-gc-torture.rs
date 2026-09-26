@@ -76,10 +76,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .join("../..")
         .join("tools/php-runtime-worker.php");
 
-    let runtime_one =
-        RuntimeId::new(1).ok_or_else(|| io::Error::other("runtime id 1 invalid"))?;
-    let runtime_two =
-        RuntimeId::new(2).ok_or_else(|| io::Error::other("runtime id 2 invalid"))?;
+    let runtime_one = RuntimeId::new(1).ok_or_else(|| io::Error::other("runtime id 1 invalid"))?;
+    let runtime_two = RuntimeId::new(2).ok_or_else(|| io::Error::other("runtime id 2 invalid"))?;
 
     let first = RuntimeProcess::spawn(runtime_one, &php, &worker, 64, 64)?;
     let second = RuntimeProcess::spawn(runtime_two, &php, &worker, 64, 64)?;
@@ -140,7 +138,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                         job,
                         submitted_at: Instant::now(),
                     };
-                    if expected_native.insert(handle.id().get(), expected).is_some() {
+                    if expected_native
+                        .insert(handle.id().get(), expected)
+                        .is_some()
+                    {
                         return Err(io::Error::other("native task id was reused while live").into());
                     }
                     max_native_inflight = max_native_inflight.max(expected_native.len());
@@ -314,9 +315,7 @@ fn submit_pending_gc(
                 }
                 submitted = true;
             }
-            Err(TrySendError::Full(RuntimeCommand::CollectGc {
-                sequence: returned,
-            })) => {
+            Err(TrySendError::Full(RuntimeCommand::CollectGc { sequence: returned })) => {
                 if returned != sequence {
                     return Err(io::Error::other(
                         "full runtime mailbox returned a different GC command",
@@ -419,14 +418,12 @@ fn drain_gc(
                 cycles,
                 memory_bytes,
             }) => {
-                let submitted_at = expected
-                    .remove(&(owner.get(), sequence))
-                    .ok_or_else(|| {
-                        io::Error::other(format!(
-                            "unexpected or duplicate GC completion: owner={} sequence={sequence}",
-                            owner.get()
-                        ))
-                    })?;
+                let submitted_at = expected.remove(&(owner.get(), sequence)).ok_or_else(|| {
+                    io::Error::other(format!(
+                        "unexpected or duplicate GC completion: owner={} sequence={sequence}",
+                        owner.get()
+                    ))
+                })?;
                 stats.completed += 1;
                 stats.cycles += u64::from(cycles);
                 stats.max_memory_bytes = stats.max_memory_bytes.max(memory_bytes);
@@ -586,9 +583,7 @@ fn expect_gc(runtime: &RuntimeProcess, sequence: u64) -> Result<(), Box<dyn Erro
 }
 
 const fn native_checksum(sequence: u64, owner: RuntimeId) -> u64 {
-    sequence.rotate_left(19)
-        ^ ((owner.get() as u64) << 32)
-        ^ 0x9e37_79b9_7f4a_7c15
+    sequence.rotate_left(19) ^ ((owner.get() as u64) << 32) ^ 0x9e37_79b9_7f4a_7c15
 }
 
 const fn lifecycle_checksum(sequence: u64, producer: RuntimeId, target: RuntimeId) -> u64 {

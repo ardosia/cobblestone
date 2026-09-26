@@ -157,8 +157,7 @@ mod tests {
     #[test]
     fn full_command_queue_reports_backpressure() {
         let (sender, _receiver) = mpsc::channel(1);
-        try_send_command(&sender, command(PeerId::from_u64(1)))
-            .expect("first command should fit");
+        try_send_command(&sender, command(PeerId::from_u64(1))).expect("first command should fit");
 
         assert!(matches!(
             try_send_command(&sender, command(PeerId::from_u64(2))),
