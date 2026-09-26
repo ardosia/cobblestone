@@ -9,11 +9,19 @@ use crate::config::NetworkConfigError;
 pub enum NetworkError {
     /// The supplied network configuration could not be used.
     #[error(transparent)]
-    Configuration(#[from] NetworkConfigError),
+    Configuration(
+        /// The typed configuration failure.
+        #[from]
+        NetworkConfigError,
+    ),
 
     /// The underlying transport encountered an I/O failure.
     #[error("network I/O failed: {0}")]
-    Io(#[from] io::Error),
+    Io(
+        /// The underlying I/O error.
+        #[from]
+        io::Error,
+    ),
 
     /// The peer connection has already closed.
     #[error("connection is closed")]
