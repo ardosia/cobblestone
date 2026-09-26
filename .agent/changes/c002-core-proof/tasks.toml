@@ -51,12 +51,12 @@ acceptance = "Route completions to the owning runtime and resume waiting Fibers 
 
 [[tasks]]
 id = "benchmarks"
-status = "implemented"
+status = "verified"
 depends_on = ["completion-fiber"]
 acceptance = "Measure empty native call, handle lookup, buffer handoff sizes, worker submission, completion/Fiber wake, saturation, and copied bytes on exact revisions."
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "done"
 depends_on = ["benchmarks"]
 acceptance = "Run all applicable Linux/Windows compile/tests/benchmarks on exact persisted revisions and reconcile C002 evidence without invented results."

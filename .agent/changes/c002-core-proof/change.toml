@@ -2,10 +2,11 @@ schema = 1
 id = "c002-core-proof"
 kind = "native-core-proof"
 size = "S2"
-status = "active"
+status = "done"
 workflow = "feature"
 control_revision = "2b7c8b9245a64560cc9e986d554d99233e34b8c5"
 base_revision = "9dbf16c3f3a37879b57fe92ea385b94d28f619f4"
+result_revision = "d18a07361987ca02a6b5eccc4706391aa1789e8b"
 parent_change = "foundation-program"
 acceptance = [
   "a pinned Rust workspace provides independently testable cobblestone-core mechanisms",
@@ -20,10 +21,10 @@ acceptance = [
 [convergence]
 requirements = "aligned"
 specs = "aligned"
-implementation = "pending"
-tests = "pending"
+implementation = "aligned"
+tests = "aligned"
 documentation = "aligned"
 decisions = "aligned"
 tasks = "aligned"
-evidence = "pending"
-repository = "pending"
+evidence = "aligned"
+repository = "aligned"
