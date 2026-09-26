@@ -12,3 +12,4 @@ bytes.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 raknet-rust.workspace = true
+tracing.workspace = true

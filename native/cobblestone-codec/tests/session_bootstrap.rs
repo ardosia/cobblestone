@@ -1,5 +1,5 @@
 use cobblestone_codec::{
-    AdventureSettingsPacket, BootstrapPacket, CodecLimits, SetDifficultyPacket,
+    AdventureFlags, AdventureSettingsPacket, BootstrapPacket, CodecLimits, SetDifficultyPacket,
     SetSpawnPositionPacket, SetTimePacket, StartGamePacket, decode_bootstrap_frame,
     encode_bootstrap_frame,
 };
@@ -64,6 +64,8 @@ fn exact_spawn_difficulty_and_adventure_fixtures_round_trip() {
     let adventure = [
         0xfe, 0x31, 0x00, 0x00, 0x00, 0x4e, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
     ];
+    assert_eq!(AdventureFlags::SURVIVAL.bits(), 0x4e);
+    assert_eq!(AdventureFlags::CREATIVE.bits(), 0xce);
     let adventure_packet =
         BootstrapPacket::AdventureSettings(AdventureSettingsPacket::new(0x4e, 1, 2));
     assert_eq!(

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use bytes::Bytes;
 use raknet_rust::server::{PeerId, RaknetServer, RaknetServerEvent, SendOptions};
 use tokio::sync::{mpsc, oneshot, watch};
+use tracing::{debug, warn};
 
 use crate::connection::Connection;
 use crate::{NetworkError, Reliability};
@@ -137,6 +138,7 @@ async fn handle_server_event(
 ) -> bool {
     match event {
         RaknetServerEvent::PeerConnected { peer_id, addr, .. } => {
+            debug!(?peer_id, %addr, "RakNet peer connected");
             let (inbound_tx, inbound_rx) = mpsc::channel(PER_CONNECTION_INBOUND_CAPACITY);
             let (close_tx, close_rx) = watch::channel(CloseState::Open);
 
@@ -154,6 +156,7 @@ async fn handle_server_event(
             match publish_connection(accept_tx, connection) {
                 AcceptDispatch::Enqueued => false,
                 AcceptDispatch::Full => {
+                    warn!(?peer_id, "RakNet accept queue saturated; closing peer");
                     close_peer_for_backpressure(server, peers, peer_id).await;
                     false
                 }
@@ -177,6 +180,7 @@ async fn handle_server_event(
             match dispatch {
                 InboundDispatch::Enqueued => {}
                 InboundDispatch::Full => {
+                    warn!(?peer_id, "RakNet inbound queue saturated; closing peer");
                     close_peer_for_backpressure(server, peers, peer_id).await;
                 }
                 InboundDispatch::Closed => {
@@ -189,6 +193,7 @@ async fn handle_server_event(
             false
         }
         RaknetServerEvent::PeerDisconnected { peer_id, .. } => {
+            debug!(?peer_id, "RakNet peer disconnected");
             if let Some(peer) = peers.remove(&peer_id) {
                 let _ = peer.close.send(CloseState::Closed);
             }
@@ -196,11 +201,13 @@ async fn handle_server_event(
         }
         RaknetServerEvent::DecodeError { .. } => false,
         RaknetServerEvent::WorkerError { shard_id, message } => {
+            warn!(shard_id, error = %message, "RakNet worker failed");
             let message = format!("RakNet worker {shard_id} failed: {message}");
             let _ = accept_tx.try_send(Err(NetworkError::BackendFailure { message }));
             true
         }
         RaknetServerEvent::WorkerStopped { shard_id } => {
+            warn!(shard_id, "RakNet worker stopped unexpectedly");
             let message = format!("RakNet worker {shard_id} stopped unexpectedly");
             let _ = accept_tx.try_send(Err(NetworkError::BackendFailure { message }));
             true

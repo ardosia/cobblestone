@@ -2,8 +2,8 @@ use core::fmt;
 use core::num::NonZeroU64;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, RecvError, SyncSender, TryRecvError, TrySendError, sync_channel};
-use std::sync::{Arc, Mutex};
+use crossbeam_channel::{Receiver, RecvError, Sender, TryRecvError, TrySendError, bounded};
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
 /// Stable identity for one accepted native worker task.
@@ -188,7 +188,7 @@ struct QueuedJob<J> {
 /// The worker handler receives only owned task input plus a cancellation token. This crate has no
 /// Zend/PHP dependency, so worker threads cannot invoke arbitrary PHP APIs through this surface.
 pub struct WorkerPool<J: Send + 'static, R: Send + 'static> {
-    jobs: Option<SyncSender<QueuedJob<J>>>,
+    jobs: Option<Sender<QueuedJob<J>>>,
     completions: Receiver<Completion<R>>,
     workers: Vec<JoinHandle<()>>,
     next_task_id: AtomicU64,
@@ -215,14 +215,13 @@ impl<J: Send + 'static, R: Send + 'static> WorkerPool<J, R> {
             return Err(WorkerPoolBuildError::ZeroCompletionCapacity);
         }
 
-        let (job_tx, job_rx) = sync_channel(job_capacity);
-        let (completion_tx, completion_rx) = sync_channel(completion_capacity);
-        let job_rx = Arc::new(Mutex::new(job_rx));
+        let (job_tx, job_rx) = bounded(job_capacity);
+        let (completion_tx, completion_rx) = bounded(completion_capacity);
         let handler: Arc<dyn Fn(J, CancellationToken) -> R + Send + Sync> = Arc::new(handler);
         let mut workers = Vec::with_capacity(worker_count);
 
         for index in 0..worker_count {
-            let worker_job_rx = Arc::clone(&job_rx);
+            let worker_job_rx = job_rx.clone();
             let worker_completion_tx = completion_tx.clone();
             let worker_handler = Arc::clone(&handler);
             let spawn = thread::Builder::new()
@@ -235,6 +234,7 @@ impl<J: Send + 'static, R: Send + 'static> WorkerPool<J, R> {
                 Ok(worker) => workers.push(worker),
                 Err(error) => {
                     drop(job_tx);
+                    drop(job_rx);
                     drop(completion_tx);
                     for worker in workers {
                         let _ = worker.join();
@@ -341,21 +341,11 @@ impl<J: Send + 'static, R: Send + 'static> Drop for WorkerPool<J, R> {
 }
 
 fn worker_loop<J: Send + 'static, R: Send + 'static>(
-    jobs: Arc<Mutex<Receiver<QueuedJob<J>>>>,
-    completions: SyncSender<Completion<R>>,
+    jobs: Receiver<QueuedJob<J>>,
+    completions: Sender<Completion<R>>,
     handler: Arc<dyn Fn(J, CancellationToken) -> R + Send + Sync>,
 ) {
-    loop {
-        let queued = {
-            let receiver = match jobs.lock() {
-                Ok(receiver) => receiver,
-                Err(poisoned) => poisoned.into_inner(),
-            };
-            match receiver.recv() {
-                Ok(queued) => queued,
-                Err(_) => break,
-            }
-        };
+    while let Ok(queued) = jobs.recv() {
 
         let completion = if queued.cancellation.is_cancelled() {
             Completion::Cancelled { id: queued.id }

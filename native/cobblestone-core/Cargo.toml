@@ -11,5 +11,8 @@ publish = false
 name = "core"
 harness = false
 
+[dependencies]
+crossbeam-channel.workspace = true
+
 [lints.rust]
 unsafe_code = "forbid"

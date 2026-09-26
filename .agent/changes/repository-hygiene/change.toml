@@ -12,6 +12,7 @@ acceptance = [
   "place benchmarks on explicit benchmark surfaces rather than example/validation CLI paths",
   "remove redundant manifest declarations and prevent accidental publication of internal crates",
   "refresh stale top-level documentation while preserving durable change/evidence records",
+  "adopt immediately useful dependencies only where they replace or strengthen existing mechanisms, without adding unused placeholder libraries",
   "pass canonical repository validation on the exact persisted cleanup revision"
 ]
 

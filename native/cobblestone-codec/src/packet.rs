@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use cobblestone_core::NativeBuffer;
 
 use crate::batch::{BatchPacket, compress_zlib, decompress_zlib_limited};
@@ -205,10 +206,24 @@ impl SetDifficultyPacket {
     }
 }
 
-/// Protocol-84 adventure and permission flags.
+bitflags! {
+    /// Protocol-84 AdventureSettings flag bits.
+    ///
+    /// The matching 0.15.10 source exposes the full survival and creative bit patterns. Unknown
+    /// bits are retained when decoding so fixed-target packets are never silently normalized.
+    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    pub struct AdventureFlags: u32 {
+        /// Full survival flag set observed for MCPE 0.15.10.
+        const SURVIVAL = 0x4e;
+        /// Full creative flag set observed for MCPE 0.15.10.
+        const CREATIVE = 0xce;
+    }
+}
+
+/// Protocol-84 adventure and permission settings.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct AdventureSettingsPacket {
-    flags: i32,
+    flags: AdventureFlags,
     user_permission: i32,
     global_permission: i32,
 }
@@ -217,14 +232,19 @@ impl AdventureSettingsPacket {
     /// Creates an adventure-settings update.
     pub const fn new(flags: i32, user_permission: i32, global_permission: i32) -> Self {
         Self {
-            flags,
+            flags: AdventureFlags::from_bits_retain(flags as u32),
             user_permission,
             global_permission,
         }
     }
 
-    /// Adventure/player capability flags.
+    /// Raw adventure/player capability bits as carried on the wire.
     pub const fn flags(self) -> i32 {
+        self.flags.bits() as i32
+    }
+
+    /// Typed adventure/player capability bits, retaining unknown fixed-target flags.
+    pub const fn adventure_flags(self) -> AdventureFlags {
         self.flags
     }
 

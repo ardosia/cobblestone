@@ -8,7 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-cobblestone-core = { path = "../cobblestone-core" }
+cobblestone-core = { path = "../../native/cobblestone-core" }
 
 [lints.rust]
 unsafe_code = "forbid"
