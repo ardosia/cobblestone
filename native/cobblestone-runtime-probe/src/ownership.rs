@@ -99,6 +99,11 @@ impl OwnedProbeArena {
         self.arena.len()
     }
 
+    /// Returns true when no ownership probes are live.
+    pub const fn is_empty(&self) -> bool {
+        self.arena.is_empty()
+    }
+
     pub fn create(&mut self, owner: RuntimeId, value: u64) -> Result<ProbeHandle, InsertError> {
         self.arena
             .insert(ProbeState {

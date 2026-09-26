@@ -77,8 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let replacement = arena
             .create(runtime_one, sequence)
             .map_err(|error| io::Error::other(format!("replacement insert failed: {error:?}")))?;
-        if replacement.index() != handle.index()
-            || replacement.generation() == handle.generation()
+        if replacement.index() != handle.index() || replacement.generation() == handle.generation()
         {
             return Err(io::Error::other("generational slot reuse invariant failed").into());
         }
@@ -102,9 +101,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn assert_stale(arena: &OwnedProbeArena, handle: ProbeHandle) -> Result<(), Box<dyn Error>> {
     match arena.snapshot(handle) {
         Err(OwnershipError::StaleHandle) => Ok(()),
-        other => Err(io::Error::other(format!(
-            "stale handle unexpectedly resolved: {other:?}"
-        ))
-        .into()),
+        other => {
+            Err(io::Error::other(format!("stale handle unexpectedly resolved: {other:?}")).into())
+        }
     }
 }
