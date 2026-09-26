@@ -20,6 +20,13 @@ pub(crate) enum CloseState {
     Backpressure,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InboundDispatch {
+    Enqueued,
+    Full,
+    Closed,
+}
+
 pub(crate) enum BackendCommand {
     Send {
         peer_id: PeerId,
@@ -156,16 +163,16 @@ async fn handle_server_event(
             peer_id, payload, ..
         } => {
             let dispatch = match peers.get(&peer_id) {
-                Some(peer) => peer.inbound.try_send(payload),
+                Some(peer) => dispatch_inbound(peer, payload),
                 None => return false,
             };
 
             match dispatch {
-                Ok(()) => {}
-                Err(mpsc::error::TrySendError::Full(_)) => {
+                InboundDispatch::Enqueued => {}
+                InboundDispatch::Full => {
                     close_peer_for_backpressure(server, peers, peer_id).await;
                 }
-                Err(mpsc::error::TrySendError::Closed(_)) => {
+                InboundDispatch::Closed => {
                     if let Some(peer) = peers.remove(&peer_id) {
                         let _ = peer.close.send(CloseState::Closed);
                     }
@@ -196,6 +203,14 @@ async fn handle_server_event(
     }
 }
 
+fn dispatch_inbound(peer: &PeerState, payload: Bytes) -> InboundDispatch {
+    match peer.inbound.try_send(payload) {
+        Ok(()) => InboundDispatch::Enqueued,
+        Err(mpsc::error::TrySendError::Full(_)) => InboundDispatch::Full,
+        Err(mpsc::error::TrySendError::Closed(_)) => InboundDispatch::Closed,
+    }
+}
+
 async fn close_peer_for_backpressure(
     server: &mut RaknetServer,
     peers: &mut HashMap<PeerId, PeerState>,
@@ -205,4 +220,46 @@ async fn close_peer_for_backpressure(
         let _ = peer.close.send(CloseState::Backpressure);
     }
     let _ = server.disconnect(peer_id).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+    use tokio::sync::{mpsc, watch};
+
+    use super::{CloseState, InboundDispatch, PeerState, dispatch_inbound};
+
+    #[test]
+    fn bounded_inbound_dispatch_reports_full_without_growing() {
+        let (inbound, mut receiver) = mpsc::channel(1);
+        let (close, _close_rx) = watch::channel(CloseState::Open);
+        let peer = PeerState { inbound, close };
+
+        assert_eq!(
+            dispatch_inbound(&peer, Bytes::from_static(b"first")),
+            InboundDispatch::Enqueued
+        );
+        assert_eq!(
+            dispatch_inbound(&peer, Bytes::from_static(b"second")),
+            InboundDispatch::Full
+        );
+        assert_eq!(
+            receiver.try_recv().expect("first payload remains queued"),
+            Bytes::from_static(b"first")
+        );
+        assert!(receiver.try_recv().is_err());
+    }
+
+    #[test]
+    fn inbound_dispatch_reports_closed_receiver() {
+        let (inbound, receiver) = mpsc::channel(1);
+        let (close, _close_rx) = watch::channel(CloseState::Open);
+        let peer = PeerState { inbound, close };
+        drop(receiver);
+
+        assert_eq!(
+            dispatch_inbound(&peer, Bytes::from_static(b"payload")),
+            InboundDispatch::Closed
+        );
+    }
 }
