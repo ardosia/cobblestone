@@ -14,7 +14,9 @@ This is a C003 experiment substrate, not a public plugin API or a final producti
 
 ## Message integrity
 
-Every torture-run message carries a test sequence and logical producer/target identity so the harness can detect loss, duplication, corruption, and misrouting. Queue capacity is intentionally exceeded during saturation phases; the accepted behavior is explicit backpressure, never silent unbounded growth.
+Every torture-run message carries a test sequence, logical producer/target identity, and deterministic checksum so the harness can detect loss, duplication, corruption, and misrouting. The message torture routes at least one million logical messages across two runtime mailboxes while deliberately withholding completion draining until bounded command/completion pressure surfaces `Full`. The harness then drains and validates completions before continuing. Saturation must produce explicit backpressure; silent unbounded growth is not accepted.
+
+The torture records elapsed time and observed backpressure events as measurements only. A generous deadlock watchdog bounds CI failure time but is not a production throughput threshold.
 
 ## Handle churn
 

@@ -15,7 +15,7 @@ acceptance = "Start at least two persistent runtimes with bounded command/comple
 
 [[tasks]]
 id = "message-torture"
-status = "planned"
+status = "implemented"
 depends_on = ["runtime-harness"]
 acceptance = "Route at least one million sequenced messages, detect loss/duplication/misrouting, and exercise queue saturation/backpressure."
 
