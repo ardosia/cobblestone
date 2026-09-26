@@ -240,11 +240,7 @@ fn runtime_loop(
     commands: Receiver<RuntimeCommand>,
     completions: SyncSender<RuntimeCompletion>,
 ) -> io::Result<ExitStatus> {
-    loop {
-        let first = match commands.recv() {
-            Ok(command) => command,
-            Err(_) => break,
-        };
+    while let Ok(first) = commands.recv() {
         let mut batch = Vec::with_capacity(RUNTIME_BATCH_LIMIT);
         batch.push(first);
 
