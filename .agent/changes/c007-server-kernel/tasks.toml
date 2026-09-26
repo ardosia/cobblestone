@@ -9,7 +9,7 @@ acceptance = "Provide a test-only protocol-8 listener with a structured protocol
 
 [[tasks]]
 id = "real-client-probe"
-status = "planned"
+status = "verified"
 depends_on = ["real-client-bootstrap"]
 acceptance = "Run the actual fixed 0.15.10 client against the bootstrap harness, capture the exact boundary reached, and use the observed next packet/behavior to drive the next compatibility slice."
 

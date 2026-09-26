@@ -11,3 +11,25 @@ result = "RakLibInterface builds MCPE;<name>;<protocol>;;<online>;<max>. Player 
 trust = "pinned-matching-historical-source"
 confidence = "observed"
 limitations = "Historical source is used for wire/session sequencing evidence only. C007 independently implements the fixed-target behavior and does not copy source code."
+
+[[evidence]]
+id = "first-real-client-boundary"
+kind = "real-client"
+status = "passed"
+claim = "The actual fixed Minecraft 0.15.10 client discovers Cobblestone, completes RakNet-8 connection establishment, delivers a protocol-84 Login envelope, accepts the initial bootstrap burst, then requests chunk radius before remaining on Generating Terrain."
+source = "user-supplied Fedora run against ardosia/cobblestone@022429d8f98135fc1bc5cc8e975ec03cf78a5378"
+result = "Observed peer 192.168.18.36:59860, Login protocol=84, chain_data=799 bytes, skin_jwt=29664 bytes, then post-bootstrap packet id 61 (0x3d). Client remained on Generating Terrain."
+trust = "real-fixed-target-client"
+confidence = "observed"
+limitations = "The revision had a rustfmt-only canonical validation failure. The release harness compiled and ran, so the wire observation is valid, but the revision is not a canonical green acceptance revision."
+
+[[evidence]]
+id = "chunk-radius-and-layered-chunk-oracle"
+kind = "source-review"
+status = "passed"
+claim = "Packet 0x3d is RequestChunkRadius. The matching source responds with packet 0x3e ChunkRadiusUpdated, streams FullChunkData packet 0x34, and sends PLAYER_SPAWN after chunk loading reaches the spawn condition."
+source = "KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e legacy/old-src/network/protocol/Info.php, RequestChunkRadiusPacket.php, ChunkRadiusUpdatedPacket.php, FullChunkDataPacket.php, level/format/anvil/ChunkRequestTask.php, Player.php"
+result = "RequestChunkRadius carries one big-endian int radius. ChunkRadiusUpdated carries one big-endian int radius. FullChunkData carries chunk X/Z big-endian ints, order byte, big-endian payload length, then layered data. The Anvil layered payload is block IDs, block data, skylight, block light, height map, big-endian biome colors, little-endian extra-data table, then tile NBT."
+trust = "pinned-matching-historical-source"
+confidence = "observed"
+limitations = "The C007 probe uses all-air synthetic layered chunks solely to test the client transition; production chunk generation/storage remains later foundation work."

@@ -20,7 +20,9 @@ The harness is deliberately not a production server CLI. It:
 - sends LoginSuccess, StartGame, SetTime, SetSpawnPosition, SetDifficulty, and survival AdventureSettings using reliable-ordered delivery;
 - keeps the connection alive and prints subsequent protocol-84 packet IDs so the next compatibility gap is evidence-driven.
 
-The historical matching source sends LoginSuccess before StartGame and then initial time/spawn/difficulty state. The current codec does not yet implement every packet in that historical login burst, so the harness intentionally stops short of claiming spawn/playability.
+The historical matching source sends LoginSuccess before StartGame and then initial time/spawn/difficulty state. The first real-client run reached protocol-84 Login successfully and then emitted packet 0x3d (RequestChunkRadius) while remaining on Generating Terrain. That observation matches the historical flow: the server acknowledges with ChunkRadiusUpdated, streams FullChunkData, and only then reports PLAYER_SPAWN.
+
+The second harness slice therefore acknowledges a bounded radius of two chunks, sends a 5x5 batch of historical layered-format empty chunks, and emits PLAYER_SPAWN. The synthetic chunks are compatibility probes only; they are not a world implementation and deliberately remain under tests/.
 
 ## Production kernel direction
 
