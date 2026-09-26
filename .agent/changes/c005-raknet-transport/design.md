@@ -30,6 +30,6 @@ Listener acceptance also uses a bounded queue sized from the configured connecti
 
 Integration tests use the pinned hardfork itself as a protocol peer. They require raw protocol-8 Request1 acceptance, protocol-11 incompatibility rejection, a completed protocol-8 connection, bidirectional reliable-ordered payload flow, and reassembly of a 4096-byte reliable-ordered payload that must fragment at the RakNet layer.
 
-Focused unit tests also force command-queue and per-peer inbound saturation so the explicit backpressure branches are exercised deterministically rather than relying on timing-sensitive load.
+Focused unit tests force accept-queue, command-queue, and per-peer inbound saturation so every application-facing bounded-queue backpressure branch is exercised deterministically rather than relying on timing-sensitive load.
 
 These tests validate generic RakNet mechanics only. Exact MCPE protocol-84 compatibility remains C006 and later end-to-end fixture work.

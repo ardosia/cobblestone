@@ -21,6 +21,13 @@ pub(crate) enum CloseState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AcceptDispatch {
+    Enqueued,
+    Full,
+    Closed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InboundDispatch {
     Enqueued,
     Full,
@@ -144,13 +151,13 @@ async fn handle_server_event(
             let connection =
                 Connection::new(peer_id, addr, inbound_rx, close_rx, command_tx.clone());
 
-            match accept_tx.try_send(Ok(connection)) {
-                Ok(()) => false,
-                Err(mpsc::error::TrySendError::Full(_)) => {
+            match publish_connection(accept_tx, connection) {
+                AcceptDispatch::Enqueued => false,
+                AcceptDispatch::Full => {
                     close_peer_for_backpressure(server, peers, peer_id).await;
                     false
                 }
-                Err(mpsc::error::TrySendError::Closed(_)) => {
+                AcceptDispatch::Closed => {
                     if let Some(peer) = peers.remove(&peer_id) {
                         let _ = peer.close.send(CloseState::Closed);
                     }
@@ -203,6 +210,17 @@ async fn handle_server_event(
     }
 }
 
+fn publish_connection(
+    accept_tx: &mpsc::Sender<Result<Connection, NetworkError>>,
+    connection: Connection,
+) -> AcceptDispatch {
+    match accept_tx.try_send(Ok(connection)) {
+        Ok(()) => AcceptDispatch::Enqueued,
+        Err(mpsc::error::TrySendError::Full(_)) => AcceptDispatch::Full,
+        Err(mpsc::error::TrySendError::Closed(_)) => AcceptDispatch::Closed,
+    }
+}
+
 fn dispatch_inbound(peer: &PeerState, payload: Bytes) -> InboundDispatch {
     match peer.inbound.try_send(payload) {
         Ok(()) => InboundDispatch::Enqueued,
@@ -227,7 +245,56 @@ mod tests {
     use bytes::Bytes;
     use tokio::sync::{mpsc, watch};
 
-    use super::{CloseState, InboundDispatch, PeerState, dispatch_inbound};
+    use std::net::{Ipv4Addr, SocketAddr};
+
+    use raknet_rust::server::PeerId;
+
+    use super::{
+        AcceptDispatch, CloseState, InboundDispatch, PeerState, dispatch_inbound,
+        publish_connection,
+    };
+    use crate::connection::Connection;
+
+    fn connection(peer_id: u64) -> Connection {
+        let (_inbound_tx, inbound_rx) = mpsc::channel(1);
+        let (_close_tx, close_rx) = watch::channel(CloseState::Open);
+        let (command_tx, _command_rx) = mpsc::channel(1);
+
+        Connection::new(
+            PeerId::from_u64(peer_id),
+            SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 19132),
+            inbound_rx,
+            close_rx,
+            command_tx,
+        )
+    }
+
+    #[test]
+    fn bounded_accept_dispatch_reports_full_without_growing() {
+        let (accept_tx, mut accept_rx) = mpsc::channel(1);
+
+        assert_eq!(
+            publish_connection(&accept_tx, connection(1)),
+            AcceptDispatch::Enqueued
+        );
+        assert_eq!(
+            publish_connection(&accept_tx, connection(2)),
+            AcceptDispatch::Full
+        );
+        assert!(accept_rx.try_recv().is_ok());
+        assert!(accept_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn accept_dispatch_reports_closed_receiver() {
+        let (accept_tx, accept_rx) = mpsc::channel(1);
+        drop(accept_rx);
+
+        assert_eq!(
+            publish_connection(&accept_tx, connection(1)),
+            AcceptDispatch::Closed
+        );
+    }
 
     #[test]
     fn bounded_inbound_dispatch_reports_full_without_growing() {
