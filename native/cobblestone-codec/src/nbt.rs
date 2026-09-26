@@ -159,7 +159,9 @@ impl NbtDocument {
         let mut reader = Reader::new(input);
         let tag = NbtTag::from_id(reader.read_u8()?)?;
         if tag == NbtTag::End {
-            return Err(CodecError::InvalidNbtTag { id: NbtTag::End.id() });
+            return Err(CodecError::InvalidNbtTag {
+                id: NbtTag::End.id(),
+            });
         }
         let name = read_string(&mut reader, limits)?;
         let value = read_payload(&mut reader, tag, limits, 0)?;
@@ -353,11 +355,7 @@ fn write_string(
     value: &str,
     limits: NbtLimits,
 ) -> Result<(), CodecError> {
-    check_limit(
-        LimitKind::NbtString,
-        value.len(),
-        limits.max_string_bytes,
-    )?;
+    check_limit(LimitKind::NbtString, value.len(), limits.max_string_bytes)?;
     let len = u16::try_from(value.len()).map_err(|_| CodecError::LengthOutOfRange {
         field,
         value: value.len(),
@@ -383,11 +381,7 @@ fn read_collection_len(
 ) -> Result<usize, CodecError> {
     let value = reader.read_i32_le()?;
     let len = usize::try_from(value).map_err(|_| CodecError::NegativeLength { field, value })?;
-    check_limit(
-        LimitKind::NbtCollection,
-        len,
-        limits.max_collection_len,
-    )?;
+    check_limit(LimitKind::NbtCollection, len, limits.max_collection_len)?;
     Ok(len)
 }
 
@@ -405,11 +399,7 @@ fn write_collection_len(
     write_i32_len(writer, field, len)
 }
 
-fn write_i32_len(
-    writer: &mut Writer,
-    field: &'static str,
-    len: usize,
-) -> Result<(), CodecError> {
+fn write_i32_len(writer: &mut Writer, field: &'static str, len: usize) -> Result<(), CodecError> {
     let value = i32::try_from(len).map_err(|_| CodecError::LengthOutOfRange {
         field,
         value: len,

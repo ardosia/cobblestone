@@ -13,7 +13,10 @@ fn exact_empty_little_endian_compound_round_trips() {
     assert_eq!(decoded.root().name(), "");
     assert_eq!(decoded.root().value(), &NbtValue::Compound(Vec::new()));
     assert_eq!(
-        decoded.encode_le(limits()).expect("encode empty compound").as_slice(),
+        decoded
+            .encode_le(limits())
+            .expect("encode empty compound")
+            .as_slice(),
         fixture
     );
 }
@@ -36,7 +39,10 @@ fn exact_named_values_use_little_endian_lengths_and_numbers() {
     ));
     assert_eq!(decoded, expected);
     assert_eq!(
-        expected.encode_le(limits()).expect("encode compound").as_slice(),
+        expected
+            .encode_le(limits())
+            .expect("encode compound")
+            .as_slice(),
         fixture
     );
 }
@@ -86,8 +92,7 @@ fn nbt_limits_reject_hostile_sizes_before_large_allocation() {
     let oversized_list = [
         0x09, 0x00, 0x00, // root list
         0x03, 0x02, 0x00, 0x00, 0x00, // int list of two
-        0x01, 0x00, 0x00, 0x00,
-        0x02, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
     ];
     assert_eq!(
         NbtDocument::decode_le(&oversized_list, NbtLimits::new(128, 8, 1, 32)),

@@ -154,7 +154,8 @@ impl Writer {
     }
 
     pub(crate) fn put_f32_be(&mut self, value: f32) {
-        self.output.extend_from_slice(&value.to_bits().to_be_bytes());
+        self.output
+            .extend_from_slice(&value.to_bits().to_be_bytes());
     }
 
     pub(crate) fn put_i32_le(&mut self, value: i32) {
@@ -166,7 +167,8 @@ impl Writer {
     }
 
     pub(crate) fn put_f32_le(&mut self, value: f32) {
-        self.output.extend_from_slice(&value.to_bits().to_le_bytes());
+        self.output
+            .extend_from_slice(&value.to_bits().to_le_bytes());
     }
 
     pub(crate) fn put_f64_le(&mut self, value: f64) {

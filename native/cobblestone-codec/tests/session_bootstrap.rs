@@ -36,8 +36,7 @@ fn exact_spawn_difficulty_and_adventure_fixtures_round_trip() {
     let spawn = [
         0xfe, 0x26, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x40, 0xff, 0xff, 0xff, 0xfe,
     ];
-    let spawn_packet =
-        BootstrapPacket::SetSpawnPosition(SetSpawnPositionPacket::new(1, 64, -2));
+    let spawn_packet = BootstrapPacket::SetSpawnPosition(SetSpawnPositionPacket::new(1, 64, -2));
     assert_eq!(
         encode_bootstrap_frame(&spawn_packet, limits())
             .expect("encode spawn")
@@ -122,9 +121,8 @@ fn exact_start_game_fixture_round_trips() {
 #[test]
 fn start_game_rejects_changed_fixed_target_flag() {
     let mut fixture = [
-        0xfe, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
-        0, 0,
+        0xfe, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
     ];
     let fixed_flag_offset = fixture.len() - 5;
     fixture[fixed_flag_offset] = 2;
