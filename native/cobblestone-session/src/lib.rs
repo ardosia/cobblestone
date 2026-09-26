@@ -16,9 +16,7 @@ use cobblestone_codec::{
     encode_game_frame, packet_id,
 };
 use cobblestone_core::NativeBuffer;
-use cobblestone_network::{
-    Connection, NetworkConfig, NetworkError, NetworkServer, Reliability,
-};
+use cobblestone_network::{Connection, NetworkConfig, NetworkError, NetworkServer, Reliability};
 use thiserror::Error;
 use tracing::{debug, warn};
 
@@ -148,10 +146,7 @@ pub struct SessionServer {
 
 impl SessionServer {
     /// Binds a RakNet-8 listener and prepares protocol-84 session decoding.
-    pub async fn bind(
-        network: NetworkConfig,
-        limits: CodecLimits,
-    ) -> Result<Self, SessionError> {
+    pub async fn bind(network: NetworkConfig, limits: CodecLimits) -> Result<Self, SessionError> {
         Ok(Self {
             network: NetworkServer::bind(network).await?,
             limits,

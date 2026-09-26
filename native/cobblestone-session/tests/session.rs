@@ -6,12 +6,8 @@ use bytes::Bytes;
 use cobblestone_codec::{CodecLimits, RawPacket, encode_game_frame};
 use cobblestone_core::NativeBuffer;
 use cobblestone_network::NetworkConfig;
-use cobblestone_session::{
-    SessionDelivery, SessionError, SessionPacket, SessionServer,
-};
-use raknet_rust::client::{
-    ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent,
-};
+use cobblestone_session::{SessionDelivery, SessionError, SessionPacket, SessionServer};
+use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
 use raknet_rust::low_level::protocol::Reliability as RaknetReliability;
 use tokio::time::timeout;
 
@@ -115,7 +111,7 @@ async fn malformed_protocol84_input_closes_at_session_boundary() {
     let mut server = SessionServer::bind(network_config(addr), limits())
         .await
         .expect("start session server");
-    let client = RaknetClient::connect_with_config(addr, client_config())
+    let mut client = RaknetClient::connect_with_config(addr, client_config())
         .await
         .expect("connect protocol8 client");
     let mut session = timeout(Duration::from_secs(2), server.accept())
