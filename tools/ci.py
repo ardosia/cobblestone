@@ -189,7 +189,7 @@ def benchmark_rust() -> None:
         print("bench: workspace not present yet; C002 has not started")
         return
     require(shutil.which("cargo") is not None, "cargo is required for the native benchmark")
-    run(["cargo", "run", "--release", "-p", "cobblestone-core", "--example", "bench_core"])
+    run(["cargo", "bench", "-p", "cobblestone-core", "--bench", "core"])
     print("bench: completed")
 
 
@@ -202,7 +202,7 @@ def main() -> int:
             validate_metadata()
         if args.mode in {"rust", "all"}:
             validate_rust()
-        if args.mode in {"bench", "all"}:
+        if args.mode == "bench":
             benchmark_rust()
     except (ValidationError, subprocess.CalledProcessError) as exc:
         print(f"validation failed: {exc}", file=sys.stderr)

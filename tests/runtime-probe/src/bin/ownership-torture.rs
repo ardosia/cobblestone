@@ -2,30 +2,35 @@ use std::error::Error;
 use std::io;
 use std::time::Instant;
 
-use cobblestone_core::RuntimeId;
-use cobblestone_runtime_probe::{OwnedProbeArena, OwnershipError, ProbeHandle};
+use cobblestone_core::{OwnedArena, OwnedHandle, OwnershipError, OwnershipEpoch, RuntimeId};
 
 const ITERATIONS: u64 = 250_000;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let runtime_one = RuntimeId::new(1).ok_or_else(|| io::Error::other("runtime id 1 invalid"))?;
     let runtime_two = RuntimeId::new(2).ok_or_else(|| io::Error::other("runtime id 2 invalid"))?;
-    let mut arena = OwnedProbeArena::new();
+    let mut arena = OwnedArena::new();
     let mut retained_stale = Vec::with_capacity(usize::try_from(ITERATIONS)?);
     let mut wrong_owner_rejections = 0_u64;
     let mut stale_epoch_rejections = 0_u64;
     let started = Instant::now();
 
     for sequence in 0..ITERATIONS {
-        let handle = arena
-            .create(runtime_one, sequence)
-            .map_err(|error| io::Error::other(format!("probe insert failed: {error:?}")))?;
-        let initial = arena.snapshot(handle)?;
-        if initial.owner() != runtime_one || initial.epoch() != 0 || initial.value() != sequence {
-            return Err(io::Error::other("new ownership probe state was corrupted").into());
+        let (handle, initial_epoch) = arena
+            .insert(runtime_one, sequence)
+            .map_err(|error| io::Error::other(format!("owned insert failed: {error:?}")))?;
+        if initial_epoch != OwnershipEpoch::ZERO {
+            return Err(io::Error::other("new ownership epoch was not zero").into());
+        }
+        let initial = arena.metadata(handle)?;
+        if initial.owner() != runtime_one
+            || initial.epoch() != OwnershipEpoch::ZERO
+            || *arena.get(handle, runtime_one, initial_epoch)? != sequence
+        {
+            return Err(io::Error::other("new owned arena state was corrupted").into());
         }
 
-        match arena.mutate(handle, runtime_two, 0, sequence + 1) {
+        match arena.get_mut(handle, runtime_two, initial_epoch) {
             Err(OwnershipError::WrongOwner { .. }) => wrong_owner_rejections += 1,
             other => {
                 return Err(io::Error::other(format!(
@@ -35,16 +40,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        arena.mutate(handle, runtime_one, 0, sequence + 2)?;
-        let new_epoch = arena.transfer(handle, runtime_one, 0, runtime_two)?;
-        if new_epoch != 1 {
+        *arena.get_mut(handle, runtime_one, initial_epoch)? = sequence + 2;
+        let new_epoch = arena.transfer(handle, runtime_one, initial_epoch, runtime_two)?;
+        if new_epoch.get() != 1 {
             return Err(io::Error::other(format!(
-                "unexpected transfer epoch {new_epoch} at sequence {sequence}"
+                "unexpected transfer epoch {} at sequence {sequence}",
+                new_epoch.get()
             ))
             .into());
         }
 
-        match arena.mutate(handle, runtime_two, 0, sequence + 3) {
+        match arena.get_mut(handle, runtime_two, initial_epoch) {
             Err(OwnershipError::StaleEpoch { .. }) => stale_epoch_rejections += 1,
             other => {
                 return Err(io::Error::other(format!(
@@ -53,7 +59,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .into());
             }
         }
-        match arena.mutate(handle, runtime_one, new_epoch, sequence + 4) {
+        match arena.get_mut(handle, runtime_one, new_epoch) {
             Err(OwnershipError::WrongOwner { .. }) => wrong_owner_rejections += 1,
             other => {
                 return Err(io::Error::other(format!(
@@ -63,29 +69,26 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        arena.mutate(handle, runtime_two, new_epoch, sequence + 5)?;
+        *arena.get_mut(handle, runtime_two, new_epoch)? = sequence + 5;
         let removed = arena.remove(handle, runtime_two, new_epoch)?;
-        if removed.owner() != runtime_two
-            || removed.epoch() != new_epoch
-            || removed.value() != sequence + 5
-        {
-            return Err(io::Error::other("removed ownership probe state was corrupted").into());
+        if removed != sequence + 5 {
+            return Err(io::Error::other("removed owned value was corrupted").into());
         }
         assert_stale(&arena, handle)?;
         retained_stale.push(handle);
 
-        let replacement = arena
-            .create(runtime_one, sequence)
+        let (replacement, replacement_epoch) = arena
+            .insert(runtime_one, sequence)
             .map_err(|error| io::Error::other(format!("replacement insert failed: {error:?}")))?;
         if replacement.index() != handle.index() || replacement.generation() == handle.generation()
         {
             return Err(io::Error::other("generational slot reuse invariant failed").into());
         }
-        arena.remove(replacement, runtime_one, 0)?;
+        arena.remove(replacement, runtime_one, replacement_epoch)?;
     }
 
     if !arena.is_empty() {
-        return Err(io::Error::other("ownership probe arena leaked live values").into());
+        return Err(io::Error::other("owned arena leaked live values").into());
     }
     for handle in retained_stale {
         assert_stale(&arena, handle)?;
@@ -98,8 +101,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn assert_stale(arena: &OwnedProbeArena, handle: ProbeHandle) -> Result<(), Box<dyn Error>> {
-    match arena.snapshot(handle) {
+fn assert_stale(
+    arena: &OwnedArena<u64>,
+    handle: OwnedHandle<u64>,
+) -> Result<(), Box<dyn Error>> {
+    match arena.metadata(handle) {
         Err(OwnershipError::StaleHandle) => Ok(()),
         other => {
             Err(io::Error::other(format!("stale handle unexpectedly resolved: {other:?}")).into())

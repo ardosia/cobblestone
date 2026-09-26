@@ -33,3 +33,14 @@ result = "SetTime is id 0x08 with big-endian int time plus one byte; StartGame i
 trust = "pinned-matching-source"
 confidence = "observed"
 limitations = "These fixtures cover the initial server bootstrap subset only. PlayerList, chunk, inventory, gameplay, and end-to-end real-client behavior remain later C006/C013 evidence."
+
+[[evidence]]
+id = "c006-final-ci"
+kind = "validation"
+status = "passed"
+claim = "The fixed-target protocol-84 codec, batch/compression, bootstrap packet subset, and little-endian NBT implementation pass canonical Linux and Windows validation on the exact persisted C006 revision."
+source = "ardosia/cobblestone@05bf23aab4604792ea9a658eba47b8fe39c67491 GitHub checks: ai-ci-summary 108442052349; validate ubuntu 108441054026; validate windows 108441054078; php-zts ubuntu 108441053912; php-zts windows 108441054061"
+result = "All required checks completed successfully. Canonical validation compiled, linted, and tested the codec workspace on Ubuntu and Windows, including protocol-84 framing, login/batch compression, session-bootstrap fixtures, malformed-input limits, and little-endian NBT fixtures."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This closes the codec slice, not real-client end-to-end login/spawn compatibility; that requires the C007 session kernel and later C013 acceptance evidence."

@@ -21,7 +21,7 @@ acceptance = "Run the persistent multi-runtime PHP torture prototype and record 
 
 [[tasks]]
 id = "C004"
-status = "active"
+status = "done"
 depends_on = ["C002", "C003"]
 acceptance = "Finalize type-safe handle ownership metadata, wrong-owner behavior, reclamation, and immutable shared-native data semantics."
 
@@ -33,7 +33,7 @@ acceptance = "Extract and adapt the proven Ardosia protocol-8 RakNet core into c
 
 [[tasks]]
 id = "C006"
-status = "active"
+status = "done"
 depends_on = ["C002", "C005"]
 acceptance = "Implement protocol-84 codec, batch/compression, required NBT/wire mechanisms, and native-buffer integration without leaking wire types into domain APIs."
 

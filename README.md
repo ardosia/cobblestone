@@ -15,12 +15,18 @@ The architecture deliberately keeps PHP in charge of gameplay semantics and deve
 
 The durable project state lives under `.agent/`. The current foundation architecture is documented in `docs/architecture/FOUNDATION.md`.
 
-Canonical validation entrypoint:
+Canonical correctness validation:
 
 ```text
 python tools/ci.py all
 ```
 
-C001 establishes engineering state. C002 proves `cobblestone-core` primitives and the PHP/native boundary. C003 is a multi-runtime torture prototype and is a go/no-go gate before gameplay is distributed across PHP runtimes.
+Native microbenchmarks are explicit measurement work rather than a correctness gate:
 
-C005 introduces `cobblestone-network`, a game-agnostic RakNet transport facade pinned to the exact Ardosia transport revision recorded in project provenance. Its initial public configuration is intentionally fixed to RakNet protocol 8 with the legacy cookie-less handshake. Protocol-84 packet encoding/decoding remains C006 work.
+```text
+python tools/ci.py bench
+```
+
+C001-C003 are complete. C003 validated the process-isolated persistent-runtime topology as an experiment; its subprocess harness lives under `tests/` and is not a server CLI or plugin API.
+
+C004 productionizes owner/epoch enforcement in `cobblestone-core`. C005 provides the fixed protocol-8 RakNet transport. C006 provides the protocol-84 wire codec, batch/compression, initial session bootstrap packets, and the required little-endian NBT mode. C007 is the next foundation slice: the single-runtime PHP server/session kernel that wires transport and codec into an actual client login flow.

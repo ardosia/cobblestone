@@ -11,10 +11,6 @@ use std::time::Duration;
 
 use cobblestone_core::RuntimeId;
 
-mod ownership;
-
-pub use ownership::{OwnedProbeArena, OwnershipError, ProbeHandle, ProbeSnapshot};
-
 /// Handshake reported by one persistent PHP runtime process.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct RuntimeBoot {

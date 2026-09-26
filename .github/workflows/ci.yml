@@ -41,7 +41,7 @@ jobs:
           phpts: ts
           fail-fast: true
       - name: Verify PHP ZTS runtime
-        run: php tools/php-zts-probe.php
+        run: php tests/php/zts-probe.php
       - name: Verify Unix PHP development tools
         if: runner.os == 'Linux'
         shell: bash
@@ -52,9 +52,6 @@ jobs:
       - name: Install stable Rust for runtime probe
         shell: bash
         run: rustup toolchain install 1.98.0 --profile minimal --component clippy --component rustfmt
-      - name: Run multi-runtime PHP substrate smoke
-        shell: bash
-        run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin runtime-smoke
       - name: Run multi-runtime message torture
         shell: bash
         run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin runtime-torture
@@ -94,22 +91,22 @@ jobs:
           cargo +nightly-2026-09-20 check
           cargo +nightly-2026-09-20 clippy -- -D warnings
           cargo +nightly-2026-09-20 build --release
-      - name: Load and benchmark Linux PHP adapter
+      - name: Validate and measure Linux PHP adapter
         if: runner.os == 'Linux'
         shell: bash
         run: |
           extension="$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so"
-          php -n -d "extension=$extension" tools/php-extension-smoke.php
-          php -n -d "extension=$extension" tools/php-fiber-smoke.php
-          php -n -d "extension=$extension" tools/php-benchmark.php
-      - name: Load and benchmark Windows PHP adapter
+          php -n -d "extension=$extension" tests/php/extension-smoke.php
+          php -n -d "extension=$extension" tests/php/fiber-smoke.php
+          php -n -d "extension=$extension" benchmarks/php-boundary.php
+      - name: Validate and measure Windows PHP adapter
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $extension = (Resolve-Path "native/cobblestone-core-php/target/release/cobblestone_core_php.dll").Path
-          php -n -d "extension=$extension" tools/php-extension-smoke.php
-          php -n -d "extension=$extension" tools/php-fiber-smoke.php
-          php -n -d "extension=$extension" tools/php-benchmark.php
+          php -n -d "extension=$extension" tests/php/extension-smoke.php
+          php -n -d "extension=$extension" tests/php/fiber-smoke.php
+          php -n -d "extension=$extension" benchmarks/php-boundary.php
 
   ai-ci-summary:
     name: ai-ci-summary

@@ -11,3 +11,14 @@ result = "The exact validated C003 revision completed ownership-torture on both 
 trust = "exact-revision-validation"
 confidence = "observed"
 limitations = "This is the behavioral oracle for C004. The new generic production mechanism still requires its own exact-revision validation before C004 closes."
+
+[[evidence]]
+id = "c004-final-ci"
+kind = "validation"
+status = "passed"
+claim = "The production ownership arena and C003 torture adapter pass canonical Linux and Windows validation on the exact persisted C004 revision."
+source = "ardosia/cobblestone@05bf23aab4604792ea9a658eba47b8fe39c67491 GitHub checks: ai-ci-summary 108442052349; validate ubuntu 108441054026; validate windows 108441054078; php-zts ubuntu 108441053912; php-zts windows 108441054061"
+result = "All required checks completed successfully. The workspace validation compiled, linted, and tested OwnedArena ownership/epoch/reclamation behavior, while the PHP-ZTS matrix executed the ownership torture against the production cobblestone-core mechanism on both Ubuntu and Windows."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This validates the production ownership mechanism and process-isolated runtime torture. It does not establish same-process cross-thread Zend safety."

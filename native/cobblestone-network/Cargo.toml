@@ -12,6 +12,3 @@ bytes.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 raknet-rust.workspace = true
-
-[dev-dependencies]
-tokio.workspace = true

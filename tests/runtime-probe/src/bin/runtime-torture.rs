@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| PathBuf::from("php"));
     let worker = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
-        .join("tools/php-runtime-worker.php");
+        .join("tests/php/runtime-worker.php");
 
     let runtime_one = RuntimeId::new(1).ok_or_else(|| io::Error::other("runtime id 1 invalid"))?;
     let runtime_two = RuntimeId::new(2).ok_or_else(|| io::Error::other("runtime id 2 invalid"))?;

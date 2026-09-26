@@ -4,7 +4,7 @@ members = [
     "native/cobblestone-core",
     "native/cobblestone-codec",
     "native/cobblestone-network",
-    "native/cobblestone-runtime-probe",
+    "tests/runtime-probe",
 ]
 exclude = [
     "native/cobblestone-core-php",

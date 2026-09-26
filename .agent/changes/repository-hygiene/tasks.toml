@@ -1,0 +1,38 @@
+schema = 1
+change = "repository-hygiene"
+
+[[tasks]]
+id = "layout"
+status = "implemented"
+depends_on = []
+acceptance = "Move test-only runtime/PHP harnesses out of native/tools product-facing paths without changing their tested behavior."
+
+[[tasks]]
+id = "dead-code"
+status = "implemented"
+depends_on = ["layout"]
+acceptance = "Remove redundant runtime-smoke and the obsolete OwnedProbeArena compatibility wrapper while retaining stronger torture coverage."
+
+[[tasks]]
+id = "benchmarks"
+status = "implemented"
+depends_on = []
+acceptance = "Use explicit benchmark locations/commands and keep correctness validation distinct from measurement."
+
+[[tasks]]
+id = "manifests"
+status = "implemented"
+depends_on = []
+acceptance = "Remove redundant dependency declarations, prevent accidental crate publication, and align declared licensing with repository license files."
+
+[[tasks]]
+id = "docs"
+status = "implemented"
+depends_on = ["layout", "dead-code"]
+acceptance = "Refresh README/C003 wording so test subprocesses are not mistaken for a production server CLI and current foundation state is accurate."
+
+[[tasks]]
+id = "verify"
+status = "planned"
+depends_on = ["layout", "dead-code", "benchmarks", "manifests", "docs"]
+acceptance = "Run canonical Linux and Windows validation on the exact persisted cleanup revision and record evidence before closure."

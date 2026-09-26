@@ -9,36 +9,36 @@ acceptance = "Use the exact-revision C003 owner/epoch torture result as the beha
 
 [[tasks]]
 id = "owned-arena"
-status = "implemented"
+status = "verified"
 depends_on = ["prototype-evidence"]
 acceptance = "Implement generic OwnedArena, OwnedHandle, OwnershipEpoch, and typed ownership failures in cobblestone-core."
 
 [[tasks]]
 id = "transfer-reclaim"
-status = "implemented"
+status = "verified"
 depends_on = ["owned-arena"]
 acceptance = "Gate mutable access and reclamation by current owner/epoch and make transfer advance ownership epochs without partial state change."
 
 [[tasks]]
 id = "stale-reuse"
-status = "implemented"
+status = "verified"
 depends_on = ["owned-arena"]
 acceptance = "Preserve generational stale-handle rejection across removal and slot reuse while stale ownership epochs reject delayed commands after transfer."
 
 [[tasks]]
 id = "immutable-semantics"
-status = "implemented"
+status = "verified"
 depends_on = ["owned-arena"]
 acceptance = "Document and test that immutable NativeBuffer sharing does not transfer mutable ownership authority."
 
 [[tasks]]
 id = "probe-adapter"
-status = "implemented"
+status = "verified"
 depends_on = ["transfer-reclaim", "stale-reuse"]
 acceptance = "Adapt the C003 ownership torture harness to exercise the production cobblestone-core ownership mechanism rather than a duplicate implementation."
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "done"
 depends_on = ["immutable-semantics", "probe-adapter"]
 acceptance = "Run canonical Linux and Windows validation on the exact persisted C004 revision and record evidence before closure."

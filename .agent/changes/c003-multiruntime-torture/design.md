@@ -6,7 +6,7 @@ A native scheduler owns N persistent PHP runtimes. Each runtime has bounded inbo
 
 ## Initial runtime substrate
 
-The first C003 substrate is deliberately process-isolated. The private `cobblestone-runtime-probe` Rust crate owns persistent controlled PHP 8.5 ZTS CLI children through a Cobblestone-owned `RuntimeProcess` abstraction. Each child keeps its Zend heap, cyclic GC state, and arbitrary PHP execution local to that runtime process.
+The first C003 substrate is deliberately process-isolated. The test-only `cobblestone-runtime-probe` crate under `tests/` owns persistent controlled PHP 8.5 ZTS subprocesses through a Cobblestone-owned `RuntimeProcess` abstraction. Each child keeps its Zend heap, cyclic GC state, and arbitrary PHP execution local to that runtime process. This harness is not a server CLI.
 
 Each `RuntimeProcess` owns a bounded Rust command mailbox and bounded completion mailbox around one transport thread. Submission is nonblocking. Runtime transport batches are bounded, so protocol batching does not turn the mailbox into unbounded buffering. If completion draining stops, completion delivery eventually stalls command draining and surfaces explicit command-queue backpressure instead of allowing silent growth. Shutdown drops external mailbox endpoints, drains already accepted commands inside the transport thread, sends an explicit stop command, waits for the PHP process, and joins the transport thread.
 
@@ -18,9 +18,9 @@ Every torture-run message carries a test sequence, logical producer/target ident
 
 ## Handle churn and ownership epochs
 
-C003 uses a private `OwnedProbeArena` layered over the proven generational `Arena`. Each probe has exactly one `RuntimeId` owner and an ownership epoch. Mutation and removal require both the current owner and current epoch. Transfer increments the epoch before the new owner can mutate; delayed commands carrying the old epoch fail safely.
+C003 originally proved owner/epoch behavior with a private compatibility arena layered over the generational `Arena`. C004 subsequently productionized those semantics as `OwnedArena` in `cobblestone-core`; the maintained torture harness now exercises that production mechanism directly instead of keeping a duplicate wrapper.
 
-The handle torture repeatedly creates, mutates, transfers, removes, and reuses native slots. It retains stale handles after reuse, requires every stale probe to remain rejected, verifies generation changes on slot reuse, requires wrong-owner mutations to fail before and after transfer, and requires stale-epoch commands from a prior transfer epoch to fail. This is an experiment surface for C003, not the final C004 ownership API.
+The handle torture repeatedly creates, mutates, transfers, removes, and reuses native slots. It retains stale handles after reuse, requires every stale probe to remain rejected, verifies generation changes on slot reuse, requires wrong-owner mutations to fail before and after transfer, and requires stale-epoch commands from a prior transfer epoch to fail.
 
 ## Completion and GC pressure
 
