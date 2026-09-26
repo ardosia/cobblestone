@@ -6,9 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use cobblestone_core::RuntimeId;
-use cobblestone_runtime_probe::{
-    RoutedMessage, RuntimeCommand, RuntimeCompletion, RuntimeProcess,
-};
+use cobblestone_runtime_probe::{RoutedMessage, RuntimeCommand, RuntimeCompletion, RuntimeProcess};
 
 const TOTAL_MESSAGES: u64 = 1_000_000;
 const MAILBOX_CAPACITY: usize = 64;
@@ -76,10 +74,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 Err(TrySendError::Full(RuntimeCommand::Message(returned))) => {
                     if returned != message {
-                        return Err(io::Error::other(
-                            "full mailbox returned a different message",
-                        )
-                        .into());
+                        return Err(
+                            io::Error::other("full mailbox returned a different message").into(),
+                        );
                     }
                     backpressure_events += 1;
                     break;
@@ -164,14 +161,7 @@ fn drain_runtime(
     loop {
         match runtime.try_recv_completion() {
             Ok(RuntimeCompletion::Message(message)) => {
-                validate_message(
-                    message,
-                    mailbox_owner,
-                    producer,
-                    alternate,
-                    seen,
-                    received,
-                )?;
+                validate_message(message, mailbox_owner, producer, alternate, seen, received)?;
                 drained += 1;
             }
             Ok(other) => {
