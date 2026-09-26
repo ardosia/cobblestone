@@ -33,3 +33,14 @@ result = "Both validate jobs completed successfully. Canonical validation runs r
 trust = "exact-revision-validation"
 confidence = "observed"
 limitations = "This validates generic RakNet transport mechanics for the fixed protocol-8 profile. MCPE protocol-84 packet semantics, batch/compression, NBT, and end-to-end client compatibility remain C006/C013 work."
+
+[[evidence]]
+id = "post-closure-ardosia-parity-audit"
+kind = "source-review"
+status = "passed"
+claim = "Cobblestone's C005 transport mechanism covers the complete Ardosia network-facade behavior required by the fixed protocol-8 target, with only intentional fixed-target narrowing and stricter queue-backpressure behavior."
+source = "ardosia/cobblestone@a38bf7bc87b13b7717b0d8a52590b7554a52bcd8 native/cobblestone-network; ardosia/ardosia-network@57ff9201c0f6bfc9f1317936be22fefa088e0f1a; ardosia/ardosia-raknet@55b57787b6715ef2a931631ef4b690e3df0651e5 compared with main b2f9160db15e3a5c0d6faf1ea89c8be59bf5fc3b"
+result = "The public listener/connection/reliability surfaces and protocol-8 transport fixtures match the Ardosia facade's required mechanism. Cobblestone intentionally removes generic protocol lists and CookieMode in favor of a protocol8-only cookie-less profile, while adding explicit command-queue backpressure and deterministic accept/inbound saturation tests. ardosia-network main is identical to the pinned facade revision. ardosia-raknet main is ten commits ahead of the consumer pin, but the comparison changes only agent/docs/CONSUMER-PINS/README files and no RakNet source files."
+trust = "exact-source-comparison"
+confidence = "observed"
+limitations = "This parity claim is transport-only. It does not claim Minecraft protocol-84 login/session completeness or real-client end-to-end compatibility."

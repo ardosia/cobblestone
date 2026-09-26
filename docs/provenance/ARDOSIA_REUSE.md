@@ -35,6 +35,18 @@ Only generic transport behavior is reused: handshake/profile translation, connec
 
 Because this slice derives from Apache-2.0 Ardosia transport/facade code, `cobblestone-network` is explicitly Apache-2.0 rather than inheriting the workspace's dual-license declaration.
 
+### C005 parity audit
+
+A post-closure parity review rechecked Cobblestone against the exact facade oracle `ardosia/ardosia-network@57ff9201c0f6bfc9f1317936be22fefa088e0f1a`. That revision is still the current `ardosia-network/main`.
+
+For the fixed Cobblestone target, the transport mechanism is complete against that facade: `NetworkServer::{bind,accept,shutdown}`, connected `Connection::{recv,send,close}`, peer-address access, all five RakNet reliability modes, bounded backend/inbound delivery, protocol-8 connection tests, bidirectional reliable-ordered traffic, and fragmented reliable-ordered reassembly are present.
+
+Cobblestone deliberately does **not** copy Ardosia's generic multi-protocol `NetworkConfig::new` or public `CookieMode`. It exposes only `NetworkConfig::protocol8`, accepts only RakNet protocol 8, and forces the legacy cookie-less handshake required by the fixed MCPE 0.15.10 target. The Ardosia `hardfork_smoke` assertion about the vendor default protocol 11 is therefore not a missing Cobblestone feature.
+
+Cobblestone is stricter at its application-facing queues: send/disconnect command submission reports explicit command backpressure, and deterministic tests cover command, accept, and per-peer inbound saturation.
+
+The pinned transport mechanism `ardosia/ardosia-raknet@55b57787b6715ef2a931631ef4b690e3df0651e5` remains source-equivalent to the current hardfork main for runtime code. The later hardfork-main commits change only agent/docs/consumer-pin/README material, not RakNet source files.
+
 ## Planned oracle use later
 
 Ardosia gameplay implementations/tests from the proven identity/entity/world/tick/mutation/inventory work are behavior oracles for later gameplay ports. Depending on profiling and ownership fit, a future child may reuse a Rust implementation or port its semantics to PHP.
