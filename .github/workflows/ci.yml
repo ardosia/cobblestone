@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Install pinned Rust toolchain
@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Install PHP 8.5 ZTS
@@ -110,3 +110,25 @@ jobs:
           php -n -d "extension=$extension" tools/php-extension-smoke.php
           php -n -d "extension=$extension" tools/php-fiber-smoke.php
           php -n -d "extension=$extension" tools/php-benchmark.php
+
+  ai-ci-summary:
+    name: ai-ci-summary
+    if: ${{ always() }}
+    needs: [validate, php-zts]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize required checks
+        shell: bash
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          PHP_ZTS_RESULT: ${{ needs.php-zts.result }}
+        run: |
+          {
+            echo "### Cobblestone CI"
+            echo
+            echo "- validate: $VALIDATE_RESULT"
+            echo "- php-zts: $PHP_ZTS_RESULT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          test "$VALIDATE_RESULT" = "success"
+          test "$PHP_ZTS_RESULT" = "success"
