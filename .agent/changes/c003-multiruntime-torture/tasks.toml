@@ -27,13 +27,13 @@ acceptance = "Stress native handle creation/destruction/reuse, stale probes, wro
 
 [[tasks]]
 id = "completion-gc"
-status = "planned"
+status = "implemented"
 depends_on = ["runtime-harness"]
 acceptance = "Stress concurrent native completions and PHP cyclic GC while recording queue/memory/latency behavior."
 
 [[tasks]]
 id = "shutdown-restart"
-status = "planned"
+status = "implemented"
 depends_on = ["message-torture", "handle-churn", "completion-gc"]
 acceptance = "Repeat cancellation, orderly shutdown, and runtime restart without deadlock, stale completion execution, or use-after-destroy behavior."
 
