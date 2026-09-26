@@ -30,7 +30,7 @@ Coverage beyond the implemented bootstrap subset is explicit rather than silentl
 
 Protocol-84 packet code uses explicit endian primitives rather than host-endian casts.
 
-The initial primitive layer provides bounded reads/writes for bytes, big-endian 16/32/64-bit integers, little-endian 32-bit integers needed by the login inner payload, big-endian IEEE-754 floats, and strings whose length prefix is an unsigned big-endian 16-bit value.
+The first primitive slice provides the exact bounded reads/writes required by the bootstrap packets: big-endian 16/32-bit integers, little-endian 32-bit integers needed by the login inner payload, raw bytes, and strings whose length prefix is an unsigned big-endian 16-bit value. Additional 64-bit, float, varint, item, and NBT primitives are added only when the packet slice that needs them is implemented.
 
 Every read checks remaining input before advancing. Length conversions reject negative/signed overflow and caller-provided resource limits are checked before allocation/decompression.
 

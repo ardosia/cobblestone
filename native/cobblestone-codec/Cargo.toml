@@ -1,0 +1,13 @@
+[package]
+name = "cobblestone-codec"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+cobblestone-core = { path = "../cobblestone-core" }
+flate2.workspace = true
+thiserror.workspace = true

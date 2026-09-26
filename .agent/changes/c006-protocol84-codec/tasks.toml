@@ -15,19 +15,19 @@ acceptance = "Pin a matching protocol-84 historical source oracle and cross-chec
 
 [[tasks]]
 id = "primitive-codec"
-status = "planned"
+status = "implemented"
 depends_on = ["source-oracle"]
 acceptance = "Implement bounded endian/string primitives and typed malformed-input errors without panics on untrusted bytes."
 
 [[tasks]]
 id = "frame-batch"
-status = "planned"
+status = "implemented"
 depends_on = ["primitive-codec"]
 acceptance = "Implement the 0xfe game marker, packet-id envelope, protocol-84 BatchPacket length framing, zlib compression, and bounded inner packet iteration."
 
 [[tasks]]
 id = "login-bootstrap"
-status = "planned"
+status = "implemented"
 depends_on = ["primitive-codec", "frame-batch"]
 acceptance = "Implement Login, PlayStatus, and Disconnect wire codecs while keeping JWT/auth semantics outside the binary codec."
 
@@ -39,7 +39,7 @@ acceptance = "Implement only the NBT encoding modes actually required by protoco
 
 [[tasks]]
 id = "fixtures"
-status = "planned"
+status = "implemented"
 depends_on = ["frame-batch", "login-bootstrap"]
 acceptance = "Add exact protocol-84 fixtures for marker/packet IDs, login envelope, status/disconnect, batch compression, malformed lengths, and decompression bounds."
 
