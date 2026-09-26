@@ -3,13 +3,13 @@ change = "c003-multiruntime-torture"
 
 [[tasks]]
 id = "substrate"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Select and encapsulate an initial PHP 8.5 ZTS multi-runtime substrate behind a Cobblestone-owned abstraction without making it public API."
 
 [[tasks]]
 id = "runtime-harness"
-status = "implemented"
+status = "verified"
 depends_on = ["substrate"]
 acceptance = "Start at least two persistent runtimes with bounded command/completion queues and deterministic lifecycle control."
 

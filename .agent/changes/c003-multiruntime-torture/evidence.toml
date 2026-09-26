@@ -1,0 +1,24 @@
+schema = 1
+change = "c003-multiruntime-torture"
+
+[[evidence]]
+id = "runtime-substrate-initial-ci"
+kind = "validation"
+status = "failed"
+claim = "The initial C003 persistent-runtime substrate passes the canonical repository validation gate."
+source = "ardosia/cobblestone@4acc56fc3dc8f573061cfefdb0fa65b48ed842a9 GitHub check runs"
+result = "Repository metadata validation passed, but validate (ubuntu-latest) and validate (windows-latest) both stopped at cargo fmt --check on rustfmt-only layout in the new runtime-probe sources. The Ubuntu PHP-ZTS job completed successfully on this revision, including the multi-runtime smoke."
+trust = "runtime-validation"
+confidence = "observed"
+limitations = "The failed validate jobs did not reach cargo check, Clippy, or Rust tests on this revision. The superseded Windows PHP-ZTS result is not used as evidence for this revision."
+
+[[evidence]]
+id = "runtime-substrate-ci"
+kind = "validation"
+status = "passed"
+claim = "The corrected process-isolated C003 substrate starts two persistent controlled PHP 8.5 ZTS runtimes through Cobblestone-owned bounded mailboxes and shuts them down cleanly on Linux and Windows."
+source = "ardosia/cobblestone@b2ae6b33b01012e5690f0ec5b011f936255fe949 GitHub check runs"
+result = "validate (ubuntu-latest), validate (windows-latest), php-zts (ubuntu-latest), and php-zts (windows-latest) all completed successfully. The validate jobs ran metadata validation, cargo fmt --check, cargo check --workspace --all-targets, cargo clippy --workspace --all-targets -- -D warnings, and cargo test --workspace --all-targets. Each PHP-ZTS job ran the runtime smoke, which requires two distinct persistent PHP process identities, integrity-preserving message round trips to each runtime, cyclic-GC commands with GC enabled, and clean explicit shutdown."
+trust = "runtime-validation"
+confidence = "observed"
+limitations = "This is a process-isolated baseline and does not prove same-process or cross-thread Zend runtime safety. It does not yet satisfy the one-million-message/backpressure torture, handle churn and ownership-transfer cases, concurrent completion/Fiber pressure, cancellation/restart stress, or the final C003 go/no-go decision."
