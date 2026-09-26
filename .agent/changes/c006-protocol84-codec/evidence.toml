@@ -22,3 +22,14 @@ result = "The revision identifies MCPE 0.15.10 / CURRENT_PROTOCOL 84. Info.php a
 trust = "pinned-matching-source"
 confidence = "cross-checked"
 limitations = "This is historical third-party source evidence, not authority. Cobblestone independently implements the observed wire format and still requires exact-revision regression and real-client compatibility evidence."
+
+[[evidence]]
+id = "session-bootstrap-source-oracle"
+kind = "source-review"
+status = "passed"
+claim = "The initial post-login server bootstrap packet layouts are pinned to the matching protocol-84 source rather than inferred from modern Bedrock."
+source = "KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e src/pocketmine/protocol/SetTimePacket.php, StartGamePacket.php, SetSpawnPositionPacket.php, AdventureSettingsPacket.php, SetDifficultyPacket.php, Info.php"
+result = "SetTime is id 0x08 with big-endian int time plus one byte; StartGame is id 0x09 with big-endian seed/generator/gamemode/entity/spawn/float coordinates, fixed bytes 1/1/0, and a big-endian-u16 string; SetSpawnPosition is id 0x26 with three big-endian ints; AdventureSettings is id 0x31 with three big-endian ints; SetDifficulty is id 0x35 with one big-endian int."
+trust = "pinned-matching-source"
+confidence = "observed"
+limitations = "These fixtures cover the initial server bootstrap subset only. PlayerList, chunk, inventory, gameplay, and end-to-end real-client behavior remain later C006/C013 evidence."

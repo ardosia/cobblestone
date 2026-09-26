@@ -131,6 +131,17 @@ pub enum CodecError {
         actual: u8,
     },
 
+    /// A fixed-target packet field did not match the protocol-84 constant.
+    #[error("invalid fixed byte for {field}: expected 0x{expected:02x}, got 0x{actual:02x}")]
+    InvalidFixedByte {
+        /// Stable field name.
+        field: &'static str,
+        /// Required fixed-target value.
+        expected: u8,
+        /// Observed value.
+        actual: u8,
+    },
+
     /// Zlib compression or decompression failed.
     #[error("zlib failure: {message}")]
     Compression {

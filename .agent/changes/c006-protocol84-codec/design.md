@@ -65,9 +65,12 @@ The first implementation slice types only the packets needed to prove the bounda
 - Login decode/encode envelope;
 - PlayStatus encode/decode with a big-endian 32-bit status;
 - Disconnect encode/decode with the protocol-84 string primitive;
-- Batch encode/decode and raw inner packet framing.
+- Batch encode/decode and raw inner packet framing;
+- SetTime, StartGame, SetSpawnPosition, AdventureSettings, and SetDifficulty server bootstrap packets.
 
-Handshake, StartGame, SetTime, chunks, inventory, and gameplay packets remain explicit follow-up tasks in C006.
+The StartGame encoder preserves the three fixed bytes emitted by the matching 0.15.10 source (1, 1, 0); the decoder rejects drift instead of silently generalizing those unknown historical fields.
+
+Handshake, PlayerList, chunks, inventory, and gameplay packets remain explicit follow-up tasks in C006.
 
 ## Little-endian NBT
 

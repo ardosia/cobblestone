@@ -54,6 +54,14 @@ impl<'a> Reader<'a> {
         Ok(i32::from_be_bytes(self.read_array()?))
     }
 
+    pub(crate) fn read_i64_be(&mut self) -> Result<i64, CodecError> {
+        Ok(i64::from_be_bytes(self.read_array()?))
+    }
+
+    pub(crate) fn read_f32_be(&mut self) -> Result<f32, CodecError> {
+        Ok(f32::from_bits(u32::from_be_bytes(self.read_array()?)))
+    }
+
     pub(crate) fn read_i32_le(&mut self) -> Result<i32, CodecError> {
         Ok(i32::from_le_bytes(self.read_array()?))
     }
@@ -139,6 +147,14 @@ impl Writer {
 
     pub(crate) fn put_i32_be(&mut self, value: i32) {
         self.output.extend_from_slice(&value.to_be_bytes());
+    }
+
+    pub(crate) fn put_i64_be(&mut self, value: i64) {
+        self.output.extend_from_slice(&value.to_be_bytes());
+    }
+
+    pub(crate) fn put_f32_be(&mut self, value: f32) {
+        self.output.extend_from_slice(&value.to_bits().to_be_bytes());
     }
 
     pub(crate) fn put_i32_le(&mut self, value: i32) {
