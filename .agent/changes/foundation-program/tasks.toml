@@ -21,7 +21,7 @@ acceptance = "Run the persistent multi-runtime PHP torture prototype and record 
 
 [[tasks]]
 id = "C004"
-status = "planned"
+status = "active"
 depends_on = ["C002", "C003"]
 acceptance = "Finalize type-safe handle ownership metadata, wrong-owner behavior, reclamation, and immutable shared-native data semantics."
 

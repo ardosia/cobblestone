@@ -1,0 +1,13 @@
+schema = 1
+change = "c004-ownership-model"
+
+[[evidence]]
+id = "c003-ownership-oracle"
+kind = "validation"
+status = "passed"
+claim = "The owner-plus-epoch behavior selected for C004 already passed the C003 stress gate on Linux and Windows before productionization."
+source = "ardosia/cobblestone@48654ca56a2f929231235312c27155dbac135860; C003 evidence multiruntime-torture-final-ci"
+result = "The exact validated C003 revision completed ownership-torture on both PHP-ZTS platform jobs together with stale-handle reuse, wrong-owner rejection, stale-epoch rejection, transfer, reclamation, cancellation, shutdown, and restart stress."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This is the behavioral oracle for C004. The new generic production mechanism still requires its own exact-revision validation before C004 closes."

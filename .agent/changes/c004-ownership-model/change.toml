@@ -1,0 +1,29 @@
+schema = 1
+id = "c004-ownership-model"
+kind = "ownership-model"
+size = "S2"
+status = "active"
+workflow = "feature"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "1e9694a1620a4a18eda1ae8298764fdbb0c739c1"
+parent_change = "foundation-program"
+acceptance = [
+  "promote the C003 owner-plus-epoch experiment into a generic cobblestone-core ownership mechanism instead of leaving gameplay ownership in the torture harness",
+  "preserve exactly one owning RuntimeId for each live mutable authoritative value and reject wrong-owner or stale-epoch mutation safely",
+  "make ownership transfer advance an epoch atomically and leave ownership unchanged if the epoch cannot advance",
+  "require the current owner and epoch for reclamation while preserving generational stale-handle rejection across remove and slot reuse",
+  "document immutable shared-native values such as NativeBuffer as shareable snapshots/data that do not transfer mutable authority",
+  "keep semantic wrong-owner routing above cobblestone-core and keep runtime/thread/handle ceremony out of ordinary plugin APIs",
+  "run canonical Linux and Windows validation on the exact persisted revision before closing C004"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "aligned"
+implementation = "gap"
+tests = "gap"
+documentation = "pending"
+decisions = "aligned"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"
