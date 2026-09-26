@@ -39,7 +39,7 @@ acceptance = "Implement protocol-84 codec, batch/compression, required NBT/wire 
 
 [[tasks]]
 id = "C007"
-status = "planned"
+status = "active"
 depends_on = ["C002", "C005", "C006"]
 acceptance = "Build the single-runtime PHP server kernel with lifecycle, sessions, events, commands, plugin loading, scheduler, and Fiber integration."
 

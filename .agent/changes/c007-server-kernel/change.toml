@@ -1,0 +1,28 @@
+schema = 1
+id = "c007-server-kernel"
+kind = "server-kernel"
+size = "S3"
+status = "active"
+workflow = "feature"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "7ccd67ff10d1f175e509da534fe788e7316a3d6e"
+parent_change = "foundation-program"
+acceptance = [
+  "prove the fixed 0.15.10 client can discover and reach the protocol-84 session boundary through the completed RakNet-8 transport",
+  "build the production single-runtime PHP kernel lifecycle above transport and codec without exposing RakNet or threading ceremony to gameplay/plugin APIs",
+  "define bounded session ingress/egress, disconnect, shutdown, and malformed-input behavior",
+  "provide lifecycle, event, command, plugin-loading, scheduler, and Fiber-completion integration",
+  "keep transport, wire codec, session/domain semantics, and PHP gameplay ownership separated",
+  "record exact-revision Linux/Windows validation plus real-client evidence before closure"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "pending"
+implementation = "pending"
+tests = "pending"
+documentation = "pending"
+decisions = "aligned"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

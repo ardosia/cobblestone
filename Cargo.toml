@@ -4,6 +4,7 @@ members = [
     "native/cobblestone-core",
     "native/cobblestone-codec",
     "native/cobblestone-network",
+    "tests/client-bootstrap",
     "tests/runtime-probe",
 ]
 exclude = [

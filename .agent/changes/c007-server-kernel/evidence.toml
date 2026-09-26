@@ -1,0 +1,13 @@
+schema = 1
+change = "c007-server-kernel"
+
+[[evidence]]
+id = "historical-bootstrap-layout"
+kind = "source-review"
+status = "passed"
+claim = "The matching fixed-target source uses the structured MCPE RakNet advertisement and sends LoginSuccess before StartGame plus initial time/spawn/difficulty state."
+source = "KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e legacy/old-src/network/RakLibInterface.php and legacy/old-src/Player.php"
+result = "RakLibInterface builds MCPE;<name>;<protocol>;;<online>;<max>. Player login sends PlayStatus LOGIN_SUCCESS, StartGame, SetTime, SetSpawnPosition, SetHealth, SetDifficulty, followed by additional session/game state."
+trust = "pinned-matching-historical-source"
+confidence = "observed"
+limitations = "Historical source is used for wire/session sequencing evidence only. C007 independently implements the fixed-target behavior and does not copy source code."
