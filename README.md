@@ -22,3 +22,5 @@ python tools/ci.py all
 ```
 
 C001 establishes engineering state. C002 proves `cobblestone-core` primitives and the PHP/native boundary. C003 is a multi-runtime torture prototype and is a go/no-go gate before gameplay is distributed across PHP runtimes.
+
+C005 introduces `cobblestone-network`, a game-agnostic RakNet transport facade pinned to the exact Ardosia transport revision recorded in project provenance. Its initial public configuration is intentionally fixed to RakNet protocol 8 with the legacy cookie-less handshake. Protocol-84 packet encoding/decoding remains C006 work.

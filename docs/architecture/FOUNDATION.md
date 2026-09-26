@@ -94,6 +94,39 @@ C003 may proceed to a production ownership design only if the prototype demonstr
 
 If the initial PHP multi-runtime substrate is unstable, Cobblestone investigates alternatives before gameplay depends on it.
 
+## C005 — protocol-8 RakNet transport
+
+C005 introduces `cobblestone-network` as the transport boundary. The implementation pins the exact Ardosia RakNet consumer revision recorded in `docs/provenance/ARDOSIA_REUSE.md` instead of following a moving transport branch.
+
+### Transport boundary
+
+`cobblestone-network` owns:
+
+- UDP/RakNet listener and connection lifecycle;
+- RakNet reliability selection;
+- bounded backend command delivery;
+- bounded per-connection inbound payload delivery;
+- transport-level backpressure and disconnect behavior;
+- clean transport shutdown.
+
+It does not own game protocol 84, packet codecs, batch/compression, NBT, players, worlds, gameplay sessions, plugins, or gameplay ownership.
+
+### Fixed compatibility profile
+
+The initial public configuration is deliberately narrow. `NetworkConfig::protocol8` selects RakNet protocol 8 and disables the newer handshake-cookie path so the transport matches the accepted MCPE 0.15.10 target. The server advertisement is treated as an opaque transport string supplied by the layer above.
+
+A generic protocol list or modern-Bedrock compatibility switch is not exposed. Expanding the transport target requires an accepted change.
+
+### Bounded facade
+
+Backend commands and per-peer inbound payloads use bounded queues. A peer that exhausts its inbound capacity is closed through an explicit backpressure terminal state instead of creating an unbounded application backlog. Transport ownership remains independent from gameplay-runtime ownership.
+
+### Transport verification
+
+C005 fixtures require raw protocol-8 Request1 acceptance, incompatible protocol rejection, completed protocol-8 connection establishment, bidirectional reliable-ordered payload flow, and reassembly of a payload large enough to exercise RakNet fragmentation.
+
+These fixtures validate transport mechanics only. Protocol-84 packet compatibility belongs to C006 and later end-to-end fixed-target evidence.
+
 ## GC posture
 
 Cyclic GC remains enabled. The object model should avoid large cyclic PHP graphs by keeping high-connectivity authoritative state native-backed. Instrument GC runs, cycles collected, pause duration, roots, PHP memory, native memory, and available allocation data before changing collection policy.
