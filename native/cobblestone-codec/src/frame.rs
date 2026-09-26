@@ -47,11 +47,7 @@ impl RawPacket {
 
 /// Decodes the outer 0xfe game marker and packet ID from one connected payload.
 pub fn decode_game_frame(input: &[u8], limits: CodecLimits) -> Result<RawPacket, CodecError> {
-    check_limit(
-        LimitKind::Frame,
-        input.len(),
-        limits.max_frame_bytes(),
-    )?;
+    check_limit(LimitKind::Frame, input.len(), limits.max_frame_bytes())?;
     let Some((&marker, packet)) = input.split_first() else {
         return Err(CodecError::UnexpectedEof {
             needed: 1,
@@ -84,11 +80,7 @@ pub fn encode_game_frame(
     Ok(NativeBuffer::from_vec(output))
 }
 
-pub(crate) fn check_limit(
-    kind: LimitKind,
-    actual: usize,
-    limit: usize,
-) -> Result<(), CodecError> {
+pub(crate) fn check_limit(kind: LimitKind, actual: usize, limit: usize) -> Result<(), CodecError> {
     if actual > limit {
         Err(CodecError::LimitExceeded {
             kind,

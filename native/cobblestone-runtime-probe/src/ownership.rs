@@ -1,6 +1,4 @@
-use cobblestone_core::{
-    InsertError, OwnedArena, OwnedHandle, OwnershipEpoch, RuntimeId,
-};
+use cobblestone_core::{InsertError, OwnedArena, OwnedHandle, OwnershipEpoch, RuntimeId};
 
 pub use cobblestone_core::OwnershipError;
 
@@ -58,9 +56,7 @@ impl OwnedProbeArena {
 
     pub fn snapshot(&self, handle: ProbeHandle) -> Result<ProbeSnapshot, OwnershipError> {
         let metadata = self.arena.metadata(handle)?;
-        let value = *self
-            .arena
-            .get(handle, metadata.owner(), metadata.epoch())?;
+        let value = *self.arena.get(handle, metadata.owner(), metadata.epoch())?;
         Ok(ProbeSnapshot {
             owner: metadata.owner(),
             epoch: metadata.epoch().get(),
@@ -75,11 +71,9 @@ impl OwnedProbeArena {
         expected_epoch: u64,
         value: u64,
     ) -> Result<(), OwnershipError> {
-        *self.arena.get_mut(
-            handle,
-            requester,
-            OwnershipEpoch::new(expected_epoch),
-        )? = value;
+        *self
+            .arena
+            .get_mut(handle, requester, OwnershipEpoch::new(expected_epoch))? = value;
         Ok(())
     }
 

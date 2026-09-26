@@ -4,7 +4,7 @@ use crate::batch::{BatchPacket, compress_zlib, decompress_zlib_limited};
 use crate::binary::{Reader, Writer};
 use crate::frame::{RawPacket, check_limit};
 use crate::{
-    CodecError, CodecLimits, LimitKind, LOGIN_MAX_DECOMPRESSED_BYTES, decode_game_frame,
+    CodecError, CodecLimits, LOGIN_MAX_DECOMPRESSED_BYTES, LimitKind, decode_game_frame,
     encode_game_frame,
 };
 
@@ -233,10 +233,7 @@ fn decode_login(body: &[u8], limits: CodecLimits) -> Result<LoginPacket, CodecEr
     })
 }
 
-fn encode_login(
-    packet: &LoginPacket,
-    limits: CodecLimits,
-) -> Result<NativeBuffer, CodecError> {
+fn encode_login(packet: &LoginPacket, limits: CodecLimits) -> Result<NativeBuffer, CodecError> {
     if packet.protocol != PROTOCOL_VERSION {
         return Err(CodecError::UnsupportedProtocol {
             expected: PROTOCOL_VERSION,
@@ -244,13 +241,12 @@ fn encode_login(
         });
     }
 
-    let chain_len = i32::try_from(packet.chain_data.len()).map_err(|_| {
-        CodecError::LengthOutOfRange {
+    let chain_len =
+        i32::try_from(packet.chain_data.len()).map_err(|_| CodecError::LengthOutOfRange {
             field: "login chain length",
             value: packet.chain_data.len(),
             max: i32::MAX as usize,
-        }
-    })?;
+        })?;
     let skin_len =
         i32::try_from(packet.skin_jwt.len()).map_err(|_| CodecError::LengthOutOfRange {
             field: "login skin JWT length",

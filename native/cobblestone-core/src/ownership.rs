@@ -210,10 +210,7 @@ impl<T> OwnedArena<T> {
     /// Returns current ownership metadata without granting access to the value.
     ///
     /// Semantic layers may use this information to route a command to the current owner.
-    pub fn metadata(
-        &self,
-        handle: OwnedHandle<T>,
-    ) -> Result<OwnershipMetadata, OwnershipError> {
+    pub fn metadata(&self, handle: OwnedHandle<T>) -> Result<OwnershipMetadata, OwnershipError> {
         let state = self.state(handle)?;
         Ok(OwnershipMetadata {
             owner: state.owner,
@@ -257,10 +254,7 @@ impl<T> OwnedArena<T> {
     ) -> Result<OwnershipEpoch, OwnershipError> {
         let state = self.state_mut(handle)?;
         assert_owner_and_epoch(state, requester, expected_epoch)?;
-        let next_epoch = state
-            .epoch
-            .next()
-            .ok_or(OwnershipError::EpochExhausted)?;
+        let next_epoch = state.epoch.next().ok_or(OwnershipError::EpochExhausted)?;
 
         state.owner = new_owner;
         state.epoch = next_epoch;
@@ -291,10 +285,7 @@ impl<T> OwnedArena<T> {
             .ok_or(OwnershipError::StaleHandle)
     }
 
-    fn state_mut(
-        &mut self,
-        handle: OwnedHandle<T>,
-    ) -> Result<&mut OwnedValue<T>, OwnershipError> {
+    fn state_mut(&mut self, handle: OwnedHandle<T>) -> Result<&mut OwnedValue<T>, OwnershipError> {
         self.arena
             .get_mut(handle.inner)
             .ok_or(OwnershipError::StaleHandle)
@@ -359,9 +350,7 @@ mod tests {
             Err(OwnershipError::WrongOwner { .. })
         ));
 
-        *arena
-            .get_mut(handle, one, epoch)
-            .expect("owner can mutate") = 11;
+        *arena.get_mut(handle, one, epoch).expect("owner can mutate") = 11;
         let next = arena
             .transfer(handle, one, epoch, two)
             .expect("owner can transfer");
@@ -390,14 +379,10 @@ mod tests {
         let (stale, epoch) = arena.insert(one, 1_u64).expect("slot available");
         assert_eq!(arena.remove(stale, one, epoch), Ok(1));
 
-        let (replacement, replacement_epoch) =
-            arena.insert(one, 2_u64).expect("slot reusable");
+        let (replacement, replacement_epoch) = arena.insert(one, 2_u64).expect("slot reusable");
         assert_eq!(stale.index(), replacement.index());
         assert_ne!(stale.generation(), replacement.generation());
-        assert_eq!(
-            arena.metadata(stale),
-            Err(OwnershipError::StaleHandle)
-        );
+        assert_eq!(arena.metadata(stale), Err(OwnershipError::StaleHandle));
         assert_eq!(
             *arena
                 .get(replacement, one, replacement_epoch)
@@ -474,9 +459,7 @@ mod tests {
             arena.get(handle, one, next),
             Err(OwnershipError::WrongOwner { .. })
         ));
-        let authoritative = arena
-            .get(handle, two, next)
-            .expect("new owner can read");
+        let authoritative = arena.get(handle, two, next).expect("new owner can read");
         assert!(authoritative.shares_storage_with(&shared));
         assert_eq!(shared.as_slice(), &[1, 2, 3]);
     }

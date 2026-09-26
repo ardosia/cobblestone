@@ -17,6 +17,6 @@ pub use error::{CodecError, LimitKind};
 pub use frame::{GAME_MARKER, RawPacket, decode_game_frame, encode_game_frame};
 pub use limits::{CodecLimits, LOGIN_MAX_DECOMPRESSED_BYTES};
 pub use packet::{
-    BootstrapPacket, DisconnectPacket, LoginPacket, PlayStatusPacket, PROTOCOL_VERSION,
+    BootstrapPacket, DisconnectPacket, LoginPacket, PROTOCOL_VERSION, PlayStatusPacket,
     decode_bootstrap_frame, encode_bootstrap_frame, packet_id,
 };

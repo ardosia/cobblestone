@@ -26,18 +26,14 @@ impl BatchPacket {
         &self.packets
     }
 
-    pub(crate) fn decode_body(
-        body: &[u8],
-        limits: CodecLimits,
-    ) -> Result<Self, CodecError> {
+    pub(crate) fn decode_body(body: &[u8], limits: CodecLimits) -> Result<Self, CodecError> {
         let mut reader = Reader::new(body);
-        let compressed_len = usize::try_from(reader.read_u32_be()?).map_err(|_| {
-            CodecError::LengthOutOfRange {
+        let compressed_len =
+            usize::try_from(reader.read_u32_be()?).map_err(|_| CodecError::LengthOutOfRange {
                 field: "batch compressed length",
                 value: usize::MAX,
                 max: limits.max_batch_compressed_bytes(),
-            }
-        })?;
+            })?;
         check_limit(
             LimitKind::BatchCompressed,
             compressed_len,
@@ -77,18 +73,13 @@ impl BatchPacket {
                 packet_len,
                 limits.max_inner_packet_bytes(),
             )?;
-            packets.push(RawPacket::from_packet_bytes(
-                inner.read_exact(packet_len)?,
-            )?);
+            packets.push(RawPacket::from_packet_bytes(inner.read_exact(packet_len)?)?);
         }
 
         Ok(Self { packets })
     }
 
-    pub(crate) fn encode_body(
-        &self,
-        limits: CodecLimits,
-    ) -> Result<NativeBuffer, CodecError> {
+    pub(crate) fn encode_body(&self, limits: CodecLimits) -> Result<NativeBuffer, CodecError> {
         check_limit(
             LimitKind::InnerPacketCount,
             self.packets.len(),
@@ -156,9 +147,7 @@ pub(crate) fn decompress_zlib_limited(
     kind: LimitKind,
 ) -> Result<Vec<u8>, CodecError> {
     let decoder = ZlibDecoder::new(input);
-    let read_limit = u64::try_from(limit)
-        .unwrap_or(u64::MAX)
-        .saturating_add(1);
+    let read_limit = u64::try_from(limit).unwrap_or(u64::MAX).saturating_add(1);
     let mut limited = decoder.take(read_limit);
     let mut output = Vec::new();
     limited

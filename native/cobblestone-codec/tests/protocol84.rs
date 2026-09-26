@@ -47,9 +47,7 @@ fn exact_play_status_fixture_round_trips() {
     let decoded = decode_bootstrap_frame(&fixture, limits()).expect("decode fixture");
     assert_eq!(
         decoded,
-        BootstrapPacket::PlayStatus(PlayStatusPacket::new(
-            PlayStatusPacket::LOGIN_SUCCESS
-        ))
+        BootstrapPacket::PlayStatus(PlayStatusPacket::new(PlayStatusPacket::LOGIN_SUCCESS))
     );
     assert_eq!(
         encode_bootstrap_frame(&decoded, limits())
@@ -77,9 +75,8 @@ fn exact_disconnect_fixture_round_trips() {
 
 #[test]
 fn exact_login_fixture_decodes_protocol84_envelope() {
-    let fixture = hex(
-        "fe01000000540000001f78dae3616060a8564ace48cccc53b28a8ead6505f213f592f4920146c205c5",
-    );
+    let fixture =
+        hex("fe01000000540000001f78dae3616060a8564ace48cccc53b28a8ead6505f213f592f4920146c205c5");
     let decoded = decode_bootstrap_frame(&fixture, limits()).expect("decode login fixture");
     let BootstrapPacket::Login(login) = decoded else {
         panic!("expected login packet");
@@ -135,9 +132,8 @@ fn malformed_or_wrong_target_input_is_rejected() {
         Err(CodecError::InvalidGameMarker { actual: 0xfd })
     );
 
-    let wrong_protocol = hex(
-        "fe01000000550000001f78dae3616060a8564ace48cccc53b28a8ead6505f213f592f4920146c205c5",
-    );
+    let wrong_protocol =
+        hex("fe01000000550000001f78dae3616060a8564ace48cccc53b28a8ead6505f213f592f4920146c205c5");
     assert_eq!(
         decode_bootstrap_frame(&wrong_protocol, limits()),
         Err(CodecError::UnsupportedProtocol {
@@ -150,14 +146,7 @@ fn malformed_or_wrong_target_input_is_rejected() {
 #[test]
 fn decompression_limit_is_enforced_before_batch_expands_unboundedly() {
     let fixture = hex("fe060000000f78da63606060656200020000310008");
-    let tight = CodecLimits::new(
-        1024,
-        1024,
-        1024,
-        4,
-        1024,
-        16,
-    );
+    let tight = CodecLimits::new(1024, 1024, 1024, 4, 1024, 16);
     assert!(matches!(
         decode_bootstrap_frame(&fixture, tight),
         Err(CodecError::LimitExceeded {
