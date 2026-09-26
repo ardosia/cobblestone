@@ -33,7 +33,7 @@ acceptance = "Extract and adapt the proven Ardosia protocol-8 RakNet core into c
 
 [[tasks]]
 id = "C006"
-status = "planned"
+status = "active"
 depends_on = ["C002", "C005"]
 acceptance = "Implement protocol-84 codec, batch/compression, required NBT/wire mechanisms, and native-buffer integration without leaking wire types into domain APIs."
 

@@ -1,0 +1,28 @@
+schema = 1
+id = "c006-protocol84-codec"
+kind = "wire-codec"
+size = "S2"
+status = "active"
+workflow = "feature"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "7c736b194790652847f01792094875a2dc33e440"
+parent_change = "foundation-program"
+acceptance = [
+  "create cobblestone-codec as a protocol-84 wire boundary that remains separate from RakNet transport and gameplay/domain APIs",
+  "derive compatibility-sensitive packet, batch/compression, and NBT behavior from exact fixed-target evidence or explicitly pinned matching source evidence instead of modern Bedrock assumptions",
+  "encode and decode required protocol-84 primitives with strict bounds, malformed-input rejection, and no panic on untrusted payloads",
+  "use immutable native buffers for opaque payload ownership without exposing transport or runtime/thread ceremony",
+  "add exact regression fixtures for the initial protocol-84 login/session bootstrap packet subset before expanding packet coverage",
+  "record artifact/source provenance and exact-revision Linux and Windows validation before closing C006"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "aligned"
+implementation = "gap"
+tests = "gap"
+documentation = "pending"
+decisions = "pending"
+tasks = "pending"
+evidence = "pending"
+repository = "pending"
