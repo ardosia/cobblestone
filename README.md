@@ -11,6 +11,18 @@ Initial compatibility target:
 
 The architecture deliberately keeps PHP in charge of gameplay semantics and developer-facing APIs. Native code owns mechanisms such as networking, bounded workers, native representations, immutable buffers, and measured hot paths. Arbitrary Zend objects are not shared between runtimes.
 
+## PHP package
+
+The PHP kernel is a Composer/PSR-4 project. Production classes live under `src/Cobblestone/` and use the `Cobblestone\\` namespace.
+
+Prepare the autoloader from the repository root:
+
+```text
+composer dump-autoload --classmap-authoritative
+```
+
+The native `cobblestone_core_php` extension is built separately; Composer owns PHP class loading, not the Rust/PHP extension build.
+
 ## Engineering state
 
 The durable project state lives under `.agent/`. The current foundation architecture is documented in `docs/architecture/FOUNDATION.md`.
@@ -27,6 +39,6 @@ Native microbenchmarks are explicit measurement work rather than a correctness g
 python tools/ci.py bench
 ```
 
-C001-C003 are complete. C003 validated the process-isolated persistent-runtime topology as an experiment; its subprocess harness lives under `tests/` and is not a server CLI or plugin API.
+C001-C007 are complete. C007 proved the real 0.15.10 client can join through the production PHP-owned `ServerKernel`, reaching Login acceptance, RequestChunkRadius handling, synthetic chunk delivery, and PLAYER_SPAWN through the RakNet-8/session/codec/native bridge.
 
-C004 productionizes owner/epoch enforcement in `cobblestone-core`. C005 provides the fixed protocol-8 RakNet transport. C006 provides the protocol-84 wire codec, batch/compression, initial session bootstrap packets, and the required little-endian NBT mode. C007 is active: the real 0.15.10 client reaches PLAYER_SPAWN, `cobblestone-session` owns the production session mechanism, the PHP 8.5 ZTS owner bridge polls bounded native session events, and the PHP kernel now has lifecycle/events, command dispatch, explicit plugin loading, tick scheduling, owner-runtime Fiber completion, and the fixed protocol-84 Login/spawn state machine without exposing RakNet or native threading machinery to gameplay code.
+The next foundation work starts with world/domain structure and observability rather than adding more kernel ceremony: C008 introduces world/chunk structures only where a native boundary is justified, C009 begins deliberate gameplay semantics, and C010 instruments memory/GC/queues/tick behavior before multi-runtime gameplay work.

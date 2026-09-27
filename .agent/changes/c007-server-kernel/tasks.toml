@@ -33,12 +33,12 @@ acceptance = "Add minimal lifecycle/events, command dispatch, plugin loading, sc
 
 [[tasks]]
 id = "kernel-real-client"
-status = "implemented"
+status = "verified"
 depends_on = ["events-commands-plugins"]
 acceptance = "Drive the fixed protocol-84 Login -> RequestChunkRadius -> PLAYER_SPAWN flow through the production PHP ServerKernel, keeping wire encoding native and post-spawn raw gameplay packets internal."
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "done"
 depends_on = ["kernel-real-client"]
 acceptance = "Run canonical Linux/Windows validation, PHP-ZTS integration, and fixed real-client acceptance on the exact persisted revision before closure."

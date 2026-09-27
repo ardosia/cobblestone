@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Cobblestone\Internal\NativeSessionRuntime;
 
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Internal/NativeSessionRuntime.php';
+require_once __DIR__ . '/bootstrap.php';
 
 function session_fail(string $message): never
 {

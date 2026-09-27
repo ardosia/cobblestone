@@ -1,0 +1,27 @@
+schema = 1
+id = "php-project-cleanup"
+kind = "php-project-cleanup"
+size = "S1"
+status = "implemented"
+workflow = "operation"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "e5b4e190d4c2fb0e7623cadf04c23038c8138817"
+acceptance = [
+  "make the PHP kernel a Composer/PSR-4 project without changing public class names or plugin semantics",
+  "split multi-class PHP source files into one class or interface per PSR-4 file",
+  "replace test-side manual source include chains with one Composer bootstrap",
+  "validate Composer metadata and authoritative autoload generation in Linux/Windows PHP-ZTS CI",
+  "preserve native crate boundaries and avoid aesthetic churn where responsibilities are already coherent",
+  "pass canonical and PHP-ZTS validation on the persisted cleanup revision before closure"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "not_applicable"
+implementation = "aligned"
+tests = "pending"
+documentation = "aligned"
+decisions = "not_applicable"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

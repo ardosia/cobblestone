@@ -8,15 +8,7 @@ use Cobblestone\Kernel\SessionDisconnected;
 use Cobblestone\Kernel\SessionLoginAccepted;
 use Cobblestone\Kernel\SessionSpawned;
 
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Internal/NativeSessionRuntime.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Internal/Protocol84Bootstrap.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/EventBus.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/CommandRegistry.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/Scheduler.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Plugin/Plugin.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Plugin/PluginContext.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Plugin/PluginManager.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/ServerKernel.php';
+require_once __DIR__ . '/bootstrap.php';
 
 if (!extension_loaded('cobblestone_core_php')) {
     fwrite(STDERR, "cobblestone_core_php extension is not loaded\n");

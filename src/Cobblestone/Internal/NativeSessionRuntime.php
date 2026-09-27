@@ -5,48 +5,6 @@ declare(strict_types=1);
 namespace Cobblestone\Internal;
 
 /**
- * Kernel-internal event emitted when a native gameplay session is accepted.
- *
- * This is not a plugin API. It intentionally exposes session identity rather than RakNet objects.
- */
-final readonly class NativeSessionConnected
-{
-    public function __construct(
-        public int $sessionId,
-        public string $peer,
-    ) {
-    }
-}
-
-/**
- * Kernel-internal protocol-84 packet event.
- *
- * Packet IDs/bodies are wire data consumed by the server kernel and must not leak into ordinary
- * gameplay/plugin APIs.
- */
-final readonly class NativeSessionPacket
-{
-    public function __construct(
-        public int $sessionId,
-        public int $packetId,
-        public string $body,
-    ) {
-    }
-}
-
-/**
- * Kernel-internal event emitted when the native session mechanism closes a peer.
- */
-final readonly class NativeSessionDisconnected
-{
-    public function __construct(
-        public int $sessionId,
-        public string $reason,
-    ) {
-    }
-}
-
-/**
  * Single-owner PHP facade over the native session mechanism.
  *
  * Networking and native concurrency live below this object. All methods execute on the owning PHP
@@ -146,22 +104,14 @@ final class NativeSessionRuntime
         cobblestone_session_send($sessionId, $packetId, $body, $delivery);
     }
 
-    /**
-     * Validates protocol-84 Login and queues the fixed-target initial bootstrap.
-     *
-     * @internal
-     */
+    /** @internal */
     public function acceptProtocol84Login(int $sessionId, string $body): void
     {
         $this->assertRunning();
         cobblestone_session_protocol84_accept_login($sessionId, $body);
     }
 
-    /**
-     * Handles RequestChunkRadius and queues the bounded synthetic spawn probe.
-     *
-     * @internal
-     */
+    /** @internal */
     public function spawnProtocol84Probe(int $sessionId, string $body): int
     {
         $this->assertRunning();
@@ -187,9 +137,7 @@ final class NativeSessionRuntime
         $this->running = false;
     }
 
-    /**
-     * @param array<int, mixed> $event
-     */
+    /** @param array<int, mixed> $event */
     private function connectedEvent(array $event): NativeSessionConnected
     {
         if (!isset($event[2]) || !is_string($event[2])) {
@@ -199,9 +147,7 @@ final class NativeSessionRuntime
         return new NativeSessionConnected($event[1], $event[2]);
     }
 
-    /**
-     * @param array<int, mixed> $event
-     */
+    /** @param array<int, mixed> $event */
     private function packetEvent(array $event): NativeSessionPacket
     {
         if (!isset($event[2], $event[3]) || !is_int($event[2]) || !is_string($event[3])) {
@@ -211,9 +157,7 @@ final class NativeSessionRuntime
         return new NativeSessionPacket($event[1], $event[2], $event[3]);
     }
 
-    /**
-     * @param array<int, mixed> $event
-     */
+    /** @param array<int, mixed> $event */
     private function disconnectedEvent(array $event): NativeSessionDisconnected
     {
         if (!isset($event[2]) || !is_string($event[2])) {

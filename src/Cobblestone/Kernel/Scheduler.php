@@ -9,28 +9,6 @@ use Fiber;
 use InvalidArgumentException;
 use LogicException;
 
-/** @internal */
-final readonly class NativeTaskAwait
-{
-    public function __construct(public int $taskId)
-    {
-        if ($taskId <= 0) {
-            throw new InvalidArgumentException('native task id must be positive');
-        }
-    }
-}
-
-/** @internal */
-final readonly class TickSleep
-{
-    public function __construct(public int $ticks)
-    {
-        if ($ticks <= 0) {
-            throw new InvalidArgumentException('sleep ticks must be positive');
-        }
-    }
-}
-
 /**
  * Single-owner tick scheduler with Fiber integration.
  *
@@ -43,25 +21,15 @@ final class Scheduler
     private int $nextTaskId = 1;
     private int $nextFiberId = 1;
 
-    /**
-     * @var array<int, array{due: int, interval: ?int, task: Closure(): void}>
-     */
+    /** @var array<int, array{due: int, interval: ?int, task: Closure(): void}> */
     private array $tasks = [];
 
     /** @var array<int, Fiber<mixed, mixed, mixed, mixed>> */
     private array $fibers = [];
 
-    /**
-     * @var array<int, NativeTaskAwait|array{wake: int}>
-     */
+    /** @var array<int, NativeTaskAwait|array{wake: int}> */
     private array $waiting = [];
 
-    /**
-     * Schedules a one-shot task after the requested number of future ticks.
-     *
-     * A zero-delay task cannot run in the already-active tick, so zero and one both become due on
-     * the next owner-runtime tick.
-     */
     public function schedule(int $delayTicks, Closure $task): int
     {
         if ($delayTicks < 0) {
@@ -105,9 +73,6 @@ final class Scheduler
         return true;
     }
 
-    /**
-     * Starts a Fiber immediately on the owner runtime and tracks any supported suspension.
-     */
     public function spawn(Closure $entry): int
     {
         $id = $this->nextFiberId++;

@@ -36,12 +36,17 @@ jobs:
         with:
           php-version: '8.5.11'
           coverage: none
-          tools: none
+          tools: composer:v2
         env:
           phpts: ts
           fail-fast: true
       - name: Verify PHP ZTS runtime
         run: php tests/php/zts-probe.php
+      - name: Prepare Composer autoload
+        shell: bash
+        run: |
+          composer validate --strict --no-check-publish
+          composer dump-autoload --no-interaction --classmap-authoritative
       - name: Verify Unix PHP development tools
         if: runner.os == 'Linux'
         shell: bash

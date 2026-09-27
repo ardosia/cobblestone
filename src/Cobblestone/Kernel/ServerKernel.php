@@ -16,50 +16,6 @@ use Cobblestone\Plugin\PluginManager;
 use LogicException;
 use Throwable;
 
-final readonly class ServerStarted
-{
-}
-
-final readonly class ServerStopping
-{
-}
-
-final readonly class SessionConnected
-{
-    public function __construct(
-        public int $sessionId,
-        public string $peer,
-    ) {
-    }
-}
-
-final readonly class SessionDisconnected
-{
-    public function __construct(
-        public int $sessionId,
-        public string $reason,
-    ) {
-    }
-}
-
-final readonly class SessionLoginAccepted
-{
-    public function __construct(
-        public int $sessionId,
-    ) {
-    }
-}
-
-final readonly class SessionSpawned
-{
-    public function __construct(
-        public int $sessionId,
-        public int $requestedRadius,
-        public int $probeRadius,
-    ) {
-    }
-}
-
 /**
  * Single-owner PHP server kernel for the C007 foundation.
  *
@@ -74,9 +30,7 @@ final class ServerKernel
     private readonly Protocol84Bootstrap $bootstrap;
     private bool $running = true;
 
-    /**
-     * @param Closure(NativeSessionPacket): void|null $packetHandler
-     */
+    /** @param Closure(NativeSessionPacket): void|null $packetHandler */
     private function __construct(
         private readonly NativeSessionRuntime $sessions,
         private ?Closure $packetHandler,
@@ -91,9 +45,7 @@ final class ServerKernel
         $this->events->dispatch(new ServerStarted());
     }
 
-    /**
-     * @param Closure(NativeSessionPacket): void|null $packetHandler
-     */
+    /** @param Closure(NativeSessionPacket): void|null $packetHandler */
     public static function start(
         string $bind,
         int $maxConnections,
@@ -157,7 +109,7 @@ final class ServerKernel
                 } catch (Throwable $error) {
                     fprintf(
                         STDERR,
-                        "cobblestone-kernel: bootstrap-error session=%d type=%s message=%s\\n",
+                        "cobblestone-kernel: bootstrap-error session=%d type=%s message=%s\n",
                         $event->sessionId,
                         get_class($error),
                         $error->getMessage(),

@@ -77,3 +77,14 @@ result = "All five required hosted checks succeeded; local canonical validation 
 trust = "exact-revision-validation"
 confidence = "observed"
 limitations = "Does not validate the later production-kernel real-client integration."
+
+[[evidence]]
+id = "kernel-real-client-exact-validation"
+kind = "real-client-validation"
+status = "passed"
+claim = "The actual fixed Minecraft 0.15.10 client joins through the production PHP-owned ServerKernel on the exact persisted C007 result revision."
+source = "ardosia/cobblestone@e5b4e190d4c2fb0e7623cadf04c23038c8138817 GitHub checks plus user-supplied Fedora real-client run"
+result = "The rebuilt extension exported the protocol84 native bridge functions; the client connected, logged login-accepted protocol=84, requested radius 12, reached spawned with probe radius 2, and ai-ci-summary 108528186215 completed successfully for the same revision."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "The spawn path still uses 25 synthetic all-air probe chunks and does not validate production world generation, storage, or post-spawn gameplay completeness."

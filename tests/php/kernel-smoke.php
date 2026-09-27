@@ -6,15 +6,7 @@ use Cobblestone\Kernel\Scheduler;
 use Cobblestone\Kernel\ServerKernel;
 use Cobblestone\Tests\KernelSmokePlugin;
 
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Internal/NativeSessionRuntime.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Internal/Protocol84Bootstrap.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/EventBus.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/CommandRegistry.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/Scheduler.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Plugin/Plugin.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Plugin/PluginContext.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Plugin/PluginManager.php';
-require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/ServerKernel.php';
+require_once __DIR__ . '/bootstrap.php';
 
 function kernel_fail(string $message): never
 {
