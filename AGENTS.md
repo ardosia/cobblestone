@@ -51,7 +51,7 @@ Run `python tools/ci.py all`. A test or check counts only if it actually ran aga
 - Rust product crates belong under `modules/rust/`; root-level `native/` is not used.
 - Rust-only harness crates belong under `tests/rust/`; PHP tests remain under `tests/php/`.
 - Keep repository root free of product `src/`; Rust crates may use their normal local `src/` directories.
-- PHP package/directory and Composer package identities are lowercase, while PHP namespaces/classes stay PascalCase. Keep responsibilities concrete (`server`, `session`, `event`, `command`, `task`, `native-session`, `plugin`) rather than generic Kernel/Core/Internal buckets.
+- PHP package/directory and Composer package identities are lowercase, while PHP namespaces/classes stay PascalCase. Keep responsibilities concrete (`server`, `session`, `event`, `command`, `task`, `tick`, `log`, `native-session`, `plugin`, `world`) rather than generic Kernel/Core/Internal buckets.
 
 
 ## Temporary validation mode

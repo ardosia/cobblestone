@@ -33,6 +33,6 @@ acceptance = "Leave the existing Actions jobs available only by manual dispatch 
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "verified"
 depends_on = ["ergonomics", "ci-pause"]
 acceptance = "Run local Composer/package validation, canonical Rust validation, PHP extension build, and PHP integration tests on the persisted revision."

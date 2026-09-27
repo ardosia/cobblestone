@@ -20,11 +20,13 @@ modules/
 ├── php/
 │   ├── command/
 │   ├── event/
+│   ├── log/
 │   ├── native-session/
 │   ├── plugin/
 │   ├── server/
 │   ├── session/
 │   ├── task/
+│   ├── tick/
 │   └── world/
 └── rust/
     ├── core/
@@ -61,7 +63,11 @@ The root Composer project consumes these packages through a `modules/php/*` path
 
 Native Zend exports are registered by `modules/rust/php-extension`; Composer package layout cannot rename them.
 
-The first gameplay package is `modules/php/world`. It models the fixed 0.15.10 16×16×128 chunk/world surface in PHP and currently implements Flat generation only. The existing synthetic native chunk probe remains in place until the next integration slice projects real `World` chunks to protocol 84.
+The first gameplay package is `modules/php/world`. It models the fixed 0.15.10 16×16×128 chunk/world surface in PHP and currently implements Flat generation only. Gameplay mutations use a replayable staged `World::mutate()` boundary with per-chunk revisions; execution-region mapping remains internal.
+
+`modules/php/log` provides the PSR-3/Monolog logging implementation with a Spring Boot-inspired console layout and no banner. `modules/php/tick` owns monotonic tick pacing and overload warnings. The server runner handles graceful stop requests/signals instead of leaving a raw infinite loop in the executable.
+
+The existing synthetic native chunk probe remains in place until the next integration slice projects real `World` chunks to protocol 84.
 
 ## Developer workflow
 
@@ -98,4 +104,4 @@ Automatic GitHub Actions runs are temporarily disabled while the current reposit
 
 Durable project state lives under `.agent/`; architecture is documented in `docs/architecture/FOUNDATION.md`.
 
-C001-C007 are complete. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. Repository and package cleanup remains implemented-but-unverified until the requested local validation runs against the persisted revision.
+C001-C007 are complete. The PHP package workspace and initial Flat world API were locally verified on PHP 8.5.11 ZTS at revision `9f4786380afe307d8b4c6eb610b6f449a7e6a72f`. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. The newer logging/tick/shutdown/mutation/region foundation remains implemented pending the requested local `composer verify` run.

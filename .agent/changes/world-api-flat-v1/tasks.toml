@@ -33,6 +33,6 @@ acceptance = "Add the world package to server composition and local PHP test exe
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "verified"
 depends_on = ["composition"]
 acceptance = "Run composer setup and composer verify locally against the persisted revision."

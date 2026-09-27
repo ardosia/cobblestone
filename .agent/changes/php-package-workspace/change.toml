@@ -2,10 +2,11 @@ schema = 1
 id = "php-package-workspace"
 kind = "repository-architecture"
 size = "S2"
-status = "implemented"
+status = "done"
 workflow = "operation"
 control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
 base_revision = "21c14ae3979f7046e4899de8b71ae93e8bea7440"
+result_revision = "9f4786380afe307d8b4c6eb610b6f449a7e6a72f"
 acceptance = [
   "flatten modules/php into lowercase local Composer packages with no package-local src wrappers",
   "keep PHP namespaces and imports PascalCase while package/directory identities remain lowercase",
@@ -21,9 +22,9 @@ acceptance = [
 requirements = "aligned"
 specs = "not_applicable"
 implementation = "aligned"
-tests = "pending"
+tests = "aligned"
 documentation = "aligned"
 decisions = "aligned"
 tasks = "aligned"
-evidence = "pending"
-repository = "pending"
+evidence = "aligned"
+repository = "aligned"

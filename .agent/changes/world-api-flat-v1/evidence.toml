@@ -1,0 +1,13 @@
+schema = 1
+change = "world-api-flat-v1"
+
+[[evidence]]
+id = "world-api-local-validation"
+kind = "validation"
+status = "passed"
+claim = "The PHP world package, Flat generator API, package composition, and existing native/session stack passed local validation on the persisted world API revision."
+source = "user-supplied Fedora composer setup + composer verify run against ardosia/cobblestone@9f4786380afe307d8b4c6eb610b6f449a7e6a72f"
+result = "ardosia/cobblestone-world installed as a local path package; all PHP package manifests and syntax checks passed; canonical Rust validation passed; the PHP extension built in release mode under PHP 8.5.11 ZTS; world-smoke reported passed; native export, panic containment, Fiber, session runtime, and server lifecycle smoke tests completed."
+trust = "exact-revision-local-validation"
+confidence = "observed"
+limitations = "The world slice still uses the existing synthetic protocol-84 chunk probe for real-client spawning; real Chunk projection remains a separate follow-up."

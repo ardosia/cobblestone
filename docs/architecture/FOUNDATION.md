@@ -174,13 +174,13 @@ Network NBT is the historical named-root little-endian mode: little-endian fixed
 
 The initial typed session subset covers Login, PlayStatus, Disconnect, Batch, SetTime, StartGame, SetSpawnPosition, AdventureSettings, and SetDifficulty. Authentication/JWT verification, PlayerList, chunks, inventory, and broader gameplay packet semantics remain separate follow-up surfaces.
 
-## C007 — single-runtime server/session kernel
+## C007 — single-runtime server/session foundation
 
 C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts protocol-84 payloads through `cobblestone-network`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-codec`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
 
-The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session\\Runtime` facade enforces owner-runtime identity and converts those native events into kernel-internal PHP values. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
+The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session\\Runtime` facade enforces owner-runtime identity and converts those native events into server-internal PHP values. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
-The first ordinary PHP kernel surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive only `PluginContext` with those facilities. `Server` translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, applies a finite native-event budget per tick, and disconnects sessions whose raw packets have no installed kernel handler. Fiber waits on native completions are polled and resumed only during the owner-runtime scheduler tick. The fixed-target real-client bootstrap is now orchestrated by an internal PHP state machine while Login validation, packet encoding, compression, and the temporary synthetic chunk probe remain native wire mechanisms.
+The first ordinary PHP server surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive only `PluginContext` with those facilities. `Server` translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, applies a finite native-event budget per tick, and disconnects sessions whose raw packets have no installed server handler. Fiber waits on native completions are polled and resumed only during the owner-runtime scheduler tick. The fixed-target real-client bootstrap is now orchestrated by an internal PHP state machine while Login validation, packet encoding, compression, and the temporary synthetic chunk probe remain native wire mechanisms.
 
 ## C008 — PHP world API and Flat generation
 
@@ -193,6 +193,22 @@ Generator ids retain the fixed StartGame vocabulary (old=0, infinite=1, flat=2),
 The world package is PHP semantics. A native `cobblestone-world` crate is not introduced merely because Ardosia has one; native world representation remains contingent on ownership/performance evidence. Protocol-84 chunk encoding and replacing the temporary synthetic spawn probe are the next world integration slice.
 
 See `docs/provenance/WORLD015.md` for the evidence boundary.
+
+## Runtime hardening, mutations, and execution regions
+
+The application logging boundary is PSR-3. The default implementation uses Monolog and a Spring Boot-inspired console layout containing millisecond timestamp, level, PID, application name, execution label, logger name, message, and structured key/value context. Cobblestone does not print a startup banner. Plugins receive scoped `LoggerInterface` instances and are not coupled to Monolog.
+
+The executable delegates pacing to a monotonic `TickLoop` instead of owning a raw infinite loop. The loop targets the configured tick rate, reports sustained lateness as both milliseconds and ticks behind, throttles warnings, and rebases after excessive backlog rather than spinning through obsolete deadlines.
+
+`Server` owns an explicit Starting/Running/Stopping/Stopped lifecycle. Stop requests end the loop after the current tick. SIGINT/SIGTERM are handled where pcntl exists, and a PHP shutdown hook provides a final best-effort stop. Shutdown continues through stopping-event dispatch, plugin disable, scheduler shutdown, and native-session shutdown even if an earlier phase fails.
+
+Gameplay world changes use `World::mutate()`. `WorldMutation` stages block, biome, extra-data, sky-light, and block-light writes and provides read-your-writes semantics. The coordinator discovers the touched chunk set, discards/replays when that set expands, prepares every chunk against a base revision, rejects stale revisions, filters net-no-op/reverted edits, then commits changed chunks with one revision advance each. Ordinary `World` mutation conveniences use this path; generation remains direct initialization.
+
+Execution regions are internal ownership/scheduling territories, not fixed-target Minecraft world/storage semantics. PHP maps chunks deterministically to internal region identities. Rust `cobblestone-core::RegionDirectory` maps those identities to exactly one `RuntimeId` plus `OwnershipEpoch`, rejecting wrong-owner and stale-epoch transfers. Normal plugin APIs expose neither regions nor runtime/thread ceremony.
+
+The production gameplay path remains single-owner PHP today. This foundation deliberately does not claim that multi-runtime region scheduling is active yet.
+
+See `docs/provenance/RUNTIME_FOUNDATION.md` and `.agent/changes/runtime-foundation-v1/design.md`.
 
 ## GC posture
 

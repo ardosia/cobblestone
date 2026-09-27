@@ -1,0 +1,44 @@
+schema = 1
+change = "runtime-foundation-v1"
+
+[[tasks]]
+id = "logging"
+status = "implemented"
+depends_on = []
+acceptance = "Add PSR-3/Monolog logging with Spring Boot-style timestamp, level, PID, application, execution, logger, message, and structured context; no banner."
+
+[[tasks]]
+id = "tick-loop"
+status = "implemented"
+depends_on = ["logging"]
+acceptance = "Replace the raw entrypoint loop with a monotonic TickLoop, lateness warnings, throttling, and bounded deadline rebasing."
+
+[[tasks]]
+id = "graceful-shutdown"
+status = "implemented"
+depends_on = ["logging", "tick-loop"]
+acceptance = "Add explicit server lifecycle state, stop requests, signal handling, shutdown hook, and best-effort ordered teardown."
+
+[[tasks]]
+id = "world-mutation"
+status = "implemented"
+depends_on = []
+acceptance = "Add replayable staged WorldMutation overlays, per-chunk revisions, conflict preflight, no-op/revert detection, and atomic single-owner commit semantics."
+
+[[tasks]]
+id = "regions"
+status = "implemented"
+depends_on = ["world-mutation"]
+acceptance = "Add internal deterministic PHP execution-region mapping and native RegionDirectory owner/epoch routing primitives without plugin-facing runtime ceremony."
+
+[[tasks]]
+id = "naming-cleanup"
+status = "implemented"
+depends_on = ["logging", "graceful-shutdown"]
+acceptance = "Remove current kernel-named test/harness surfaces and keep Server as the lifecycle/composition term."
+
+[[tasks]]
+id = "verify"
+status = "planned"
+depends_on = ["logging", "tick-loop", "graceful-shutdown", "world-mutation", "regions", "naming-cleanup"]
+acceptance = "Run composer setup and composer verify locally on PHP 8.5 ZTS against the persisted result revision."

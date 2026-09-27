@@ -1,0 +1,35 @@
+schema = 1
+change = "runtime-foundation-v1"
+
+[[evidence]]
+id = "spring-boot-console-layout"
+kind = "source-review"
+status = "passed"
+claim = "Spring Boot's default console layout is organized around sortable millisecond timestamp, level, PID, separator, optional application name, execution/thread name, logger name, and message."
+source = "Spring Boot reference logging documentation, https://docs.spring.io/spring-boot/reference/features/logging.html, reviewed 2026-09-27"
+result = "Cobblestone adopts those visual fields for its Monolog console formatter while retaining PSR-3 as the application/plugin API and intentionally omitting any startup banner."
+trust = "official-upstream-documentation"
+confidence = "observed"
+limitations = "Cobblestone is not a Java/Spring application and does not reproduce Logback configuration, MDC, profiles, or Spring's logging bootstrap."
+
+[[evidence]]
+id = "ardosia-mutation-oracle"
+kind = "source-review"
+status = "passed"
+claim = "Ardosia's fixed-target world implementation uses staged terrain patches, revisioned prepare/commit, read-through staged state, and no revision advance for no-op/reverted edits; its gameplay design preserves synchronous nested effects and discard/replay for newly discovered cross-chunk work."
+source = "ardosia/ardosia@766f2a2a073889583334758b500b7b6e05acb1f1 crates/world/src/edit.rs, crates/world/src/coord.rs, crates/game/src/world_root.rs, and .agent/changes/t013-block-behavior-dispatch/design.md"
+result = "Cobblestone ports the semantic transaction properties to PHP while keeping actual gameplay state PHP-owned and native region ownership limited to routing mechanism."
+trust = "pinned-related-implementation"
+confidence = "observed"
+limitations = "Cobblestone does not copy Ardosia's Rust world locks, resident chunk handles, game-world lease graph, or block behavior implementation."
+
+[[evidence]]
+id = "fixed-target-region-boundary"
+kind = "architecture"
+status = "passed"
+claim = "Execution regions are an internal Cobblestone scheduling/ownership mechanism rather than a fixed-target Minecraft gameplay feature."
+source = "Cobblestone architecture invariant plus current user requirement"
+result = "PHP maps chunks to internal RegionId values; Rust core stores owner+epoch routes. World::mutate and plugin services do not expose runtime IDs, locks, queues, or region ownership controls."
+trust = "accepted-project-design"
+confidence = "accepted"
+limitations = "All production gameplay still executes on the current single owning PHP runtime. Multi-runtime region scheduling is not claimed by this change."
