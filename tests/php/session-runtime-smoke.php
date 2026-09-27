@@ -44,7 +44,7 @@ if (cobblestone_session_running()) {
     session_fail('session runtime remained active after shutdown');
 }
 
-$restart = NativeSessionRuntime::start('127.0.0.1:0', 2, 'Cobblestone PHP Restart');
+$restart = Runtime::start('127.0.0.1:0', 2, 'Cobblestone PHP Restart');
 $restart->stop();
 
 printf(
