@@ -165,6 +165,7 @@ function testPhp(): void
     foreach ([
         'native-exports-smoke.php',
         'extension-smoke.php',
+        'native-world-smoke.php',
         'fiber-smoke.php',
         'session-runtime-smoke.php',
         'server-smoke.php',
