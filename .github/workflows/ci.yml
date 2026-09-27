@@ -78,7 +78,7 @@ jobs:
           sudo apt-get install -y libclang-dev
       - name: Build Linux PHP adapter
         if: runner.os == 'Linux'
-        working-directory: native/cobblestone-core-php
+        working-directory: modules/rust/php-extension
         shell: bash
         run: |
           cargo +1.98.0 fmt --check
@@ -87,7 +87,7 @@ jobs:
           cargo +1.98.0 build --release
       - name: Build Windows PHP adapter
         if: runner.os == 'Windows'
-        working-directory: native/cobblestone-core-php
+        working-directory: modules/rust/php-extension
         shell: pwsh
         env:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
@@ -100,16 +100,16 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          extension="$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so"
+          extension="$PWD/modules/rust/php-extension/target/release/libcobblestone_core_php.so"
           composer test:php
-          php -n -d "extension=$extension" benchmarks/php-boundary.php
+          php -n -d "extension=$extension" benchmarks/php/boundary.php
       - name: Validate and measure Windows PHP adapter
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $extension = (Resolve-Path "native/cobblestone-core-php/target/release/cobblestone_core_php.dll").Path
+          $extension = (Resolve-Path "modules/rust/php-extension/target/release/cobblestone_core_php.dll").Path
           composer test:php
-          php -n -d "extension=$extension" benchmarks/php-boundary.php
+          php -n -d "extension=$extension" benchmarks/php/boundary.php
 
   ai-ci-summary:
     name: ai-ci-summary

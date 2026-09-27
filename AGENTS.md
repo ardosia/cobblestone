@@ -43,3 +43,12 @@ Use Ardosia and fixed-target artifacts as evidence, not authority. Prefer direct
 ## Validation
 
 Run `python tools/ci.py all`. A test or check counts only if it actually ran against the relevant revision.
+
+
+## Repository layout
+
+- PHP product code belongs under `modules/php/` and is autoloaded from the `Cobblestone\\` namespace.
+- Rust product crates belong under `modules/rust/`; root-level `native/` is not used.
+- Rust-only harness crates belong under `tests/rust/`; PHP tests remain under `tests/php/`.
+- Keep repository root free of product `src/`; Rust crates may use their normal local `src/` directories.
+- PHP responsibility names should be concrete (`Server`, `Session`, `Event`, `Command`, `Task`, `Native`, `Plugin`) rather than generic Kernel/Core/Internal buckets.

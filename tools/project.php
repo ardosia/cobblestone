@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 const ROOT = __DIR__ . '/..';
-const NATIVE_EXTENSION = ROOT . '/native/cobblestone-core-php';
+const NATIVE_EXTENSION = ROOT . '/modules/rust/php-extension';
 
 function fail(string $message, int $code = 1): never
 {
@@ -73,8 +73,7 @@ function checkNative(): void
 function lintPhp(): void
 {
     $roots = [
-        ROOT . '/src',
-        ROOT . '/modules',
+        ROOT . '/modules/php',
         ROOT . '/tests/php',
         ROOT . '/tools',
     ];
@@ -142,27 +141,24 @@ function testPhp(): void
 
 function listModules(): void
 {
-    $root = ROOT . '/modules';
-    $modules = [];
-
-    if (is_dir($root)) {
-        foreach (new DirectoryIterator($root) as $entry) {
-            if ($entry->isDot() || !$entry->isDir()) {
-                continue;
+    foreach ([
+        'php' => ROOT . '/modules/php',
+        'rust' => ROOT . '/modules/rust',
+    ] as $kind => $root) {
+        $modules = [];
+        if (is_dir($root)) {
+            foreach (new DirectoryIterator($root) as $entry) {
+                if ($entry->isDot() || !$entry->isDir()) {
+                    continue;
+                }
+                $modules[] = $entry->getFilename();
             }
-            $modules[] = $entry->getFilename();
         }
-    }
 
-    sort($modules);
-
-    if ($modules === []) {
-        fwrite(STDOUT, "modules: none yet (namespace Cobblestone\\Modules\\ -> modules/)" . PHP_EOL);
-        return;
-    }
-
-    foreach ($modules as $module) {
-        fwrite(STDOUT, "module: {$module}" . PHP_EOL);
+        sort($modules);
+        foreach ($modules as $module) {
+            fwrite(STDOUT, "{$kind}: {$module}" . PHP_EOL);
+        }
     }
 }
 

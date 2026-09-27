@@ -31,13 +31,15 @@ Initial module families are:
 
 Sibling modules must not reach into each other's private Rust structs or depend on unstable struct layouts.
 
-## PHP source modules
+## Repository module layout
 
-PHP project modules are an organizational boundary above the kernel, not a second runtime/plugin system. Core runtime, kernel, plugin contracts, and internal native adapters remain under `src/Cobblestone/`. First-party gameplay/domain features live under `modules/` and are autoloaded through the explicit `Cobblestone\\Modules\\` Composer namespace.
+All product code lives under `modules/`. PHP code lives in `modules/php/` and Composer maps `Cobblestone\\` directly to that directory. Rust mechanism crates live in `modules/rust/`; each keeps Cargo-standard local `src/` and test directories.
 
-The directory name and Composer namespace have no role in Zend extension registration. Native PHP functions are registered by the Rust `ext-php-rs` module builder, and exact exported names are verified independently. Moving or adding PHP classes under `modules/` therefore must not change the native function ABI.
+PHP folders are responsibility boundaries, not runtime modules: `Server`, `Session`, `Event`, `Command`, `Task`, `Native`, and `Plugin`. Gameplay domains such as World, Player, Entity, Block, and Inventory are added when their work begins rather than pre-created as empty frameworks.
 
-Modules are introduced only with real feature ownership (for example World, Player, Entity, or Inventory work). There is no generic runtime module loader or automatic discovery mechanism at this stage.
+The repository-level `modules/` directory has no role in Zend extension registration. Native PHP functions are registered only by the Rust `ext-php-rs` extension under `modules/rust/php-extension`, and exact exported names are verified independently. Composer/PSR-4 reorganization therefore must not alter the native function ABI.
+
+Rust crate identities remain stable even when repository paths change. Cross-crate public APIs are preserved during source cleanup; internal files are split only along real ownership/dependency seams.
 
 ## C001 — engineering bootstrap
 
@@ -164,9 +166,9 @@ The initial typed session subset covers Login, PlayStatus, Disconnect, Batch, Se
 
 C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts protocol-84 payloads through `cobblestone-network`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-codec`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
 
-The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Internal\\NativeSessionRuntime` facade enforces owner-runtime identity and converts those native events into kernel-internal PHP values. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
+The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session\\Runtime` facade enforces owner-runtime identity and converts those native events into kernel-internal PHP values. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
-The first ordinary PHP kernel surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive only `PluginContext` with those facilities. `ServerKernel` translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, applies a finite native-event budget per tick, and disconnects sessions whose raw packets have no installed kernel handler. Fiber waits on native completions are polled and resumed only during the owner-runtime scheduler tick. The fixed-target real-client bootstrap is now orchestrated by an internal PHP state machine while Login validation, packet encoding, compression, and the temporary synthetic chunk probe remain native wire mechanisms.
+The first ordinary PHP kernel surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive only `PluginContext` with those facilities. `Server` translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, applies a finite native-event budget per tick, and disconnects sessions whose raw packets have no installed kernel handler. Fiber waits on native completions are polled and resumed only during the owner-runtime scheduler tick. The fixed-target real-client bootstrap is now orchestrated by an internal PHP state machine while Login validation, packet encoding, compression, and the temporary synthetic chunk probe remain native wire mechanisms.
 
 ## GC posture
 
