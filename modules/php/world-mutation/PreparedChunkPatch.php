@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Cobblestone\World\Mutation;
 
 use Cobblestone\World\BiomeId;
-use Cobblestone\World\BlockState;
 use Cobblestone\World\Chunk;
 
 /** @internal */
 final class PreparedChunkPatch
 {
     /**
-     * @param array<int, BlockState> $blocks
+     * @param array<int, int> $blocks scalar BlockStateId tokens
      * @param array<int, BiomeId> $biomes
      * @param array<int, int> $extraData
      * @param array<int, int> $skyLight
@@ -80,9 +79,9 @@ final class PreparedChunkPatch
         ksort($skyLight);
         ksort($blockLight);
 
-        foreach ($blocks as $key => $state) {
+        foreach ($blocks as $key => $stateId) {
             [$x, $y, $z] = ChunkPatch::decodeBlockKey($key);
-            $this->chunk->setBlock($x, $y, $z, $state);
+            $this->chunk->setBlockStateId($x, $y, $z, $stateId);
         }
         foreach ($biomes as $key => $biome) {
             [$x, $z] = ChunkPatch::decodeColumnKey($key);

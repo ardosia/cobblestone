@@ -6,6 +6,11 @@ namespace Cobblestone\World;
 
 use ValueError;
 
+/**
+ * Ergonomic legacy-state wrapper.
+ *
+ * Performance-sensitive code should carry the scalar BlockStateId token instead.
+ */
 final readonly class BlockState
 {
     public function __construct(
@@ -25,9 +30,16 @@ final readonly class BlockState
         return new self(0);
     }
 
+    public static function fromId(int $stateId): self
+    {
+        BlockStateId::assert($stateId);
+
+        return new self($stateId >> 4, $stateId & 0x0f);
+    }
+
     public function fullId(): int
     {
-        return ($this->id << 4) | $this->data;
+        return BlockStateId::fromLegacy($this->id, $this->data);
     }
 
     public function isAir(): bool

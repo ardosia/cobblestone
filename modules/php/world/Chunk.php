@@ -96,26 +96,83 @@ final class Chunk
         $this->lightRevision = $next;
     }
 
-    public function block(int $x, int $y, int $z): BlockState
+    public function blockStateId(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
-        return $this->sections[$section]->block($x, $y & 0x0f, $z);
+        return $this->sections[$section]->blockStateId($x, $y & 0x0f, $z);
+    }
+
+    public function block(int $x, int $y, int $z): BlockState
+    {
+        return BlockState::fromId($this->blockStateId($x, $y, $z));
+    }
+
+    /** @internal Initialization or prepared-mutation commit primitive. */
+    public function setBlockStateId(int $x, int $y, int $z, int $stateId): int
+    {
+        BlockStateId::assert($stateId);
+        self::assertBlockCoordinates($x, $y, $z);
+        $section = intdiv($y, WorldBounds::SECTION_EDGE);
+        $previous = $this->sections[$section]->setBlockStateId($x, $y & 0x0f, $z, $stateId);
+
+        $previousAir = ($previous >> 4) === 0;
+        $nextAir = ($stateId >> 4) === 0;
+        if ($previousAir !== $nextAir) {
+            $this->refreshHeightAfterBlockChange($x, $y, $z, $previousAir, $nextAir);
+        }
+
+        return $previous;
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBlock(int $x, int $y, int $z, BlockState $state): BlockState
     {
-        self::assertBlockCoordinates($x, $y, $z);
-        $section = intdiv($y, WorldBounds::SECTION_EDGE);
-        $previous = $this->sections[$section]->setBlock($x, $y & 0x0f, $z, $state);
+        return BlockState::fromId($this->setBlockStateId($x, $y, $z, $state->fullId()));
+    }
 
-        if ($previous->isAir() !== $state->isAir()) {
-            $this->refreshHeightAfterBlockChange($x, $y, $z, $previous, $state);
+    /**
+     * Fills complete global chunk-local Y layers with one scalar state token.
+     *
+     * @internal Generator/native-fallback initialization primitive.
+     */
+    public function fillBlockLayers(int $startY, int $count, int $stateId): void
+    {
+        BlockStateId::assert($stateId);
+        if ($startY < WorldBounds::MIN_Y || $startY > WorldBounds::WORLD_HEIGHT) {
+            throw new ValueError('chunk layer start must be in range 0..128');
+        }
+        if ($count < 0 || $startY + $count > WorldBounds::WORLD_HEIGHT) {
+            throw new ValueError('chunk layer range must stay inside 0..128');
+        }
+        if ($count === 0) {
+            return;
         }
 
-        return $previous;
+        $endY = $startY + $count;
+        $cursor = $startY;
+        while ($cursor < $endY) {
+            $sectionIndex = intdiv($cursor, WorldBounds::SECTION_EDGE);
+            $sectionStart = $sectionIndex * WorldBounds::SECTION_EDGE;
+            $localStart = $cursor - $sectionStart;
+            $sectionCount = min(WorldBounds::SECTION_EDGE - $localStart, $endY - $cursor);
+            $this->sections[$sectionIndex]->fillLayers($localStart, $sectionCount, $stateId);
+            $cursor += $sectionCount;
+        }
+
+        if (($stateId >> 4) !== 0) {
+            $top = $endY - 1;
+            $columns = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE;
+            for ($column = 0; $column < $columns; ++$column) {
+                if ($top >= ord($this->heightMap[$column])) {
+                    $this->heightMap[$column] = chr($top);
+                }
+            }
+            return;
+        }
+
+        $this->recalculateHeightMap();
     }
 
     public function skyLight(int $x, int $y, int $z): int
@@ -331,20 +388,20 @@ final class Chunk
         int $x,
         int $y,
         int $z,
-        BlockState $previous,
-        BlockState $next,
+        bool $previousAir,
+        bool $nextAir,
     ): void {
         $column = self::columnIndex($x, $z);
         $current = ord($this->heightMap[$column]);
 
-        if (!$next->isAir()) {
+        if (!$nextAir) {
             if ($y >= $current) {
                 $this->heightMap[$column] = chr($y);
             }
             return;
         }
 
-        if (!$previous->isAir() && $y >= $current) {
+        if (!$previousAir && $y >= $current) {
             $this->heightMap[$column] = chr($this->highestBlockAt($x, $z));
         }
     }

@@ -10,7 +10,8 @@ final class ChunkSection
 {
     public const VOLUME = 16 * 16 * 16;
     private const NIBBLE_BYTES = self::VOLUME / 2;
-    private const LAYER_NIBBLE_BYTES = (16 * 16) / 2;
+    private const LAYER_BLOCK_BYTES = 16 * 16;
+    private const LAYER_NIBBLE_BYTES = self::LAYER_BLOCK_BYTES / 2;
 
     private string $blockIds;
     private string $blockData;
@@ -18,53 +19,125 @@ final class ChunkSection
     private string $blockLight;
     private string $columnHeights;
 
-    private function __construct(BlockState $state)
+    private function __construct(int $stateId)
     {
-        $this->blockIds = str_repeat(chr($state->id), self::VOLUME);
-        $nibble = chr(($state->data << 4) | $state->data);
+        BlockStateId::assert($stateId);
+        $id = $stateId >> 4;
+        $data = $stateId & 0x0f;
+
+        $this->blockIds = str_repeat(chr($id), self::VOLUME);
+        $nibble = chr(($data << 4) | $data);
         $this->blockData = str_repeat($nibble, self::NIBBLE_BYTES);
         $this->skyLight = str_repeat("\x00", self::NIBBLE_BYTES);
         $this->blockLight = str_repeat("\x00", self::NIBBLE_BYTES);
-        $height = $state->isAir() ? 0xff : WorldBounds::SECTION_EDGE - 1;
+        $height = $id === 0 ? 0xff : WorldBounds::SECTION_EDGE - 1;
         $this->columnHeights = str_repeat(chr($height), WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
     }
 
     public static function filled(BlockState $state): self
     {
-        return new self($state);
+        return new self($state->fullId());
+    }
+
+    public static function filledStateId(int $stateId): self
+    {
+        return new self($stateId);
     }
 
     public static function air(): self
     {
-        return new self(BlockState::air());
+        return new self(0);
+    }
+
+    public function blockStateId(int $x, int $y, int $z): int
+    {
+        $index = self::index($x, $y, $z);
+
+        return (ord($this->blockIds[$index]) << 4) | self::readNibble($this->blockData, $index);
     }
 
     public function block(int $x, int $y, int $z): BlockState
     {
-        $index = self::index($x, $y, $z);
+        return BlockState::fromId($this->blockStateId($x, $y, $z));
+    }
 
-        return new BlockState(
-            ord($this->blockIds[$index]),
-            self::readNibble($this->blockData, $index),
-        );
+    public function setBlockStateId(int $x, int $y, int $z, int $stateId): int
+    {
+        BlockStateId::assert($stateId);
+        $index = self::index($x, $y, $z);
+        $previous = (ord($this->blockIds[$index]) << 4) | self::readNibble($this->blockData, $index);
+        if ($previous === $stateId) {
+            return $previous;
+        }
+
+        $this->blockIds[$index] = chr($stateId >> 4);
+        self::writeNibble($this->blockData, $index, $stateId & 0x0f);
+
+        $previousAir = ($previous >> 4) === 0;
+        $nextAir = ($stateId >> 4) === 0;
+        if ($previousAir !== $nextAir) {
+            $this->refreshColumnHeight($x, $y, $z, $previousAir, $nextAir);
+        }
+
+        return $previous;
     }
 
     public function setBlock(int $x, int $y, int $z, BlockState $state): BlockState
     {
-        $index = self::index($x, $y, $z);
-        $previous = new BlockState(
-            ord($this->blockIds[$index]),
-            self::readNibble($this->blockData, $index),
-        );
+        return BlockState::fromId($this->setBlockStateId($x, $y, $z, $state->fullId()));
+    }
 
-        $this->blockIds[$index] = chr($state->id);
-        self::writeNibble($this->blockData, $index, $state->data);
-
-        if ($previous->isAir() !== $state->isAir()) {
-            $this->refreshColumnHeight($x, $y, $z, $previous, $state);
+    /**
+     * Fills complete local Y layers using a scalar state token.
+     *
+     * @internal Generator/native-fallback initialization primitive.
+     */
+    public function fillLayers(int $startY, int $count, int $stateId): void
+    {
+        BlockStateId::assert($stateId);
+        if ($startY < 0 || $startY > WorldBounds::SECTION_EDGE) {
+            throw new ValueError('chunk-section layer start must be in range 0..16');
+        }
+        if ($count < 0 || $startY + $count > WorldBounds::SECTION_EDGE) {
+            throw new ValueError('chunk-section layer range must stay inside 0..16');
+        }
+        if ($count === 0) {
+            return;
         }
 
-        return $previous;
+        $id = $stateId >> 4;
+        $data = $stateId & 0x0f;
+        $blockOffset = $startY * self::LAYER_BLOCK_BYTES;
+        $blockLength = $count * self::LAYER_BLOCK_BYTES;
+        $this->blockIds = substr_replace(
+            $this->blockIds,
+            str_repeat(chr($id), $blockLength),
+            $blockOffset,
+            $blockLength,
+        );
+
+        $nibbleOffset = $startY * self::LAYER_NIBBLE_BYTES;
+        $nibbleLength = $count * self::LAYER_NIBBLE_BYTES;
+        $nibble = chr(($data << 4) | $data);
+        $this->blockData = substr_replace(
+            $this->blockData,
+            str_repeat($nibble, $nibbleLength),
+            $nibbleOffset,
+            $nibbleLength,
+        );
+
+        if ($id !== 0) {
+            $top = $startY + $count - 1;
+            for ($column = 0; $column < WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE; ++$column) {
+                $current = ord($this->columnHeights[$column]);
+                if ($current === 0xff || $top > $current) {
+                    $this->columnHeights[$column] = chr($top);
+                }
+            }
+            return;
+        }
+
+        $this->recalculateColumnHeights();
     }
 
     public function highestBlockAt(int $x, int $z): ?int
@@ -140,20 +213,20 @@ final class ChunkSection
         int $x,
         int $y,
         int $z,
-        BlockState $previous,
-        BlockState $next,
+        bool $previousAir,
+        bool $nextAir,
     ): void {
         $column = self::columnIndex($x, $z);
         $current = ord($this->columnHeights[$column]);
 
-        if (!$next->isAir()) {
+        if (!$nextAir) {
             if ($current === 0xff || $y > $current) {
                 $this->columnHeights[$column] = chr($y);
             }
             return;
         }
 
-        if ($previous->isAir() || $current !== $y) {
+        if ($previousAir || $current !== $y) {
             return;
         }
 
@@ -165,6 +238,22 @@ final class ChunkSection
         }
 
         $this->columnHeights[$column] = "\xff";
+    }
+
+    private function recalculateColumnHeights(): void
+    {
+        for ($z = 0; $z < WorldBounds::CHUNK_EDGE; ++$z) {
+            for ($x = 0; $x < WorldBounds::CHUNK_EDGE; ++$x) {
+                $height = 0xff;
+                for ($y = WorldBounds::SECTION_EDGE - 1; $y >= 0; --$y) {
+                    if (ord($this->blockIds[self::index($x, $y, $z)]) !== 0) {
+                        $height = $y;
+                        break;
+                    }
+                }
+                $this->columnHeights[self::columnIndex($x, $z)] = chr($height);
+            }
+        }
     }
 
     private static function columnIndex(int $x, int $z): int

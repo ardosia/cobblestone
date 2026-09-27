@@ -6,6 +6,7 @@ namespace Cobblestone\World\Mutation;
 
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockState;
+use Cobblestone\World\BlockStateId;
 use Cobblestone\World\Chunk;
 use ValueError;
 
@@ -15,7 +16,7 @@ final class ChunkPatch
     private readonly int $baseRevision;
     private readonly int $baseLightRevision;
 
-    /** @var array<int, BlockState> */
+    /** @var array<int, int> scalar BlockStateId tokens */
     private array $blocks = [];
 
     /** @var array<int, BiomeId> */
@@ -52,19 +53,32 @@ final class ChunkPatch
         return $this->baseLightRevision;
     }
 
-    public function block(int $x, int $y, int $z): BlockState
+    public function blockStateId(int $x, int $y, int $z): int
     {
         $key = self::blockKey($x, $y, $z);
 
-        return $this->blocks[$key] ?? $this->chunk->block($x, $y, $z);
+        return $this->blocks[$key] ?? $this->chunk->blockStateId($x, $y, $z);
+    }
+
+    public function block(int $x, int $y, int $z): BlockState
+    {
+        return BlockState::fromId($this->blockStateId($x, $y, $z));
+    }
+
+    public function setBlockStateId(int $x, int $y, int $z, int $stateId): int
+    {
+        BlockStateId::assert($stateId);
+        $previous = $this->blockStateId($x, $y, $z);
+        $this->blocks[self::blockKey($x, $y, $z)] = $stateId;
+
+        return $previous;
     }
 
     public function setBlock(int $x, int $y, int $z, BlockState $state): BlockState
     {
-        $previous = $this->block($x, $y, $z);
-        $this->blocks[self::blockKey($x, $y, $z)] = $state;
-
-        return $previous;
+        return BlockState::fromId(
+            $this->setBlockStateId($x, $y, $z, $state->fullId()),
+        );
     }
 
     public function biome(int $x, int $z): BiomeId
@@ -144,7 +158,7 @@ final class ChunkPatch
 
         $blocks = array_filter(
             $this->blocks,
-            fn (BlockState $state, int $key): bool => $state->fullId() !== $this->blockAtKey($key)->fullId(),
+            fn (int $stateId, int $key): bool => $stateId !== $this->blockStateIdAtKey($key),
             ARRAY_FILTER_USE_BOTH,
         );
         $biomes = array_filter(
@@ -195,11 +209,11 @@ final class ChunkPatch
         );
     }
 
-    private function blockAtKey(int $key): BlockState
+    private function blockStateIdAtKey(int $key): int
     {
         [$x, $y, $z] = self::decodeBlockKey($key);
 
-        return $this->chunk->block($x, $y, $z);
+        return $this->chunk->blockStateId($x, $y, $z);
     }
 
     private function biomeAtKey(int $key): BiomeId

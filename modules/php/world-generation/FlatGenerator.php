@@ -49,17 +49,13 @@ final class FlatGenerator implements Generator
         $y = 0;
 
         foreach ($this->preset->layers() as $layer) {
-            for ($remaining = $layer->count; $remaining > 0; --$remaining, ++$y) {
-                if ($y >= WorldBounds::WORLD_HEIGHT) {
-                    break 2;
-                }
-
-                for ($z = 0; $z < WorldBounds::CHUNK_EDGE; ++$z) {
-                    for ($x = 0; $x < WorldBounds::CHUNK_EDGE; ++$x) {
-                        $chunk->setBlock($x, $y, $z, $layer->state);
-                    }
-                }
+            if ($y >= WorldBounds::WORLD_HEIGHT) {
+                break;
             }
+
+            $count = min($layer->count, WorldBounds::WORLD_HEIGHT - $y);
+            $chunk->fillBlockLayers($y, $count, $layer->stateId);
+            $y += $count;
         }
 
         $chunk->fillSkyLightFrom($y, 15);

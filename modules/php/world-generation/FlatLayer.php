@@ -9,6 +9,8 @@ use ValueError;
 
 final readonly class FlatLayer
 {
+    public int $stateId;
+
     public function __construct(
         public int $count,
         public BlockState $state,
@@ -16,5 +18,7 @@ final readonly class FlatLayer
         if ($count <= 0) {
             throw new ValueError('flat layer count must be positive');
         }
+
+        $this->stateId = $state->fullId();
     }
 }
