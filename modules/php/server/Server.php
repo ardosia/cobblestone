@@ -22,6 +22,8 @@ use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\Session\JoinFlow;
 use Cobblestone\Session\JoinResult;
 use Cobblestone\Task\Scheduler;
+use Cobblestone\World\Generator\FlatGenerator;
+use Cobblestone\World\World;
 use LogicException;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -44,6 +46,8 @@ final class Server
         private readonly LoggerFactory $logs,
         private ?Closure $packetHandler,
         private readonly string $serverName,
+        private readonly World $world,
+        int $initialChunkRadius,
     ) {
         $this->logger = $logs->logger('Cobblestone.Server', ['server' => $serverName]);
         $this->events = new EventBus();
@@ -55,11 +59,18 @@ final class Server
             $this->scheduler,
             $this->logs,
         );
-        $this->join = new JoinFlow($this->sessions);
+        $this->join = new JoinFlow($this->sessions, $this->world, $initialChunkRadius);
 
         $this->state = ServerState::Running;
         $this->events->dispatch(new ServerStarted());
-        $this->logger->info('Server lifecycle started');
+        $this->logger->info(
+            'Server lifecycle started',
+            [
+                'world' => $world->name(),
+                'generator' => $world->generator()->name(),
+                'initial_chunk_radius' => $initialChunkRadius,
+            ],
+        );
     }
 
     /** @param Closure(Packet): void|null $packetHandler */
@@ -69,12 +80,22 @@ final class Server
         string $serverName,
         ?Closure $packetHandler = null,
         ?LoggerFactory $logs = null,
+        ?World $world = null,
+        int $initialChunkRadius = 2,
     ): self {
         $logs ??= LoggerFactory::console(getenv('COBBLESTONE_LOG_LEVEL') ?: 'INFO');
+        $world ??= new World('Cobblestone', -1, FlatGenerator::defaults());
         $sessions = Runtime::start($bind, $maxConnections, $serverName);
 
         try {
-            return new self($sessions, $logs, $packetHandler, $serverName);
+            return new self(
+                $sessions,
+                $logs,
+                $packetHandler,
+                $serverName,
+                $world,
+                $initialChunkRadius,
+            );
         } catch (Throwable $error) {
             try {
                 $sessions->stop();
@@ -90,6 +111,7 @@ final class Server
     public function plugins(): PluginManager { return $this->plugins; }
     public function logger(): LoggerInterface { return $this->logger; }
     public function state(): ServerState { return $this->state; }
+    public function world(): World { return $this->world; }
 
     public function isStopRequested(): bool
     {
@@ -174,16 +196,26 @@ final class Server
                     continue;
                 }
                 if ($result->kind === JoinResult::SPAWNED) {
+                    $effectiveRadius = $result->effectiveRadius ?? 0;
                     $this->logger->info(
                         'Session spawned',
                         [
                             'session' => $event->sessionId,
                             'requested_radius' => $result->requestedRadius ?? 0,
-                            'probe_radius' => 2,
+                            'initial_radius' => $effectiveRadius,
+                            'chunks_sent' => $result->chunksSent,
+                            'encoded_bytes' => $result->encodedBytes,
+                            'chunk_encode_ms' => round($result->chunkEncodeNanos / 1_000_000, 3),
                         ],
                     );
                     $this->events->dispatch(
-                        new SessionSpawned($event->sessionId, $result->requestedRadius ?? 0, 2),
+                        new SessionSpawned(
+                            $event->sessionId,
+                            $result->requestedRadius ?? 0,
+                            $effectiveRadius,
+                            $result->chunksSent,
+                            $result->encodedBytes,
+                        ),
                     );
                     continue;
                 }
