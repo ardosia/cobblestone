@@ -158,6 +158,8 @@ C007 starts from the proven real-client boundary rather than rebuilding transpor
 
 The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Internal\\NativeSessionRuntime` facade enforces owner-runtime identity and converts those native events into kernel-internal PHP values. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
+The first ordinary PHP kernel surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive only `PluginContext` with those facilities. `ServerKernel` translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, applies a finite native-event budget per tick, and disconnects sessions whose raw packets have no installed kernel handler. Fiber waits on native completions are polled and resumed only during the owner-runtime scheduler tick.
+
 ## GC posture
 
 Cyclic GC remains enabled. The object model should avoid large cyclic PHP graphs by keeping high-connectivity authoritative state native-backed. Instrument GC runs, cycles collected, pause duration, roots, PHP memory, native memory, and available allocation data before changing collection policy.

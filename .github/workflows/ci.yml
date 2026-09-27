@@ -99,6 +99,7 @@ jobs:
           php -n -d "extension=$extension" tests/php/extension-smoke.php
           php -n -d "extension=$extension" tests/php/fiber-smoke.php
           php -n -d "extension=$extension" tests/php/session-runtime-smoke.php
+          php -n -d "extension=$extension" tests/php/kernel-smoke.php
           php -n -d "extension=$extension" benchmarks/php-boundary.php
       - name: Validate and measure Windows PHP adapter
         if: runner.os == 'Windows'
@@ -108,6 +109,7 @@ jobs:
           php -n -d "extension=$extension" tests/php/extension-smoke.php
           php -n -d "extension=$extension" tests/php/fiber-smoke.php
           php -n -d "extension=$extension" tests/php/session-runtime-smoke.php
+          php -n -d "extension=$extension" tests/php/kernel-smoke.php
           php -n -d "extension=$extension" benchmarks/php-boundary.php
 
   ai-ci-summary:

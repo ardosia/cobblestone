@@ -55,3 +55,14 @@ result = "ai-ci-summary 108512520150, validate windows 108511725440, validate ub
 trust = "exact-revision-validation"
 confidence = "observed"
 limitations = "This validates the session boundary before the following PHP-owner bridge implementation; that bridge requires its own exact-revision validation."
+
+[[evidence]]
+id = "php-owner-bridge-exact-validation"
+kind = "validation"
+status = "passed"
+claim = "The PHP 8.5 ZTS owner bridge builds, loads, starts/stops/restarts the bounded native session host, and preserves owner-runtime Fiber completion semantics on the exact persisted revision."
+source = "ardosia/cobblestone@df217ee56d3670e40a771b55610e64de5ad61ad9 GitHub checks plus user-supplied Fedora validation"
+result = "ai-ci-summary 108518957924, validate windows 108518140035, validate ubuntu 108518139979, php-zts windows 108518140133, and php-zts ubuntu 108518140039 all completed successfully. The Fedora run passed canonical Rust validation, core-php fmt/check/clippy/release build, extension smoke, Fiber smoke, and session-runtime smoke."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This validates the owner bridge before the following PHP kernel events/commands/plugins/scheduler implementation; that implementation requires its own exact-revision validation."

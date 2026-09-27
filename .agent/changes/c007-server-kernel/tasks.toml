@@ -21,13 +21,13 @@ acceptance = "Implement production session lifecycle above cobblestone-network a
 
 [[tasks]]
 id = "php-runtime"
-status = "implemented"
+status = "verified"
 depends_on = ["session-kernel"]
 acceptance = "Expose the single owning PHP 8.5 ZTS runtime kernel so gameplay/session semantics remain PHP-owned while native workers never invoke arbitrary Zend."
 
 [[tasks]]
 id = "events-commands-plugins"
-status = "planned"
+status = "implemented"
 depends_on = ["php-runtime"]
 acceptance = "Add minimal lifecycle/events, command dispatch, plugin loading, scheduler, and Fiber completion integration without exposing runtime/thread primitives."
 
