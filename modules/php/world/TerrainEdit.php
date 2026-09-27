@@ -14,9 +14,19 @@ final class TerrainEdit
         $this->patch = new TerrainPatch();
     }
 
+    public function blockStateId(int $x, int $y, int $z): ?int
+    {
+        return $this->patch->blockStateId($this->terrain, $x, $y, $z);
+    }
+
     public function block(int $x, int $y, int $z): ?BlockState
     {
         return $this->patch->block($this->terrain, $x, $y, $z);
+    }
+
+    public function setBlockStateId(int $x, int $y, int $z, int $stateId): ?int
+    {
+        return $this->patch->setBlockStateId($this->terrain, $x, $y, $z, $stateId);
     }
 
     public function setBlock(int $x, int $y, int $z, BlockState $state): ?BlockState

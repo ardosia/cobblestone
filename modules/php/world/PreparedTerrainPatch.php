@@ -8,7 +8,7 @@ namespace Cobblestone\World;
 final readonly class PreparedTerrainPatch
 {
     /**
-     * @param array<int, BlockState> $blocks
+     * @param array<int, int> $blocks scalar BlockStateId tokens
      * @param array<int, BiomeId> $biomes
      */
     public function __construct(
@@ -26,7 +26,7 @@ final readonly class PreparedTerrainPatch
         return $this->baseRevision;
     }
 
-    /** @internal @return array<int, BlockState> */
+    /** @internal @return array<int, int> */
     public function blocks(): array
     {
         return $this->blocks;

@@ -7,8 +7,8 @@ namespace Cobblestone\World;
 /**
  * Chunk-local terrain facade matching Ardosia's revision/edit boundary.
  *
- * Cobblestone retains height map, extra-data, lifecycle and protocol projection on Chunk; this
- * facade isolates the terrain state that participates in Ardosia-compatible terrain edits.
+ * PHP owns the semantic edit surface. Native-backed chunks commit the prepared replacement as one
+ * atomic patch so physical representation and revision advancement stay inside Rust.
  */
 final readonly class ChunkTerrain
 {
@@ -49,9 +49,26 @@ final readonly class ChunkTerrain
         ksort($blocks);
         ksort($biomes);
 
-        foreach ($blocks as $key => $state) {
+        if ($this->chunk->nativeStore() !== null) {
+            $lightRevision = $this->chunk->lightRevision()->value;
+            $this->chunk->applyNativePatch(
+                $current,
+                $prepared->revision->value,
+                $lightRevision,
+                $lightRevision,
+                $blocks,
+                $biomes,
+                [],
+                [],
+                [],
+            );
+
+            return new TerrainEditResult(true, $prepared->revision);
+        }
+
+        foreach ($blocks as $key => $stateId) {
             [$x, $y, $z] = TerrainPatch::decodeBlockKey($key);
-            $this->chunk->setBlock($x, $y, $z, $state);
+            $this->chunk->setBlockStateId($x, $y, $z, $stateId);
         }
         foreach ($biomes as $key => $biome) {
             [$x, $z] = TerrainPatch::decodeColumnKey($key);

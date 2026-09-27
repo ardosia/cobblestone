@@ -7,20 +7,48 @@ namespace Cobblestone\World;
 /** Staged chunk-local terrain replacement independent of a specific terrain revision. */
 final class TerrainPatch
 {
-    /** @var array<int, BlockState> */
+    /** @var array<int, int> scalar BlockStateId tokens */
     private array $blocks = [];
 
     /** @var array<int, BiomeId> */
     private array $biomes = [];
 
-    public function block(ChunkTerrain $terrain, int $x, int $y, int $z): ?BlockState
+    public function blockStateId(ChunkTerrain $terrain, int $x, int $y, int $z): ?int
     {
         $key = self::blockKey($x, $y, $z);
         if ($key === null) {
             return null;
         }
 
-        return $this->blocks[$key] ?? $terrain->data()->block($x, $y, $z);
+        return $this->blocks[$key] ?? $terrain->data()->blockStateId($x, $y, $z);
+    }
+
+    public function block(ChunkTerrain $terrain, int $x, int $y, int $z): ?BlockState
+    {
+        $stateId = $this->blockStateId($terrain, $x, $y, $z);
+
+        return $stateId === null ? null : BlockState::fromId($stateId);
+    }
+
+    public function setBlockStateId(
+        ChunkTerrain $terrain,
+        int $x,
+        int $y,
+        int $z,
+        int $stateId,
+    ): ?int {
+        BlockStateId::assert($stateId);
+        $key = self::blockKey($x, $y, $z);
+        if ($key === null) {
+            return null;
+        }
+
+        $previous = $this->blockStateId($terrain, $x, $y, $z);
+        if ($previous !== $stateId) {
+            $this->blocks[$key] = $stateId;
+        }
+
+        return $previous;
     }
 
     public function setBlock(
@@ -30,17 +58,9 @@ final class TerrainPatch
         int $z,
         BlockState $state,
     ): ?BlockState {
-        $key = self::blockKey($x, $y, $z);
-        if ($key === null) {
-            return null;
-        }
+        $previous = $this->setBlockStateId($terrain, $x, $y, $z, $state->fullId());
 
-        $previous = $this->block($terrain, $x, $y, $z);
-        if ($previous?->fullId() !== $state->fullId()) {
-            $this->blocks[$key] = $state;
-        }
-
-        return $previous;
+        return $previous === null ? null : BlockState::fromId($previous);
     }
 
     public function biome(ChunkTerrain $terrain, int $x, int $z): ?BiomeId
@@ -79,10 +99,10 @@ final class TerrainPatch
 
         $blocks = array_filter(
             $this->blocks,
-            function (BlockState $state, int $key) use ($chunk): bool {
+            function (int $stateId, int $key) use ($chunk): bool {
                 [$x, $y, $z] = self::decodeBlockKey($key);
 
-                return $state->fullId() !== $chunk->block($x, $y, $z)->fullId();
+                return $stateId !== $chunk->blockStateId($x, $y, $z);
             },
             ARRAY_FILTER_USE_BOTH,
         );
