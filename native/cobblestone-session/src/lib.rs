@@ -6,6 +6,8 @@
 //! This crate hides RakNet connection objects and Batch/compression framing from the owning
 //! runtime. It does not own gameplay semantics, players, worlds, plugins, or PHP/Zend state.
 
+mod host;
+
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::num::NonZeroU64;
@@ -20,6 +22,8 @@ use cobblestone_network::{Connection, NetworkConfig, NetworkError, NetworkServer
 use thiserror::Error;
 use tracing::{debug, warn};
 
+pub use host::{SessionHost, SessionHostConfig, SessionHostError, SessionHostEvent};
+
 /// Stable identity assigned to one accepted gameplay session.
 ///
 /// Session IDs are process-local and never intentionally reused.
@@ -27,6 +31,15 @@ use tracing::{debug, warn};
 pub struct SessionId(NonZeroU64);
 
 impl SessionId {
+    /// Creates a session identity from a previously issued nonzero value.
+    #[must_use]
+    pub const fn new(value: u64) -> Option<Self> {
+        match NonZeroU64::new(value) {
+            Some(value) => Some(Self(value)),
+            None => None,
+        }
+    }
+
     /// Returns the nonzero integer representation.
     #[must_use]
     pub const fn get(self) -> u64 {

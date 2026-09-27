@@ -11,7 +11,10 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
+cobblestone-codec = { path = "../cobblestone-codec" }
 cobblestone-core = { path = "../cobblestone-core" }
+cobblestone-network = { path = "../cobblestone-network" }
+cobblestone-session = { path = "../cobblestone-session" }
 ext-php-rs = "=0.15.15"
 
 [workspace]

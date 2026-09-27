@@ -44,3 +44,14 @@ result = "Client requested chunk radius 12; the probe acknowledged radius 2, sen
 trust = "real-fixed-target-client"
 confidence = "observed"
 limitations = "The probe sends all-air synthetic chunks with a capped radius and does not measure real terrain generation, storage, serialization, or representative join latency. This revision also had a rustfmt-only canonical validation failure fixed by the following cleanup commit."
+
+[[evidence]]
+id = "session-kernel-exact-validation"
+kind = "validation"
+status = "passed"
+claim = "The production cobblestone-session boundary passes canonical Linux/Windows validation and the focused loopback session tests on the exact persisted revision."
+source = "ardosia/cobblestone@62868f280517f2cba5b0ce3a2bc3cde38bc68227 GitHub checks plus user-supplied Fedora validation"
+result = "ai-ci-summary 108512520150, validate windows 108511725440, validate ubuntu 108511725409, php-zts windows 108511725373, and php-zts ubuntu 108511725304 all completed successfully. The Fedora run also passed python3 tools/ci.py all and cargo +1.98.0 test -p cobblestone-session -- --nocapture, including Batch flattening, malformed-input close, outbound limit rejection, and protocol-84 round trip."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This validates the session boundary before the following PHP-owner bridge implementation; that bridge requires its own exact-revision validation."

@@ -1,5 +1,7 @@
 #![cfg_attr(windows, feature(abi_vectorcall))]
 
+mod session_php;
+
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -10,6 +12,12 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 use cobblestone_core::{Arena, Completion, Handle, NativeBuffer, RuntimeId, WorkerPool};
 use ext_php_rs::exception::{PhpException, PhpResult};
 use ext_php_rs::prelude::*;
+
+use session_php::{
+    cobblestone_session_disconnect, cobblestone_session_poll_event, cobblestone_session_running,
+    cobblestone_session_send, cobblestone_session_start, cobblestone_session_stop,
+    shutdown_session_runtime,
+};
 
 static NEXT_RUNTIME_ID: AtomicU32 = AtomicU32::new(1);
 static PROBES: OnceLock<Mutex<ProbeRegistry>> = OnceLock::new();
@@ -232,8 +240,8 @@ fn with_async_registry<T>(
     operation(registry)
 }
 
-fn php_error(message: &'static str) -> PhpException {
-    PhpException::default(message.to_owned())
+fn php_error(message: impl Into<String>) -> PhpException {
+    PhpException::default(message.into())
 }
 
 /// Contains every Cobblestone-owned panic before control returns to the generated Zend handler.
@@ -367,6 +375,7 @@ unsafe extern "C" fn cobblestone_core_shutdown(_type: i32, _module_number: i32) 
             state.take()
         };
         drop(registry);
+        shutdown_session_runtime();
     })) {
         Ok(()) => 0,
         Err(_) => -1,
@@ -390,4 +399,10 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_core_async_submit))
         .function(wrap_function!(cobblestone_core_async_ready))
         .function(wrap_function!(cobblestone_core_async_take))
+        .function(wrap_function!(cobblestone_session_start))
+        .function(wrap_function!(cobblestone_session_running))
+        .function(wrap_function!(cobblestone_session_poll_event))
+        .function(wrap_function!(cobblestone_session_send))
+        .function(wrap_function!(cobblestone_session_disconnect))
+        .function(wrap_function!(cobblestone_session_stop))
 }

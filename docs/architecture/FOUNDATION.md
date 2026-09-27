@@ -156,7 +156,7 @@ The initial typed session subset covers Login, PlayStatus, Disconnect, Batch, Se
 
 C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts protocol-84 payloads through `cobblestone-network`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-codec`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
 
-The session layer is still internal wire/session infrastructure. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
+The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Internal\\NativeSessionRuntime` facade enforces owner-runtime identity and converts those native events into kernel-internal PHP values. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
 ## GC posture
 

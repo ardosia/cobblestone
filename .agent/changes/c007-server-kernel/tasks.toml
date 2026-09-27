@@ -3,7 +3,7 @@ change = "c007-server-kernel"
 
 [[tasks]]
 id = "real-client-bootstrap"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Provide a test-only protocol-8 listener with a structured protocol-84 MCPE advertisement, decode direct or batched Login, send the currently implemented bootstrap packet subset, and log the next client packet IDs without pretending this is the production server CLI."
 
@@ -15,13 +15,13 @@ acceptance = "Run the actual fixed 0.15.10 client against the bootstrap harness,
 
 [[tasks]]
 id = "session-kernel"
-status = "implemented"
+status = "verified"
 depends_on = ["real-client-probe"]
 acceptance = "Implement production session lifecycle above cobblestone-network and cobblestone-codec with explicit bounded ingress/egress, malformed-input handling, disconnect, and shutdown behavior."
 
 [[tasks]]
 id = "php-runtime"
-status = "planned"
+status = "implemented"
 depends_on = ["session-kernel"]
 acceptance = "Expose the single owning PHP 8.5 ZTS runtime kernel so gameplay/session semantics remain PHP-owned while native workers never invoke arbitrary Zend."
 
