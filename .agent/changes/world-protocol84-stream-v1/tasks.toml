@@ -33,6 +33,6 @@ acceptance = "Because the session Composer dependency graph changed, run compose
 
 [[tasks]]
 id = "real-client"
-status = "active"
+status = "implemented"
 depends_on = ["local-verify"]
 acceptance = "Run composer serve and confirm the real 0.15.10 client joins and visibly receives bedrock, two dirt layers, and grass."

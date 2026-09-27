@@ -145,4 +145,3 @@ fn validate_extra_data_key(key: u32) -> Result<(), CodecError> {
     }
     Ok(())
 }
-
