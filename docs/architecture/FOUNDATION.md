@@ -27,7 +27,7 @@ Initial module families are:
 - `cobblestone-codec`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
 - `cobblestone-session`: stable gameplay-session identity and lifecycle above transport/codec; it hides RakNet connection objects and Batch envelopes from the owning runtime while preserving bounded backpressure and malformed-input behavior.
 - A separate `cobblestone-world` crate is deferred until the native world mechanism needs an independently versioned boundary; splitting the already-working store merely for taxonomy is not a goal.
-- `cobblestone-storage`: introduced only when persistence mechanisms justify a separate module.
+- `cobblestone-storage`: custom world metadata/region/chunk persistence. The v1 record/region durability core is implemented; async save/load orchestration, metadata publication, and compaction remain isolated here rather than entering `core`.
 
 Sibling modules must not reach into each other's private Rust structs or depend on unstable struct layouts.
 

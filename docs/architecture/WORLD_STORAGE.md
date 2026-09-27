@@ -1,6 +1,6 @@
 # Cobblestone world storage v1 design
 
-Status: design contract only. Persistence implementation begins after chunk load/unload/pinning semantics are explicit.
+Status: v1 binary region/chunk format implemented in `cobblestone-storage`; world metadata, async save/load orchestration, and compaction remain pending.
 
 ## Goals
 
@@ -48,19 +48,35 @@ Metadata updates use write-temp, fdatasync, atomic rename, then parent-directory
 
 A `.cwr` file begins with:
 
-1. a small immutable region header containing magic `CBRG`, format version, storage-region coordinates, and world UUID;
+1. a 64-byte immutable region header containing magic `CBRG`, format version, storage-region coordinates, and world UUID;
 2. two fixed 16 KiB index pages A/B; and
-3. an append-only record area.
+3. an append-only record area beginning at byte 32,832.
 
-Each index page has its own generation and CRC32C. It contains 256 fixed entries, one per local chunk. An entry records:
+All integer fields are little-endian. The v1 64-byte region header is frozen as:
 
-- record offset;
-- stored record length;
-- record/payload checksum;
-- terrain revision; and
-- light revision.
+- bytes 0..3: `CBRG`;
+- 4..5: format version `u16`;
+- 6..7: header length `u16 = 64`;
+- 8..11 / 12..15: signed storage-region X/Z `i32`;
+- 16..31: raw 16-byte world UUID;
+- 32..33: storage-region edge `u16 = 16`;
+- 34..35: index-page length `u16 = 16384`;
+- 36: index-page count `u8 = 2`;
+- 37..39: reserved zero bytes;
+- 40..47: record-area offset `u64 = 32832`;
+- 48..59: reserved zero bytes; and
+- 60..63: CRC32C of bytes 0..59.
 
-On open, the reader validates both pages and chooses the valid page with the highest generation. A torn or partially written newer page is ignored.
+Each index page has its own generation and CRC32C. Its 32-byte header is frozen as bytes 0..3 `CBIX`, 4..5 format version `u16`, 6..7 page length `u16 = 16384`, 8..15 generation `u64`, 16..19 / 20..23 region X/Z `i32`, 24..27 entry count `u32 = 256`, and 28..31 reserved zero bytes. Entries begin at byte 32: 256 fixed 40-byte slots occupy bytes 32..10271, bytes 10272..16379 are zero padding, and bytes 16380..16383 store CRC32C over bytes 0..16379. Each entry records:
+
+- record offset `u64`;
+- complete stored record length `u32`;
+- CRC32C of the complete stored record `u32`;
+- terrain revision `u64`;
+- light revision `u64`; and
+- eight reserved zero bytes.
+
+An all-zero entry is absent. On open, the reader validates both pages and chooses the valid page with the highest generation. A torn or partially written newer page is ignored.
 
 ## Commit protocol
 
@@ -76,21 +92,24 @@ There is no fragile in-place pointer flip. Recovery simply selects the highest v
 
 ## Chunk record
 
-Every appended record has a checksummed fixed header containing:
+Every appended record has a checksummed fixed 64-byte header. The v1 layout is frozen as:
 
-- magic `CBCH`;
-- chunk-record version;
-- absolute chunk X/Z;
-- terrain revision;
-- light revision;
-- lifecycle flags (generated, populated, light-populated);
-- compression method;
-- uncompressed payload length;
-- stored payload length;
-- payload CRC32C; and
-- header CRC32C.
+- bytes 0..3: `CBCH`;
+- 4..5: chunk-record version `u16 = 1`;
+- 6..7: header length `u16 = 64`;
+- 8..11 / 12..15: absolute chunk X/Z `i32`;
+- 16..23: terrain revision `u64`;
+- 24..31: light revision `u64`;
+- 32: lifecycle flags `u8` (generated, populated, light-populated);
+- 33: stored compression method `u8` (`0 = none`, `1 = zstd`);
+- 34..35: semantic payload version `u16 = 1`;
+- 36..39: uncompressed payload length `u32`;
+- 40..43: stored payload length `u32`;
+- 44..47: CRC32C of the uncompressed semantic payload;
+- 48..59: reserved zero bytes; and
+- 60..63: CRC32C of header bytes 0..59.
 
-Records are immutable once published by an index page.
+The index entry additionally stores CRC32C over the complete header + stored payload, so recovery detects both record corruption and mismatched index targets. Records are immutable once published by an index page.
 
 ## Semantic payload v1
 
@@ -123,14 +142,23 @@ The compact semantic representation therefore avoids about 12% compressed overhe
 
 ## Compression
 
-Version 1 should support:
+Version 1 stores only two wire methods:
 
 - `none`; and
-- `zstd`, with level 1 as the normal save path.
+- `zstd` level 1.
+
+The normal save policy is adaptive rather than blindly compressed. The storage worker tries zstd level 1 and keeps it only when it saves at least 4 KiB versus the canonical uncompressed semantic payload; otherwise the record is stored as `none`. The policy is not an on-disk compression value, so future threshold changes do not require a world migration.
+
+Release measurements on the development host for complete v1 records (64-byte record header included) were:
+
+| Terrain | none bytes / encode | zstd-1 bytes / encode | adaptive selection |
+| --- | ---: | ---: | --- |
+| default Flat | 82,500 / ~135 µs | 111 / ~154 µs | zstd, ~158 µs |
+| high-entropy semantic planes | 82,500 / ~139 µs | 82,509 / ~208 µs | none, ~207 µs |
+
+A synchronous single-record region commit using the adaptive policy measured about 179 µs for Flat and 283 µs for the high-entropy case on the development host, including the two `sync_data` durability barriers. These are implementation-host measurements, not guaranteed device latency targets.
 
 The complete semantic payload is compressed as one frame. Network zlib settings are unrelated to disk compression and must not leak into storage.
-
-Compression choice remains a record field so later versions can change policy without a world migration.
 
 ## Native asynchronous persistence
 
@@ -181,6 +209,6 @@ Checksums detect corruption; they do not authenticate data.
 
 ## Implementation sequencing
 
-Live synchronization and chunk residency now fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. Persistence no longer needs to invent those semantics.
+Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate now implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, and parent-directory fsync when a region file is first created. Tests deliberately corrupt the newest index page and verify fallback to the older valid generation.
 
-The next storage milestone can implement the native async save/load mechanism directly against this format: region/index I/O, zstd/CRC32C record encoding, bounded storage jobs, one in-flight load per chunk, persisted-watermark completion, and clean eviction. Compaction can follow once real save workloads provide dead-byte measurements.
+The next bounded milestone is the native async storage service: world-directory ownership, `world.cwm`, bounded save/load queues, one in-flight load per chunk, immutable-snapshot save jobs, persisted-watermark completion, load/import into `WorldStore`, and clean eviction. Compaction follows once real save workloads provide dead-byte measurements.

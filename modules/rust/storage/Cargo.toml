@@ -1,0 +1,17 @@
+[package]
+name = "cobblestone-storage"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+cobblestone-core = { path = "../core" }
+crc32c.workspace = true
+thiserror.workspace = true
+zstd.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"

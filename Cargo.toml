@@ -5,6 +5,7 @@ members = [
     "modules/rust/codec",
     "modules/rust/network",
     "modules/rust/session",
+    "modules/rust/storage",
     "tests/rust/client-bootstrap",
     "tests/rust/runtime-probe",
 ]
@@ -22,8 +23,10 @@ repository = "https://github.com/ardosia/cobblestone"
 bitflags = "2"
 bytes = "1.8"
 crossbeam-channel = "0.5"
+crc32c = "0.6"
 flate2 = "1.1"
 proptest = "1"
+zstd = "0.13"
 thiserror = "2.0"
 tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
 tracing = "0.1"
