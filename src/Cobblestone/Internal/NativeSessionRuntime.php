@@ -76,6 +76,24 @@ final class NativeSessionRuntime
             throw new \RuntimeException('cobblestone_core_php extension is not loaded');
         }
 
+        foreach ([
+            'cobblestone_core_runtime_id',
+            'cobblestone_session_start',
+            'cobblestone_session_running',
+            'cobblestone_session_poll_event',
+            'cobblestone_session_send',
+            'cobblestone_session_protocol84_accept_login',
+            'cobblestone_session_protocol84_spawn_probe',
+            'cobblestone_session_disconnect',
+            'cobblestone_session_stop',
+        ] as $function) {
+            if (!\function_exists($function)) {
+                throw new \RuntimeException(
+                    "cobblestone_core_php is stale or incompatible: missing native function {$function}; rebuild the extension",
+                );
+            }
+        }
+
         $runtimeId = cobblestone_core_runtime_id();
         cobblestone_session_start($bind, $maxConnections, $serverName);
 
