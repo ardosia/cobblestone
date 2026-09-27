@@ -22,7 +22,7 @@ pub const RECORD_AREA_OFFSET: u64 =
 const REGION_MAGIC: &[u8; 4] = b"CBRG";
 const INDEX_MAGIC: &[u8; 4] = b"CBIX";
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub struct RegionCoord {
     pub x: i32,
     pub z: i32,

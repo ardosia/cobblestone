@@ -1,6 +1,6 @@
 # Cobblestone world storage v1 design
 
-Status: v1 binary region/chunk format implemented in `cobblestone-storage`; world metadata, async save/load orchestration, and compaction remain pending.
+Status: v1 binary region/chunk format and bounded native async save orchestration implemented in `cobblestone-storage`; world metadata, async load/import orchestration, server/world wiring, and compaction remain pending.
 
 ## Goals
 
@@ -164,9 +164,23 @@ The complete semantic payload is compressed as one frame. Network zlib settings 
 
 Persistence runs below the Zend boundary.
 
-A save request captures an immutable native chunk snapshot/Arc plus lifecycle metadata and queues a bounded Rust storage job. Compression, checksumming, file writes, fsync, and index publication happen off the PHP owner runtime.
+The native save side is implemented as a region-sharded bounded worker service. A save submission transfers one immutable native `ChunkSnapshot`/Arc to Rust; the worker route is derived from the 16×16 storage-region coordinate, so every chunk in one region is serialized through the same worker while unrelated regions can commit concurrently. Each worker lazily owns/caches its `RegionFile` handles.
 
-Completion records which terrain/light revisions reached stable storage. If the live chunk advanced while the save was running, the newer revision remains dirty and is scheduled again. PHP does not receive or rebuild chunk planes.
+The service accepts 1..32 workers and bounded per-worker command plus shared completion capacities. The current defaults are one worker, 1,024 queued commands per worker, and 1,024 completion slots. `try_save()` never blocks the owner runtime: a full queue returns the original snapshot as explicit backpressure, while a closed worker returns the snapshot as a closed error.
+
+Compression, checksumming, append writes, both durability barriers, and inactive-index publication happen on the storage worker. Each completion carries the exact chunk coordinate, terrain revision, light revision, lifecycle flags, region generation, and bytes appended for the immutable snapshot that reached stable storage. Worker panics are contained per job and surfaced as failed completions.
+
+Shutdown closes command senders, drains every accepted save to a completion, and only then joins the workers. This keeps accepted durable work from disappearing merely because the server is stopping. Persisted watermarks are intentionally not advanced inside the storage crate; the owning world layer must apply successful completion receipts to the live `WorldStore`, where stale/newer live revisions remain dirty automatically.
+
+Release measurement on the development host for 64 default-Flat snapshots spread across 16 storage regions measured:
+
+| save workers | total durable time | effective per chunk | throughput |
+| ---: | ---: | ---: | ---: |
+| 1 | ~14.50 ms | ~226.5 µs | ~4.4k chunks/s |
+| 2 | ~7.47 ms | ~116.6 µs | ~8.6k chunks/s |
+| 4 | ~3.98 ms | ~62.2 µs | ~16.1k chunks/s |
+
+These numbers include region record encoding and durable region/index commits on the development machine. They justify region-sharded save workers, but they are not device latency guarantees and do not imply that the production default should always be four workers.
 
 The network change journal is not reused for persistence. Network delivery cursors and durable-save state have different retention and failure semantics.
 
@@ -209,6 +223,6 @@ Checksums detect corruption; they do not authenticate data.
 
 ## Implementation sequencing
 
-Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate now implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, and parent-directory fsync when a region file is first created. Tests deliberately corrupt the newest index page and verify fallback to the older valid generation.
+Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, parent-directory fsync on first region creation, and the bounded region-sharded async save service. Tests deliberately corrupt the newest index page, verify fallback to the older valid generation, verify exact async save receipts, and verify shutdown drains accepted saves.
 
-The next bounded milestone is the native async storage service: world-directory ownership, `world.cwm`, bounded save/load queues, one in-flight load per chunk, immutable-snapshot save jobs, persisted-watermark completion, load/import into `WorldStore`, and clean eviction. Compaction follows once real save workloads provide dead-byte measurements.
+The next bounded milestone is native async load orchestration: world-directory ownership/`world.cwm`, one in-flight load per chunk, bounded load requests/completions, load/import into `WorldStore`, and generation fallback only after a durable miss. After that, server/world composition can wire successful save completions to persisted watermarks and safe eviction. Compaction follows once real save workloads provide dead-byte measurements.

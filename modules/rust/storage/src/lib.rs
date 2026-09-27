@@ -1,3 +1,4 @@
+mod async_save;
 mod record;
 mod region;
 
@@ -5,6 +6,11 @@ use std::io;
 
 use thiserror::Error;
 
+pub use async_save::{
+    AsyncSaveBuildError, AsyncSaveConfig, AsyncSaveService, MAX_ASYNC_SAVE_COMPLETION_CAPACITY,
+    MAX_ASYNC_SAVE_QUEUE_CAPACITY, MAX_ASYNC_SAVE_WORKERS, SaveCompletion, SaveFailure,
+    SaveReceipt, SaveSubmitError, SaveWorkerError,
+};
 pub use record::{
     ADAPTIVE_COMPRESSION_MIN_SAVINGS, Compression, CompressionPolicy, ExtensionSection,
     StoredChunk, decode_chunk_record, encode_chunk_record, encode_chunk_record_with_policy,
