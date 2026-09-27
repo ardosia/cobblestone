@@ -1,0 +1,120 @@
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/bootstrap.php';
+
+use Cobblestone\Server\WorldFactory;
+use Cobblestone\World\BlockPos;
+use Cobblestone\World\BlockStateId;
+use Cobblestone\World\ChunkPos;
+use Cobblestone\World\Light\LightEngine;
+use Cobblestone\World\LightLayer;
+use Cobblestone\World\LightUpdate;
+use Cobblestone\World\Mutation\WorldMutation;
+
+function nativeWorldExpect(bool $condition, string $message): void
+{
+    if (!$condition) {
+        throw new RuntimeException($message);
+    }
+}
+
+nativeWorldExpect(
+    extension_loaded('cobblestone_core_php'),
+    'native-world smoke requires cobblestone_core_php',
+);
+
+$world = WorldFactory::flat('Native World Smoke', 4242);
+$store = $world->nativeStore();
+nativeWorldExpect($store !== null, 'WorldFactory did not select the native world store');
+nativeWorldExpect($store->handle() !== 0, 'native world handle was zero');
+
+for ($chunkX = -1; $chunkX <= 1; ++$chunkX) {
+    for ($chunkZ = -1; $chunkZ <= 1; ++$chunkZ) {
+        nativeWorldExpect(
+            $world->chunk(new ChunkPos($chunkX, $chunkZ)) !== null,
+            "failed to generate native chunk {$chunkX}:{$chunkZ}",
+        );
+    }
+}
+
+$chunk = $world->chunk(new ChunkPos(0, 0), false);
+nativeWorldExpect($chunk !== null, 'center native chunk was not resident');
+nativeWorldExpect($chunk->nativeStore() === $store, 'chunk did not retain the world native store');
+nativeWorldExpect($chunk->revision() === 0, 'generated native terrain revision must start at zero');
+nativeWorldExpect(
+    $chunk->lightRevision()->value === 0,
+    'generated native light revision must start at zero',
+);
+
+$torchPosition = new BlockPos(8, 20, 8);
+$torchState = BlockStateId::fromLegacy(50);
+nativeWorldExpect(
+    $world->blockStateId($torchPosition) === BlockStateId::fromLegacy(0),
+    'flat native chunk expected air above the floor',
+);
+
+$before = $chunk->snapshot();
+$index = ($torchPosition->y << 8)
+    | ($torchPosition->localZ() << 4)
+    | $torchPosition->localX();
+nativeWorldExpect(ord($before->blockIds[$index]) === 0, 'pre-write native snapshot was not air');
+
+$previous = $world->setBlockStateId($torchPosition, $torchState);
+nativeWorldExpect($previous === BlockStateId::fromLegacy(0), 'scalar native mutation previous state mismatch');
+nativeWorldExpect($world->blockStateId($torchPosition) === $torchState, 'scalar native mutation did not commit');
+nativeWorldExpect($chunk->revision() === 1, 'native scalar mutation did not advance terrain revision once');
+nativeWorldExpect(
+    ord($before->blockIds[$index]) === 0,
+    'immutable native snapshot changed after later terrain mutation',
+);
+$afterWrite = $chunk->snapshot();
+nativeWorldExpect(ord($afterWrite->blockIds[$index]) === 50, 'native snapshot missed committed torch');
+
+$engine = LightEngine::fixedTarget();
+$lightResult = $engine->apply(
+    $world,
+    LightUpdate::point(LightLayer::Block, $torchPosition),
+);
+nativeWorldExpect($lightResult->changed(), 'native-backed light propagation reported no changes');
+nativeWorldExpect($world->blockLight($torchPosition) === 14, 'native-backed torch light mismatch');
+nativeWorldExpect(
+    $world->blockLight(new BlockPos(9, 20, 8)) === 13,
+    'native-backed neighbor light attenuation mismatch',
+);
+nativeWorldExpect(
+    $chunk->lightRevision()->value === 1,
+    'native-backed light propagation did not batch one center-chunk light revision',
+);
+
+$second = new BlockPos(9, 20, 8);
+$compound = $world->mutate(
+    static function (WorldMutation $mutation) use ($second): void {
+        $mutation->setBlockStateId($second, BlockStateId::fromLegacy(2));
+        $mutation->setBlockExtraData($second, 0x1234);
+    },
+);
+nativeWorldExpect($compound->changed(), 'native compound scalar mutation reported no change');
+nativeWorldExpect($world->blockStateId($second) === BlockStateId::fromLegacy(2), 'compound scalar state mismatch');
+nativeWorldExpect($world->blockExtraData($second) === 0x1234, 'compound native extra-data mismatch');
+nativeWorldExpect($chunk->revision() === 2, 'compound native mutation did not advance terrain revision once');
+nativeWorldExpect(
+    $chunk->lightRevision()->value === 1,
+    'terrain-only compound mutation changed native light revision',
+);
+
+$edit = $chunk->terrain()->edit();
+nativeWorldExpect(
+    $edit->setBlockStateId(10, 20, 8, BlockStateId::fromLegacy(4)) === BlockStateId::fromLegacy(0),
+    'native terrain edit previous state mismatch',
+);
+$editResult = $edit->commit();
+nativeWorldExpect($editResult->changed, 'native terrain edit reported no change');
+nativeWorldExpect($chunk->revision() === 3, 'native terrain edit did not advance revision once');
+nativeWorldExpect(
+    $chunk->blockStateId(10, 20, 8) === BlockStateId::fromLegacy(4),
+    'native terrain edit state did not commit',
+);
+
+fwrite(STDOUT, "native-world-smoke: passed\n");
