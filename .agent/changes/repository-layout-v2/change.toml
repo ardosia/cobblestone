@@ -12,7 +12,7 @@ acceptance = [
   "place Rust product crates under modules/rust while preserving crate/package identities and native PHP export names",
   "move Rust-only harnesses under tests/rust and PHP benchmarks under benchmarks/php",
   "update Cargo, Composer, CI, project scripts, documentation, tests, and server entrypoint to the new paths",
-  "follow with responsibility-based Rust source-module extraction without changing public crate behavior",
+  "split mixed-responsibility Rust source files along real ownership/dependency seams without changing public crate behavior",
   "pass canonical and PHP-ZTS validation before closure"
 ]
 
@@ -21,7 +21,7 @@ requirements = "aligned"
 specs = "not_applicable"
 implementation = "aligned"
 tests = "pending"
-documentation = "pending"
+documentation = "aligned"
 decisions = "not_applicable"
 tasks = "aligned"
 evidence = "pending"

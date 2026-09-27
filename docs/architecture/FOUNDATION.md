@@ -41,6 +41,16 @@ The repository-level `modules/` directory has no role in Zend extension registra
 
 Rust crate identities remain stable even when repository paths change. Cross-crate public APIs are preserved during source cleanup; internal files are split only along real ownership/dependency seams.
 
+The initial source cleanup applies that rule concretely:
+- `cobblestone-core` separates generational handle/arena storage and worker public types from pool machinery;
+- `cobblestone-codec` separates packet/NBT data models from wire encode/decode implementation;
+- `cobblestone-session` separates session identity, packet, delivery, error, listener/live-session, wire flattening, and host runner concerns;
+- `cobblestone-network` separates the backend command/state surface from the RakNet event-loop runner;
+- `cobblestone-core-php` separates panic/error boundary, runtime identity, diagnostics, session bridge, and fixed-target join compatibility machinery.
+
+These are internal source boundaries only. Public crate names, fixed-target behavior, and native PHP function names remain stable.
+
+
 ## C001 — engineering bootstrap
 
 C001 creates the durable project identity, fixed-target requirements, S3 parent program, concrete C001-C003 child changes, architecture/provenance docs, repository instructions, and validation/CI entrypoints. It does not claim any native implementation exists.

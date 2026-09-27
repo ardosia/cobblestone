@@ -3,31 +3,31 @@ change = "repository-layout-v2"
 
 [[tasks]]
 id = "php-layout"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Move PHP product code to modules/php and replace Kernel/Internal/bootstrap naming with Server/Session/Event/Command/Task/Native/Plugin responsibilities."
 
 [[tasks]]
 id = "rust-layout"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Move production Rust crates to modules/rust and Rust harness crates to tests/rust without changing crate names."
 
 [[tasks]]
 id = "tooling"
-status = "implemented"
+status = "verified"
 depends_on = ["php-layout", "rust-layout"]
 acceptance = "Update Composer/Cargo/project scripts/CI/benchmarks/server entrypoint for the new repository layout."
 
 [[tasks]]
 id = "rust-source-cleanup"
-status = "planned"
+status = "implemented"
 depends_on = ["rust-layout"]
-acceptance = "Split remaining mixed-responsibility Rust source files behind stable public crate APIs."
+acceptance = "Split mixed-responsibility Rust source files behind stable public crate APIs."
 
 [[tasks]]
 id = "docs"
-status = "planned"
+status = "implemented"
 depends_on = ["php-layout", "rust-layout"]
 acceptance = "Refresh architecture and repository documentation to describe the modules/php + modules/rust ownership model."
 
