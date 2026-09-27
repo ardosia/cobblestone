@@ -380,7 +380,8 @@ pub fn cobblestone_session_protocol84_accept_login_world(
 pub fn cobblestone_session_protocol84_request_chunk_radius(body: Binary<u8>) -> PhpResult<i64> {
     php_boundary(|| {
         let _owner = current_runtime_id().map_err(php_error)?;
-        Ok(i64::from(requested_chunk_radius(&body.into())?))
+        let body: Vec<u8> = body.into();
+        Ok(i64::from(requested_chunk_radius(&body)?))
     })
 }
 

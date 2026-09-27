@@ -15,13 +15,13 @@ limitations = "Source evidence does not establish that the Cobblestone implement
 [[evidence]]
 id = "local-validation"
 kind = "validation"
-status = "not_run"
+status = "failed"
 claim = "The persisted world-protocol84-stream implementation passes the repository local verification suite."
-source = "pending user composer setup + composer verify"
-result = "not run yet"
-trust = "pending"
-confidence = "unknown"
-limitations = "GitHub Actions remain intentionally disabled and are not a substitute for the requested local validation."
+source = "user local Fedora run after pulling ardosia/cobblestone@3734bd16a6b470895dbfff6e2576d491ef4862fd"
+result = "composer setup completed and PHP/composer validation passed, but composer verify stopped at cargo fmt --check; a subsequent composer serve exposed one Rust compile error in request-chunk-radius Binary conversion. Both defects are repaired in the next repository revision and require a fresh local verification run."
+trust = "exact-revision-local-validation"
+confidence = "observed"
+limitations = "The failed run validates neither the repaired revision nor real-client terrain. GitHub Actions remain intentionally disabled."
 
 [[evidence]]
 id = "real-client-terrain"

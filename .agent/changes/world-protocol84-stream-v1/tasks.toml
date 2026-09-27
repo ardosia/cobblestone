@@ -27,7 +27,7 @@ acceptance = "Use PHP World state for StartGame and bounded initial chunk select
 
 [[tasks]]
 id = "local-verify"
-status = "planned"
+status = "active"
 depends_on = ["production-join"]
 acceptance = "Because the session Composer dependency graph changed, run composer setup and then composer verify against the persisted implementation revision."
 

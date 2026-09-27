@@ -55,11 +55,7 @@ pub fn encode_protocol84_full_chunk_data(
         CHUNK_NIBBLE_BYTES,
     )?;
     require_len("chunk biomes", snapshot.biomes, CHUNK_COLUMN_COUNT)?;
-    require_len(
-        "chunk height map",
-        snapshot.height_map,
-        CHUNK_COLUMN_COUNT,
-    )?;
+    require_len("chunk height map", snapshot.height_map, CHUNK_COLUMN_COUNT)?;
 
     let mut wire_block_ids = vec![0_u8; CHUNK_BLOCK_COUNT];
     let mut wire_block_data = vec![0_u8; CHUNK_NIBBLE_BYTES];
@@ -91,13 +87,16 @@ pub fn encode_protocol84_full_chunk_data(
         }
     }
 
-    let extra_bytes = snapshot.extra_data.len().checked_mul(6).ok_or(
-        CodecError::LengthOutOfRange {
-            field: "chunk extra data",
-            value: snapshot.extra_data.len(),
-            max: usize::MAX / 6,
-        },
-    )?;
+    let extra_bytes =
+        snapshot
+            .extra_data
+            .len()
+            .checked_mul(6)
+            .ok_or(CodecError::LengthOutOfRange {
+                field: "chunk extra data",
+                value: snapshot.extra_data.len(),
+                max: usize::MAX / 6,
+            })?;
     let mut payload = Vec::with_capacity(
         CHUNK_BLOCK_COUNT
             + CHUNK_NIBBLE_BYTES * 3
@@ -129,12 +128,11 @@ pub fn encode_protocol84_full_chunk_data(
         payload.extend_from_slice(&value.to_le_bytes());
     }
 
-    let payload_len =
-        u32::try_from(payload.len()).map_err(|_| CodecError::LengthOutOfRange {
-            field: "full chunk payload",
-            value: payload.len(),
-            max: u32::MAX as usize,
-        })?;
+    let payload_len = u32::try_from(payload.len()).map_err(|_| CodecError::LengthOutOfRange {
+        field: "full chunk payload",
+        value: payload.len(),
+        max: u32::MAX as usize,
+    })?;
 
     let mut body = Vec::with_capacity(13 + payload.len());
     body.extend_from_slice(&snapshot.chunk_x.to_be_bytes());

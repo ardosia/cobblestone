@@ -53,8 +53,7 @@ fn default_flat_planes() -> (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8
 
 #[test]
 fn real_default_flat_chunk_encodes_historical_layered_layout() {
-    let (block_ids, block_data, sky_light, block_light, biomes, height_map) =
-        default_flat_planes();
+    let (block_ids, block_data, sky_light, block_light, biomes, height_map) = default_flat_planes();
 
     let packet = encode_protocol84_full_chunk_data(Protocol84ChunkSnapshot {
         chunk_x: 8,
@@ -104,8 +103,7 @@ fn real_default_flat_chunk_encodes_historical_layered_layout() {
 
 #[test]
 fn sparse_extra_data_uses_historical_little_endian_entries() {
-    let (block_ids, block_data, sky_light, block_light, biomes, height_map) =
-        default_flat_planes();
+    let (block_ids, block_data, sky_light, block_light, biomes, height_map) = default_flat_planes();
     let extra = [(0x0000_ff7f_u32, 0xbeef_u16)];
 
     let packet = encode_protocol84_full_chunk_data(Protocol84ChunkSnapshot {
@@ -129,10 +127,7 @@ fn sparse_extra_data_uses_historical_little_endian_entries() {
         &payload[extra_offset + 4..extra_offset + 8],
         &[0x7f, 0xff, 0x00, 0x00]
     );
-    assert_eq!(
-        &payload[extra_offset + 8..extra_offset + 10],
-        &[0xef, 0xbe]
-    );
+    assert_eq!(&payload[extra_offset + 8..extra_offset + 10], &[0xef, 0xbe]);
 }
 
 #[test]
