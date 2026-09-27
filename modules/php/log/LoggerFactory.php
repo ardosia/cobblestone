@@ -7,6 +7,7 @@ namespace Cobblestone\Log;
 use DateTimeZone;
 use InvalidArgumentException;
 use Monolog\Handler\StreamHandler;
+use Monolog\Level;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 
@@ -22,7 +23,7 @@ final class LoggerFactory
         string $applicationName = 'Cobblestone',
     ): self {
         $level = self::normalizeLevel($minimumLevel ?? 'INFO');
-        $handler = new StreamHandler('php://stdout', $level, true);
+        $handler = new StreamHandler('php://stdout', Level::fromName($level), true);
         $handler->setFormatter(new SpringBootFormatter($applicationName));
 
         $logger = new Logger($applicationName, [$handler]);

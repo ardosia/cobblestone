@@ -150,6 +150,13 @@ final class World implements BlockSource
         return $result->value;
     }
 
+    public function blockExtraData(BlockPos $position): int
+    {
+        $chunk = $this->chunkForBlock($position);
+
+        return $chunk->blockExtraData($position->localX(), $position->y, $position->localZ());
+    }
+
     public function setBlockExtraData(BlockPos $position, int $data): int
     {
         $result = $this->mutations->run(

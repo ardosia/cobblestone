@@ -72,7 +72,7 @@ mutationExpect($firstChunk->revision() === $before + 1, 'compound mutation advan
 mutationExpect($world->block($first)->id === 2, 'compound block state did not commit');
 mutationExpect($world->skyLight($first) === 15, 'compound sky light did not commit');
 mutationExpect($world->blockLight($first) === 7, 'compound block light did not commit');
-mutationExpect($firstChunk->blockExtraData(0, 4, 0) === 0xbeef, 'compound extra data did not commit');
+mutationExpect($world->blockExtraData($first) === 0xbeef, 'compound extra data did not commit');
 
 $regions = new RegionMap();
 $negative = $regions->forChunk(new ChunkPos(-1, -9));
