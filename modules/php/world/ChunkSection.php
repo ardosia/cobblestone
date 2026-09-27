@@ -10,6 +10,7 @@ final class ChunkSection
 {
     public const VOLUME = 16 * 16 * 16;
     private const NIBBLE_BYTES = self::VOLUME / 2;
+    private const LAYER_NIBBLE_BYTES = (16 * 16) / 2;
 
     private string $blockIds;
     private string $blockData;
@@ -74,6 +75,27 @@ final class ChunkSection
         return $previous;
     }
 
+    /**
+     * Fills every semantic sky-light cell from the given local Y through the section top.
+     *
+     * @internal Generator initialization primitive.
+     */
+    public function fillSkyLightFrom(int $y, int $level): void
+    {
+        if ($y < 0 || $y > WorldBounds::SECTION_EDGE) {
+            throw new ValueError('chunk-section sky-light fill y must be in range 0..16');
+        }
+        self::assertLight($level);
+        if ($y === WorldBounds::SECTION_EDGE) {
+            return;
+        }
+
+        $offset = $y * self::LAYER_NIBBLE_BYTES;
+        $byte = chr(($level << 4) | $level);
+        $this->skyLight = substr($this->skyLight, 0, $offset)
+            . str_repeat($byte, self::NIBBLE_BYTES - $offset);
+    }
+
     public function blockLight(int $x, int $y, int $z): int
     {
         return self::readNibble($this->blockLight, self::index($x, $y, $z));
@@ -87,6 +109,17 @@ final class ChunkSection
         self::writeNibble($this->blockLight, $index, $level);
 
         return $previous;
+    }
+
+    /** @internal Bulk immutable world/native boundary. */
+    public function snapshot(): ChunkSectionSnapshot
+    {
+        return new ChunkSectionSnapshot(
+            $this->blockIds,
+            $this->blockData,
+            $this->skyLight,
+            $this->blockLight,
+        );
     }
 
     private static function index(int $x, int $y, int $z): int
