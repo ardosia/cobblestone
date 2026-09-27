@@ -22,18 +22,33 @@ final class StagedWorldMutation implements WorldMutation
     ) {
     }
 
-    public function block(BlockPos $position): BlockState
+    public function blockStateId(BlockPos $position): int
     {
         $patch = $this->patch($position);
 
-        return $patch->block($position->localX(), $position->y, $position->localZ());
+        return $patch->blockStateId($position->localX(), $position->y, $position->localZ());
+    }
+
+    public function setBlockStateId(BlockPos $position, int $stateId): int
+    {
+        $patch = $this->patch($position);
+
+        return $patch->setBlockStateId(
+            $position->localX(),
+            $position->y,
+            $position->localZ(),
+            $stateId,
+        );
+    }
+
+    public function block(BlockPos $position): BlockState
+    {
+        return BlockState::fromId($this->blockStateId($position));
     }
 
     public function setBlock(BlockPos $position, BlockState $state): BlockState
     {
-        $patch = $this->patch($position);
-
-        return $patch->setBlock($position->localX(), $position->y, $position->localZ(), $state);
+        return BlockState::fromId($this->setBlockStateId($position, $state->fullId()));
     }
 
     public function biomeAt(int $x, int $z): BiomeId

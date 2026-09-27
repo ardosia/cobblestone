@@ -88,21 +88,35 @@ final class World implements BlockSource
         return $this->mutations->run($operation);
     }
 
-    public function block(BlockPos $position): BlockState
+    public function blockStateId(BlockPos $position): int
     {
         $chunk = $this->chunkForBlock($position);
 
-        return $chunk->block($position->localX(), $position->y, $position->localZ());
+        return $chunk->blockStateId($position->localX(), $position->y, $position->localZ());
     }
 
-    public function setBlock(BlockPos $position, BlockState $state): BlockState
+    public function setBlockStateId(BlockPos $position, int $stateId): int
     {
+        BlockStateId::assert($stateId);
         $result = $this->mutations->run(
-            static fn (WorldMutation $mutation): BlockState => $mutation->setBlock($position, $state),
+            static fn (WorldMutation $mutation): int => $mutation->setBlockStateId(
+                $position,
+                $stateId,
+            ),
             [$position->chunk()],
         );
 
         return $result->value;
+    }
+
+    public function block(BlockPos $position): BlockState
+    {
+        return BlockState::fromId($this->blockStateId($position));
+    }
+
+    public function setBlock(BlockPos $position, BlockState $state): BlockState
+    {
+        return BlockState::fromId($this->setBlockStateId($position, $state->fullId()));
     }
 
     public function biomeAt(int $x, int $z): BiomeId
