@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::sync::mpsc::TryRecvError;
 use std::sync::Mutex;
+use std::sync::mpsc::TryRecvError;
 
 use cobblestone_core::{Completion, RuntimeId, WorkerPool};
 use ext_php_rs::exception::PhpResult;

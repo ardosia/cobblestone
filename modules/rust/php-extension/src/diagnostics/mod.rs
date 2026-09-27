@@ -24,7 +24,11 @@ pub fn cobblestone_core_buffer_copy_len(value: String) -> PhpResult<i64> {
 
 #[php_function]
 pub fn cobblestone_core_runtime_id() -> PhpResult<u32> {
-    php_boundary(|| current_runtime_id().map(cobblestone_core::RuntimeId::get).map_err(php_error))
+    php_boundary(|| {
+        current_runtime_id()
+            .map(cobblestone_core::RuntimeId::get)
+            .map_err(php_error)
+    })
 }
 
 pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
