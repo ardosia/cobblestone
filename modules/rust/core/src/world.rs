@@ -59,6 +59,11 @@ impl ChunkData {
 struct ChunkRecord {
     terrain_revision: u64,
     light_revision: u64,
+    persisted_terrain_revision: Option<u64>,
+    persisted_light_revision: Option<u64>,
+    persisted_lifecycle_flags: Option<u8>,
+    pin_count: u32,
+    lifecycle_flags: u8,
     data: Arc<ChunkData>,
 }
 
@@ -67,8 +72,19 @@ impl ChunkRecord {
         Self {
             terrain_revision: 0,
             light_revision: 0,
+            persisted_terrain_revision: None,
+            persisted_light_revision: None,
+            persisted_lifecycle_flags: None,
+            pin_count: 0,
+            lifecycle_flags: 0,
             data: Arc::new(ChunkData::empty(biome)),
         }
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.persisted_terrain_revision != Some(self.terrain_revision)
+            || self.persisted_light_revision != Some(self.light_revision)
+            || self.persisted_lifecycle_flags != Some(self.lifecycle_flags)
     }
 }
 
@@ -82,6 +98,7 @@ pub struct ChunkSnapshot {
     position: ChunkCoord,
     terrain_revision: u64,
     light_revision: u64,
+    lifecycle_flags: u8,
     data: Arc<ChunkData>,
 }
 
@@ -96,6 +113,10 @@ impl ChunkSnapshot {
 
     pub const fn light_revision(&self) -> u64 {
         self.light_revision
+    }
+
+    pub const fn lifecycle_flags(&self) -> u8 {
+        self.lifecycle_flags
     }
 
     pub fn states(&self) -> &[u16] {
@@ -127,6 +148,7 @@ impl ChunkSnapshot {
 pub struct ChunkImport {
     pub terrain_revision: u64,
     pub light_revision: u64,
+    pub lifecycle_flags: u8,
     pub states: Vec<u16>,
     pub sky_light: Vec<u8>,
     pub block_light: Vec<u8>,
@@ -150,6 +172,19 @@ pub struct ChunkPatch {
 
 pub const WORLD_CHANGE_LOG_CAPACITY: usize = 8192;
 pub const MAX_POINT_BLOCK_CHANGES: usize = 256;
+pub const CHUNK_LIFECYCLE_GENERATED: u8 = 0x01;
+pub const CHUNK_LIFECYCLE_POPULATED: u8 = 0x02;
+pub const CHUNK_LIFECYCLE_LIGHT_POPULATED: u8 = 0x04;
+pub const CHUNK_LIFECYCLE_MASK: u8 =
+    CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED | CHUNK_LIFECYCLE_LIGHT_POPULATED;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ChunkEviction {
+    Missing,
+    Pinned { pins: u32 },
+    Dirty,
+    Evicted,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WorldChangeKind {
@@ -227,6 +262,13 @@ pub enum WorldStoreError {
     InvalidLight(u8),
     InvalidLayerRange { start_y: u8, count: u8 },
     InvalidImport(&'static str),
+    InvalidLifecycleFlags(u8),
+    PinCountExhausted,
+    ChunkNotPinned,
+    PersistedTerrainRevisionAhead { persisted: u64, current: u64 },
+    PersistedLightRevisionAhead { persisted: u64, current: u64 },
+    PersistedTerrainRevisionRegression { previous: u64, requested: u64 },
+    PersistedLightRevisionRegression { previous: u64, requested: u64 },
     TerrainRevisionConflict { expected: u64, actual: u64 },
     LightRevisionConflict { expected: u64, actual: u64 },
     InvalidTerrainRevisionTransition { expected_next: u64, requested: u64 },
@@ -256,6 +298,33 @@ impl fmt::Display for WorldStoreError {
             Self::InvalidImport(field) => {
                 write!(f, "native chunk import has invalid {field} length")
             }
+            Self::InvalidLifecycleFlags(flags) => {
+                write!(f, "native chunk lifecycle flags 0x{flags:02x} are invalid")
+            }
+            Self::PinCountExhausted => write!(f, "native chunk pin count exhausted"),
+            Self::ChunkNotPinned => write!(f, "native chunk is not pinned"),
+            Self::PersistedTerrainRevisionAhead { persisted, current } => write!(
+                f,
+                "persisted terrain revision {persisted} exceeds current terrain revision {current}"
+            ),
+            Self::PersistedLightRevisionAhead { persisted, current } => write!(
+                f,
+                "persisted light revision {persisted} exceeds current light revision {current}"
+            ),
+            Self::PersistedTerrainRevisionRegression {
+                previous,
+                requested,
+            } => write!(
+                f,
+                "persisted terrain revision regressed: previous {previous}, requested {requested}"
+            ),
+            Self::PersistedLightRevisionRegression {
+                previous,
+                requested,
+            } => write!(
+                f,
+                "persisted light revision regressed: previous {previous}, requested {requested}"
+            ),
             Self::TerrainRevisionConflict { expected, actual } => {
                 write!(
                     f,
@@ -355,6 +424,11 @@ impl WorldStore {
             ChunkRecord {
                 terrain_revision: import.terrain_revision,
                 light_revision: import.light_revision,
+                persisted_terrain_revision: Some(import.terrain_revision),
+                persisted_light_revision: Some(import.light_revision),
+                persisted_lifecycle_flags: Some(import.lifecycle_flags),
+                pin_count: 0,
+                lifecycle_flags: import.lifecycle_flags,
                 data: Arc::new(ChunkData {
                     states: import.states,
                     sky_light: import.sky_light,
@@ -366,6 +440,158 @@ impl WorldStore {
             },
         );
         Ok(())
+    }
+
+    pub fn lifecycle_flags(&self, position: ChunkCoord) -> Result<u8, WorldStoreError> {
+        self.with_chunk(position, |chunk| Ok(chunk.lifecycle_flags))
+    }
+
+    pub fn set_lifecycle_flags(
+        &self,
+        position: ChunkCoord,
+        flags: u8,
+    ) -> Result<(), WorldStoreError> {
+        validate_lifecycle_flags(flags)?;
+        self.with_chunk_mut(position, |chunk| {
+            chunk.lifecycle_flags = flags;
+            Ok(())
+        })
+    }
+
+    pub fn pin_chunk(&self, position: ChunkCoord) -> Result<u32, WorldStoreError> {
+        self.with_chunk_mut(position, |chunk| {
+            chunk.pin_count = chunk
+                .pin_count
+                .checked_add(1)
+                .ok_or(WorldStoreError::PinCountExhausted)?;
+            Ok(chunk.pin_count)
+        })
+    }
+
+    pub fn unpin_chunk(&self, position: ChunkCoord) -> Result<u32, WorldStoreError> {
+        self.with_chunk_mut(position, |chunk| {
+            if chunk.pin_count == 0 {
+                return Err(WorldStoreError::ChunkNotPinned);
+            }
+            chunk.pin_count -= 1;
+            Ok(chunk.pin_count)
+        })
+    }
+
+    pub fn pin_count(&self, position: ChunkCoord) -> Result<u32, WorldStoreError> {
+        self.with_chunk(position, |chunk| Ok(chunk.pin_count))
+    }
+
+    pub fn total_pin_count(&self) -> u64 {
+        let regions = read_lock(&self.regions);
+        regions
+            .values()
+            .map(|region| {
+                read_lock(&region.chunks)
+                    .values()
+                    .map(|chunk| u64::from(chunk.pin_count))
+                    .sum::<u64>()
+            })
+            .sum()
+    }
+
+    pub fn is_dirty(&self, position: ChunkCoord) -> Result<bool, WorldStoreError> {
+        self.with_chunk(position, |chunk| Ok(chunk.is_dirty()))
+    }
+
+    pub fn persisted_revisions(
+        &self,
+        position: ChunkCoord,
+    ) -> Result<(Option<u64>, Option<u64>), WorldStoreError> {
+        self.with_chunk(position, |chunk| {
+            Ok((
+                chunk.persisted_terrain_revision,
+                chunk.persisted_light_revision,
+            ))
+        })
+    }
+
+    pub fn mark_persisted(
+        &self,
+        position: ChunkCoord,
+        terrain_revision: u64,
+        light_revision: u64,
+        lifecycle_flags: u8,
+    ) -> Result<(), WorldStoreError> {
+        validate_lifecycle_flags(lifecycle_flags)?;
+        self.with_chunk_mut(position, |chunk| {
+            if terrain_revision > chunk.terrain_revision {
+                return Err(WorldStoreError::PersistedTerrainRevisionAhead {
+                    persisted: terrain_revision,
+                    current: chunk.terrain_revision,
+                });
+            }
+            if light_revision > chunk.light_revision {
+                return Err(WorldStoreError::PersistedLightRevisionAhead {
+                    persisted: light_revision,
+                    current: chunk.light_revision,
+                });
+            }
+            if let Some(previous) = chunk.persisted_terrain_revision
+                && terrain_revision < previous
+            {
+                return Err(WorldStoreError::PersistedTerrainRevisionRegression {
+                    previous,
+                    requested: terrain_revision,
+                });
+            }
+            if let Some(previous) = chunk.persisted_light_revision
+                && light_revision < previous
+            {
+                return Err(WorldStoreError::PersistedLightRevisionRegression {
+                    previous,
+                    requested: light_revision,
+                });
+            }
+
+            chunk.persisted_terrain_revision = Some(terrain_revision);
+            chunk.persisted_light_revision = Some(light_revision);
+            chunk.persisted_lifecycle_flags = Some(lifecycle_flags);
+            Ok(())
+        })
+    }
+
+    pub fn try_evict_chunk(&self, position: ChunkCoord) -> Result<ChunkEviction, WorldStoreError> {
+        let id = Self::region_for(position);
+        let Some(region) = read_lock(&self.regions).get(&id).cloned() else {
+            return Ok(ChunkEviction::Missing);
+        };
+
+        let empty_after = {
+            let mut chunks = write_lock(&region.chunks);
+            let Some(chunk) = chunks.get(&position) else {
+                return Ok(ChunkEviction::Missing);
+            };
+            if chunk.pin_count != 0 {
+                return Ok(ChunkEviction::Pinned {
+                    pins: chunk.pin_count,
+                });
+            }
+            if chunk.is_dirty() {
+                return Ok(ChunkEviction::Dirty);
+            }
+
+            chunks.remove(&position);
+            chunks.is_empty()
+        };
+
+        if empty_after {
+            let mut regions = write_lock(&self.regions);
+            if regions
+                .get(&id)
+                .is_some_and(|current| Arc::ptr_eq(current, &region))
+                && read_lock(&region.chunks).is_empty()
+            {
+                regions.remove(&id);
+            }
+        }
+
+        Ok(ChunkEviction::Evicted)
     }
 
     pub fn terrain_revision(&self, position: ChunkCoord) -> Result<u64, WorldStoreError> {
@@ -775,6 +1001,7 @@ impl WorldStore {
                 position,
                 terrain_revision: chunk.terrain_revision,
                 light_revision: chunk.light_revision,
+                lifecycle_flags: chunk.lifecycle_flags,
                 data: Arc::clone(&chunk.data),
             })
         })
@@ -861,6 +1088,7 @@ impl WorldStore {
 }
 
 fn validate_import(import: &ChunkImport) -> Result<(), WorldStoreError> {
+    validate_lifecycle_flags(import.lifecycle_flags)?;
     if import.states.len() != CHUNK_BLOCK_COUNT {
         return Err(WorldStoreError::InvalidImport("state"));
     }
@@ -924,6 +1152,14 @@ fn validate_block_index(index: u16) -> Result<(), WorldStoreError> {
 fn validate_column_index(index: u8) -> Result<(), WorldStoreError> {
     if usize::from(index) >= CHUNK_COLUMN_COUNT {
         Err(WorldStoreError::InvalidColumnIndex(index))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_lifecycle_flags(flags: u8) -> Result<(), WorldStoreError> {
+    if flags & !CHUNK_LIFECYCLE_MASK != 0 {
+        Err(WorldStoreError::InvalidLifecycleFlags(flags))
     } else {
         Ok(())
     }
@@ -1002,7 +1238,10 @@ fn write_lock<T>(lock: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ChunkCoord, ChunkPatch, WorldChangeKind, WorldStore};
+    use super::{
+        CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_POPULATED, ChunkCoord, ChunkEviction,
+        ChunkPatch, WorldChangeKind, WorldStore,
+    };
 
     #[test]
     fn snapshots_are_immutable_across_later_writes() {
@@ -1094,5 +1333,55 @@ mod tests {
         let pruned = store.change_log_snapshot();
         assert_eq!(pruned.changes().len(), 1);
         assert_eq!(pruned.oldest_sequence(), 2);
+    }
+
+    #[test]
+    fn pins_dirty_watermarks_and_lifecycle_gate_eviction() {
+        let store = WorldStore::new();
+        let pos = ChunkCoord::new(4, -2);
+        store.ensure_chunk(pos, 1);
+
+        assert!(store.is_dirty(pos).unwrap());
+        assert_eq!(store.try_evict_chunk(pos).unwrap(), ChunkEviction::Dirty);
+
+        let flags = CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED;
+        store.set_lifecycle_flags(pos, flags).unwrap();
+        store.mark_persisted(pos, 0, 0, flags).unwrap();
+        assert!(!store.is_dirty(pos).unwrap());
+
+        store
+            .set_lifecycle_flags(pos, CHUNK_LIFECYCLE_GENERATED)
+            .unwrap();
+        assert!(store.is_dirty(pos).unwrap());
+        store.set_lifecycle_flags(pos, flags).unwrap();
+        assert!(!store.is_dirty(pos).unwrap());
+
+        assert_eq!(store.pin_chunk(pos).unwrap(), 1);
+        assert_eq!(
+            store.try_evict_chunk(pos).unwrap(),
+            ChunkEviction::Pinned { pins: 1 }
+        );
+        assert_eq!(store.unpin_chunk(pos).unwrap(), 0);
+
+        store
+            .apply_patch(
+                pos,
+                ChunkPatch {
+                    expected_terrain_revision: 0,
+                    next_terrain_revision: 1,
+                    expected_light_revision: 0,
+                    next_light_revision: 0,
+                    blocks: vec![(0, 0x10)],
+                    ..ChunkPatch::default()
+                },
+            )
+            .unwrap();
+        assert!(store.is_dirty(pos).unwrap());
+        assert_eq!(store.try_evict_chunk(pos).unwrap(), ChunkEviction::Dirty);
+
+        store.mark_persisted(pos, 1, 0, flags).unwrap();
+        assert!(!store.is_dirty(pos).unwrap());
+        assert_eq!(store.try_evict_chunk(pos).unwrap(), ChunkEviction::Evicted);
+        assert_eq!(store.try_evict_chunk(pos).unwrap(), ChunkEviction::Missing);
     }
 }

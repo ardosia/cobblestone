@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{LazyLock, Mutex, MutexGuard};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
 
 use cobblestone_codec::{
     AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, CHUNK_BLOCK_COUNT,
@@ -9,7 +9,7 @@ use cobblestone_codec::{
     encode_protocol84_full_chunk_data, encode_protocol84_update_block, packet_id,
 };
 use cobblestone_core::{
-    ChunkCoord, MAX_POINT_BLOCK_CHANGES, NativeBuffer, RuntimeId, WorldChangeKind,
+    ChunkCoord, MAX_POINT_BLOCK_CHANGES, NativeBuffer, RuntimeId, WorldChangeKind, WorldStore,
 };
 use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
 use ext_php_rs::binary::Binary;
@@ -29,16 +29,18 @@ const MAX_PROJECTION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_SYNC_BATCH_PACKETS: usize = 256;
 const CHUNK_RADIUS_UPDATED_ID: u8 = 0x3e;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct WorldView {
     world_handle: i64,
+    store: Arc<WorldStore>,
     center: ChunkCoord,
     radius: i32,
     cursor: u64,
+    pinned_chunks: Vec<ChunkCoord>,
 }
 
 impl WorldView {
-    fn contains(self, position: ChunkCoord) -> bool {
+    fn contains(&self, position: ChunkCoord) -> bool {
         position.x() >= self.center.x().saturating_sub(self.radius)
             && position.x() <= self.center.x().saturating_add(self.radius)
             && position.z() >= self.center.z().saturating_sub(self.radius)
@@ -62,12 +64,34 @@ fn world_views() -> MutexGuard<'static, HashMap<(RuntimeId, SessionId), WorldVie
     }
 }
 
+fn release_view(view: &WorldView) {
+    for &position in &view.pinned_chunks {
+        let _ = view.store.unpin_chunk(position);
+    }
+}
+
 pub(crate) fn forget_session(owner: RuntimeId, session_id: SessionId) {
-    world_views().remove(&(owner, session_id));
+    if let Some(view) = world_views().remove(&(owner, session_id)) {
+        release_view(&view);
+    }
 }
 
 pub(crate) fn forget_runtime(owner: RuntimeId) {
-    world_views().retain(|(runtime, _), _| *runtime != owner);
+    let removed = {
+        let mut views = world_views();
+        let keys = views
+            .keys()
+            .filter(|(runtime, _)| *runtime == owner)
+            .copied()
+            .collect::<Vec<_>>();
+        keys.into_iter()
+            .filter_map(|key| views.remove(&key))
+            .collect::<Vec<_>>()
+    };
+
+    for view in removed {
+        release_view(&view);
+    }
 }
 
 pub(crate) struct WorldBootstrap {
@@ -442,57 +466,55 @@ pub fn cobblestone_session_protocol84_send_native_chunks(
             .checked_add(effective_radius)
             .ok_or_else(|| php_error("initial chunk z range overflow"))?;
 
+        let store = resolve_world(world_handle)?;
         let mut chunks = Vec::with_capacity(expected_chunks);
+        let mut positions = Vec::with_capacity(expected_chunks);
         for x in min_x..=max_x {
             for z in min_z..=max_z {
-                chunks.push(protocol84_chunk(world_handle, ChunkCoord::new(x, z))?);
+                let position = ChunkCoord::new(x, z);
+                chunks.push(protocol84_chunk(world_handle, position)?);
+                positions.push(position);
             }
         }
 
-        let encoded = queue_initial_chunk_batch(owner, session_id, effective_radius, chunks)?;
-        let cursor = resolve_world(world_handle)?.current_change_sequence();
-        world_views().insert(
-            (owner, session_id),
-            WorldView {
-                world_handle,
-                center: ChunkCoord::new(center_x, center_z),
-                radius: effective_radius,
-                cursor,
-            },
-        );
+        let mut pinned = Vec::with_capacity(positions.len());
+        for &position in &positions {
+            if let Err(error) = store.pin_chunk(position) {
+                for &rollback in &pinned {
+                    let _ = store.unpin_chunk(rollback);
+                }
+                return Err(php_error(error.to_string()));
+            }
+            pinned.push(position);
+        }
+
+        let encoded = match queue_initial_chunk_batch(owner, session_id, effective_radius, chunks) {
+            Ok(encoded) => encoded,
+            Err(error) => {
+                for &position in &pinned {
+                    let _ = store.unpin_chunk(position);
+                }
+                return Err(error);
+            }
+        };
+        let cursor = store.current_change_sequence();
+        let view = WorldView {
+            world_handle,
+            store: Arc::clone(&store),
+            center: ChunkCoord::new(center_x, center_z),
+            radius: effective_radius,
+            cursor,
+            pinned_chunks: positions,
+        };
+        if let Some(previous) = world_views().insert((owner, session_id), view) {
+            release_view(&previous);
+        }
         Ok(encoded)
     })
 }
 
-fn view_chunks(view: WorldView) -> PhpResult<Vec<ChunkCoord>> {
-    let min_x = view
-        .center
-        .x()
-        .checked_sub(view.radius)
-        .ok_or_else(|| php_error("world view x range underflow"))?;
-    let max_x = view
-        .center
-        .x()
-        .checked_add(view.radius)
-        .ok_or_else(|| php_error("world view x range overflow"))?;
-    let min_z = view
-        .center
-        .z()
-        .checked_sub(view.radius)
-        .ok_or_else(|| php_error("world view z range underflow"))?;
-    let max_z = view
-        .center
-        .z()
-        .checked_add(view.radius)
-        .ok_or_else(|| php_error("world view z range overflow"))?;
-
-    let mut chunks = Vec::new();
-    for x in min_x..=max_x {
-        for z in min_z..=max_z {
-            chunks.push(ChunkCoord::new(x, z));
-        }
-    }
-    Ok(chunks)
+fn view_chunks(view: &WorldView) -> Vec<ChunkCoord> {
+    view.pinned_chunks.clone()
 }
 
 fn merge_change(
@@ -557,9 +579,9 @@ pub fn cobblestone_session_protocol84_flush_world_changes(world_handle: i64) -> 
             let views = world_views();
             views
                 .iter()
-                .filter_map(|(&(runtime, session_id), &view)| {
+                .filter_map(|(&(runtime, session_id), view)| {
                     (runtime == owner && view.world_handle == world_handle)
-                        .then_some((session_id, view))
+                        .then_some((session_id, view.clone()))
                 })
                 .collect::<Vec<_>>()
         };
@@ -585,7 +607,7 @@ pub fn cobblestone_session_protocol84_flush_world_changes(world_handle: i64) -> 
 
             let mut pending = HashMap::<ChunkCoord, PendingChunkSync>::new();
             if log.cursor_is_stale(view.cursor) {
-                for position in view_chunks(view)? {
+                for position in view_chunks(&view) {
                     pending.insert(position, PendingChunkSync::FullChunk);
                 }
             } else {
@@ -649,7 +671,9 @@ pub fn cobblestone_session_protocol84_flush_world_changes(world_handle: i64) -> 
         let prune_through = {
             let mut views = world_views();
             for session_id in gone {
-                views.remove(&(owner, session_id));
+                if let Some(view) = views.remove(&(owner, session_id)) {
+                    release_view(&view);
+                }
             }
             for (session_id, cursor) in cursor_updates {
                 if let Some(view) = views.get_mut(&(owner, session_id))

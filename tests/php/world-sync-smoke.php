@@ -9,6 +9,7 @@ use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
+use Cobblestone\World\ChunkPos;
 
 function worldSyncExpect(bool $condition, string $message): void
 {
@@ -40,6 +41,12 @@ $server->events()->listen(
     static function (SessionSpawned $event) use ($server, &$spawned, &$mutated): void {
         $spawned = true;
         worldSyncExpect($event->chunksSent > 0, 'world-sync client spawned without chunks');
+        $store = $server->world()->nativeStore();
+        worldSyncExpect($store !== null, 'world-sync server did not use native world storage');
+        worldSyncExpect(
+            $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
+            'spawned client view did not pin its streamed center chunk',
+        );
         $previous = $server->world()->setBlockStateId(
             new BlockPos(128, 5, 128),
             BlockStateId::fromLegacy(1),
@@ -129,5 +136,12 @@ try {
         $server->stop();
     }
 }
+
+$store = $server->world()->nativeStore();
+worldSyncExpect($store !== null, 'world-sync native store disappeared during shutdown');
+worldSyncExpect(
+    $store->chunkPinCount(new ChunkPos(8, 8)) === 0,
+    'session shutdown did not release streamed chunk pins',
+);
 
 fwrite(STDOUT, "world-sync-smoke: passed\n");

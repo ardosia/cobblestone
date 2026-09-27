@@ -8,6 +8,7 @@ use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\ChunkUnloadStatus;
 use Cobblestone\World\LightLevel;
 use Cobblestone\World\SectionY;
 use Cobblestone\World\TerrainPatch;
@@ -97,8 +98,24 @@ parityExpect(
 parityExpect($snapshot->revision()->value === 2, 'chunk snapshot terrain revision mismatch');
 parityExpect($snapshot->light()->revision->value === 1, 'chunk snapshot light revision mismatch');
 
-$removed = $world->chunks()->remove($position);
-parityExpect($removed === $chunk, 'chunk source remove returned wrong resident object');
+parityExpect($chunk->isDirty(), 'newly generated/mutated chunk must be dirty');
+parityExpect(
+    $world->chunks()->unload($position) === ChunkUnloadStatus::Pinned,
+    'resident handles did not block chunk unload',
+);
+$firstHandle->release();
+$secondHandle->release();
+parityExpect(
+    $world->chunks()->unload($position) === ChunkUnloadStatus::Dirty,
+    'dirty chunk did not block safe unload',
+);
+
+$chunk->markCurrentStatePersisted();
+parityExpect(!$chunk->isDirty(), 'persisted chunk remained dirty');
+parityExpect(
+    $world->chunks()->unload($position) === ChunkUnloadStatus::Unloaded,
+    'clean unpinned chunk did not unload',
+);
 $replacement = $world->chunk($position, true);
 $replacementHandle = $world->residentChunk($position, false);
 parityExpect($replacement !== null && $replacementHandle !== null, 'replacement chunk missing');
@@ -106,5 +123,6 @@ parityExpect(
     !$firstHandle->sameCell($replacementHandle),
     'unload/reload reused resident cell identity',
 );
+$replacementHandle->release();
 
 fwrite(STDOUT, "world-parity-smoke: passed\n");

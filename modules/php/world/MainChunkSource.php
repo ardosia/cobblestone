@@ -11,6 +11,12 @@ final class MainChunkSource implements ChunkSource
     /** @var array<string, Chunk> */
     private array $chunks = [];
 
+    /** @var array<string, ResidentChunkCell> */
+    private array $cells = [];
+
+    /** @var array<string, true> */
+    private array $loading = [];
+
     public function __construct(
         private readonly Generator $generator,
         private readonly int $seed,
@@ -30,17 +36,27 @@ final class MainChunkSource implements ChunkSource
             return $existing;
         }
 
-        $chunk = $this->generator->generate($position, $this->seed, $this->nativeStore);
-        if ($chunk->position()->x !== $position->x || $chunk->position()->z !== $position->z) {
-            throw new \LogicException('world generator returned a chunk for the wrong position');
+        $key = $position->key();
+        if (isset($this->loading[$key])) {
+            throw new \LogicException("chunk {$key} is already being loaded or generated");
         }
 
-        $chunk->markGenerated();
-        $this->generator->populate($chunk, $this->seed);
-        $chunk->markPopulated();
-        $this->put($chunk);
+        $this->loading[$key] = true;
+        try {
+            $chunk = $this->generator->generate($position, $this->seed, $this->nativeStore);
+            if ($chunk->position()->x !== $position->x || $chunk->position()->z !== $position->z) {
+                throw new \LogicException('world generator returned a chunk for the wrong position');
+            }
 
-        return $chunk;
+            $chunk->markGenerated();
+            $this->generator->populate($chunk, $this->seed);
+            $chunk->markPopulated();
+            $this->put($chunk);
+
+            return $chunk;
+        } finally {
+            unset($this->loading[$key]);
+        }
     }
 
     /** @internal */
@@ -55,16 +71,57 @@ final class MainChunkSource implements ChunkSource
             throw new \LogicException('chunk source/store mismatch');
         }
 
-        $this->chunks[$chunk->position()->key()] = $chunk;
+        $key = $chunk->position()->key();
+        $existing = $this->chunks[$key] ?? null;
+        if ($existing !== null && $existing !== $chunk) {
+            throw new \LogicException("chunk {$key} already has a different resident object");
+        }
+
+        $this->chunks[$key] = $chunk;
+        $this->cells[$key] ??= new ResidentChunkCell($chunk);
     }
 
     public function remove(ChunkPos $position): ?Chunk
     {
+        $chunk = $this->get($position);
+        if ($chunk === null) {
+            return null;
+        }
+
+        return $this->unload($position) === ChunkUnloadStatus::Unloaded ? $chunk : null;
+    }
+
+    public function unload(ChunkPos $position): ChunkUnloadStatus
+    {
         $key = $position->key();
         $chunk = $this->chunks[$key] ?? null;
-        unset($this->chunks[$key]);
+        if ($chunk === null) {
+            return ChunkUnloadStatus::Missing;
+        }
 
-        return $chunk;
+        if ($this->nativeStore !== null) {
+            $status = match ($this->nativeStore->tryEvictChunk($position)) {
+                0 => ChunkUnloadStatus::Missing,
+                1 => ChunkUnloadStatus::Pinned,
+                2 => ChunkUnloadStatus::Dirty,
+                3 => ChunkUnloadStatus::Unloaded,
+                default => throw new \UnexpectedValueException('invalid native chunk eviction status'),
+            };
+        } else {
+            $cell = $this->cells[$key]
+                ?? throw new \LogicException('resident chunk cell missing for PHP-backed chunk');
+            $status = match (true) {
+                $cell->pinCount() !== 0 => ChunkUnloadStatus::Pinned,
+                $chunk->isDirty() => ChunkUnloadStatus::Dirty,
+                default => ChunkUnloadStatus::Unloaded,
+            };
+        }
+
+        if ($status === ChunkUnloadStatus::Unloaded || $status === ChunkUnloadStatus::Missing) {
+            unset($this->chunks[$key], $this->cells[$key]);
+        }
+
+        return $status;
     }
 
     public function count(): int
@@ -75,7 +132,13 @@ final class MainChunkSource implements ChunkSource
     public function resident(ChunkPos $position, bool $generate = false): ?ResidentChunkHandle
     {
         $chunk = $generate ? $this->getOrGenerate($position) : $this->get($position);
+        if ($chunk === null) {
+            return null;
+        }
 
-        return $chunk === null ? null : new ResidentChunkHandle($chunk);
+        $key = $position->key();
+        $cell = $this->cells[$key] ??= new ResidentChunkCell($chunk);
+
+        return new ResidentChunkHandle($cell);
     }
 }

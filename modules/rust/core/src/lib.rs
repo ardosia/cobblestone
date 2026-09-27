@@ -18,8 +18,10 @@ pub use worker::{
     WorkerPoolBuildError,
 };
 pub use world::{
-    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_EDGE, CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkImport,
-    ChunkPatch, ChunkSnapshot, MAX_LEGACY_STATE_ID, MAX_POINT_BLOCK_CHANGES, REGION_CHUNK_EDGE,
-    WORLD_CHANGE_LOG_CAPACITY, WORLD_HEIGHT, WorldChange, WorldChangeKind, WorldChangeLogSnapshot,
-    WorldStore, WorldStoreError,
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_EDGE, CHUNK_LIFECYCLE_GENERATED,
+    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_MASK, CHUNK_LIFECYCLE_POPULATED,
+    CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkEviction, ChunkImport, ChunkPatch, ChunkSnapshot,
+    MAX_LEGACY_STATE_ID, MAX_POINT_BLOCK_CHANGES, REGION_CHUNK_EDGE, WORLD_CHANGE_LOG_CAPACITY,
+    WORLD_HEIGHT, WorldChange, WorldChangeKind, WorldChangeLogSnapshot, WorldStore,
+    WorldStoreError,
 };

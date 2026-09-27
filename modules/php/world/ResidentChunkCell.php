@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Cobblestone\World;
 
 /**
- * Owner-runtime resident chunk cell.
+ * Shared owner-runtime identity for one resident chunk.
  *
- * Rust lock guards collapse to direct owner-local access in PHP; terrain/light remain separate
- * semantic facades and snapshot capture is immutable.
+ * Handles acquire/release pins through this cell. Native-backed cells mirror those pins into the
+ * Rust WorldStore; PHP-backed cells keep the same semantics locally for parity.
  *
  * @internal
  */
-final readonly class ResidentChunkCell
+final class ResidentChunkCell
 {
-    public function __construct(private Chunk $chunk)
+    private int $pins = 0;
+
+    public function __construct(private readonly Chunk $chunk)
     {
     }
 
@@ -36,6 +38,27 @@ final readonly class ResidentChunkCell
     public function snapshot(): ChunkSnapshot
     {
         return $this->chunk->snapshot();
+    }
+
+    public function acquire(): void
+    {
+        $this->chunk->nativeStore()?->pinChunk($this->chunk->position());
+        ++$this->pins;
+    }
+
+    public function release(): void
+    {
+        if ($this->pins === 0) {
+            throw new \LogicException('resident chunk cell is not pinned');
+        }
+
+        $this->chunk->nativeStore()?->unpinChunk($this->chunk->position());
+        --$this->pins;
+    }
+
+    public function pinCount(): int
+    {
+        return $this->pins;
     }
 
     /** @internal */

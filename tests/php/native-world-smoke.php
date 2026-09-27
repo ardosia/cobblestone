@@ -9,6 +9,7 @@ use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\ChunkUnloadStatus;
 use Cobblestone\World\Light\LightEngine;
 use Cobblestone\World\LightLayer;
 use Cobblestone\World\LightUpdate;
@@ -49,6 +50,33 @@ for ($chunkX = -1; $chunkX <= 1; ++$chunkX) {
         );
     }
 }
+
+$evictPosition = new ChunkPos(1, 1);
+$evictChunk = $world->chunk($evictPosition, false);
+nativeWorldExpect($evictChunk !== null, 'native eviction probe chunk was not resident');
+nativeWorldExpect($evictChunk->isGenerated(), 'native generated lifecycle flag missing');
+nativeWorldExpect($evictChunk->isPopulated(), 'native populated lifecycle flag missing');
+nativeWorldExpect($evictChunk->isDirty(), 'new native generated chunk must start dirty');
+$evictHandle = $world->residentChunk($evictPosition, false);
+nativeWorldExpect($evictHandle !== null, 'native resident handle missing');
+nativeWorldExpect($store->chunkPinCount($evictPosition) === 1, 'native resident handle did not pin');
+nativeWorldExpect(
+    $world->chunks()->unload($evictPosition) === ChunkUnloadStatus::Pinned,
+    'native pin did not block safe unload',
+);
+$evictHandle->release();
+nativeWorldExpect($store->chunkPinCount($evictPosition) === 0, 'native resident pin did not release');
+nativeWorldExpect(
+    $world->chunks()->unload($evictPosition) === ChunkUnloadStatus::Dirty,
+    'native dirty chunk did not block safe unload',
+);
+$evictChunk->markCurrentStatePersisted();
+nativeWorldExpect(!$evictChunk->isDirty(), 'native persisted watermark did not clean chunk');
+nativeWorldExpect(
+    $world->chunks()->unload($evictPosition) === ChunkUnloadStatus::Unloaded,
+    'native clean unpinned chunk did not unload',
+);
+nativeWorldExpect($world->chunk($evictPosition, false) === null, 'native unloaded chunk stayed resident');
 
 $chunk = $world->chunk(new ChunkPos(0, 0), false);
 nativeWorldExpect($chunk !== null, 'center native chunk was not resident');

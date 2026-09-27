@@ -144,19 +144,24 @@ The network change journal is not reused for persistence. Network delivery curso
 
 ## Load and unload contract
 
-Persistence implementation waits until chunk lifecycle is explicit.
+The residency contract is now explicit and native-authoritative:
 
-Before storage ships, Cobblestone must define:
+- every resident native chunk carries generated/populated/light-populated lifecycle flags, terrain/light revisions, persisted terrain/light/lifecycle watermarks, and a runtime-only pin count;
+- a newly generated chunk starts dirty because it has no persisted watermark;
+- an imported storage record enters residency clean at the record's exact revisions/lifecycle flags;
+- immutable native snapshots capture terrain revision, light revision, lifecycle flags, and the chunk data Arc atomically;
+- persistence completion advances persisted watermarks monotonically to the exact snapshot that reached stable storage; if live revisions or lifecycle advanced meanwhile, the chunk remains dirty;
+- `ResidentChunkHandle` pins the chunk for its lifetime, and native session views pin every streamed chunk until disconnect/runtime shutdown;
+- safe unload returns Missing, Pinned, Dirty, or Unloaded. Only a clean, zero-pin chunk can leave native residency;
+- protocol-84 cached FullChunkData is discarded when residency eviction succeeds;
+- world destruction is rejected while any chunk pins remain active;
+- PHP owner-runtime generation permits only one in-flight load/generation operation for a chunk key and rejects reentrant duplicate creation.
 
-- native resident/pinned reference semantics;
-- who may initiate load/generation;
-- concurrent duplicate-load collapse;
-- dirty vs persisted revision tracking;
-- whether unload waits for save or can hand the snapshot to storage and immediately release residency;
-- cancellation/shutdown behavior; and
-- maximum bounded save/load queues and backpressure policy.
+`MainChunkSource::remove()` remains a compatibility wrapper around safe unload: it returns the former PHP facade only when unload actually succeeds. Runtime code should use `unload()` and inspect the status rather than interpreting a missing return value.
 
-Lifecycle flags currently exposed by the PHP Chunk facade must become authoritative native chunk metadata before durable storage is implemented.
+The remaining persistence-specific load work is asynchronous duplicate-load collapse: when disk loading is introduced, the native storage layer should keep one in-flight load future per chunk coordinate and let all requesters join that result rather than scheduling duplicate reads. Generation remains the fallback only after the storage layer reports the chunk absent.
+
+For unload with persistence, the intended path is snapshot handoff rather than blocking the gameplay runtime on disk: capture the immutable native snapshot, pin/retain that snapshot in the bounded storage job, publish it durably, advance persisted watermarks on completion, and evict only when the live chunk is still clean and unpinned. Shutdown must drain or explicitly fail accepted save jobs before destroying the world store. Exact save/load queue capacities and backpressure thresholds remain implementation-time measured constants.
 
 ## Compaction
 
@@ -174,8 +179,8 @@ Checksums detect corruption; they do not authenticate data.
 - no silent replacement of corrupt data with an empty chunk;
 - optional repair tooling may later scan append records and reconstruct an index, but repair is never automatic gameplay behavior.
 
-## Why implementation is deferred
+## Implementation sequencing
 
-Live synchronization has now fixed the authoritative native revision/snapshot model, but unload/pinning and durable-dirty semantics are still intentionally absent. Implementing disk I/O before those contracts would force storage to define residency behavior accidentally.
+Live synchronization and chunk residency now fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. Persistence no longer needs to invent those semantics.
 
-The next storage implementation milestone should start immediately after chunk lifecycle/unload semantics, using this file format as the target rather than redesigning persistence at that point.
+The next storage milestone can implement the native async save/load mechanism directly against this format: region/index I/O, zstd/CRC32C record encoding, bounded storage jobs, one in-flight load per chunk, persisted-watermark completion, and clean eviction. Compaction can follow once real save workloads provide dead-byte measurements.

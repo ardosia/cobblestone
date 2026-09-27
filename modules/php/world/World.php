@@ -73,9 +73,7 @@ final class World implements BlockSource
 
     public function residentChunk(ChunkPos $position, bool $generate = true): ?ResidentChunkHandle
     {
-        $chunk = $this->chunk($position, $generate);
-
-        return $chunk === null ? null : new ResidentChunkHandle($chunk);
+        return $this->chunks->resident($position, $generate);
     }
 
     /**

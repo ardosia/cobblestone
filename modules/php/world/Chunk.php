@@ -8,6 +8,10 @@ use ValueError;
 
 final class Chunk
 {
+    public const LIFECYCLE_GENERATED = 0x01;
+    public const LIFECYCLE_POPULATED = 0x02;
+    public const LIFECYCLE_LIGHT_POPULATED = 0x04;
+
     /** @var array<int, ChunkSection> */
     private array $sections = [];
     private string $biomes = '';
@@ -21,6 +25,9 @@ final class Chunk
     private bool $lightPopulated = false;
     private int $revision = 0;
     private int $lightRevision = 0;
+    private ?int $persistedRevision = null;
+    private ?int $persistedLightRevision = null;
+    private ?int $persistedLifecycleFlags = null;
 
     public function __construct(
         private readonly ChunkPos $position,
@@ -489,34 +496,128 @@ final class Chunk
         return $this->nativeStore;
     }
 
+    public function lifecycleFlags(): int
+    {
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->lifecycleFlags($this->position);
+        }
+
+        return ($this->generated ? self::LIFECYCLE_GENERATED : 0)
+            | ($this->populated ? self::LIFECYCLE_POPULATED : 0)
+            | ($this->lightPopulated ? self::LIFECYCLE_LIGHT_POPULATED : 0);
+    }
+
     public function isGenerated(): bool
     {
-        return $this->generated;
+        return ($this->lifecycleFlags() & self::LIFECYCLE_GENERATED) !== 0;
     }
 
     public function markGenerated(bool $generated = true): void
     {
-        $this->generated = $generated;
+        $flags = $this->lifecycleFlags();
+        $this->setLifecycleFlags(
+            $generated
+                ? $flags | self::LIFECYCLE_GENERATED
+                : $flags & ~self::LIFECYCLE_GENERATED,
+        );
     }
 
     public function isPopulated(): bool
     {
-        return $this->populated;
+        return ($this->lifecycleFlags() & self::LIFECYCLE_POPULATED) !== 0;
     }
 
     public function markPopulated(bool $populated = true): void
     {
-        $this->populated = $populated;
+        $flags = $this->lifecycleFlags();
+        $this->setLifecycleFlags(
+            $populated
+                ? $flags | self::LIFECYCLE_POPULATED
+                : $flags & ~self::LIFECYCLE_POPULATED,
+        );
     }
 
     public function isLightPopulated(): bool
     {
-        return $this->lightPopulated;
+        return ($this->lifecycleFlags() & self::LIFECYCLE_LIGHT_POPULATED) !== 0;
     }
 
     public function markLightPopulated(bool $lightPopulated = true): void
     {
-        $this->lightPopulated = $lightPopulated;
+        $flags = $this->lifecycleFlags();
+        $this->setLifecycleFlags(
+            $lightPopulated
+                ? $flags | self::LIFECYCLE_LIGHT_POPULATED
+                : $flags & ~self::LIFECYCLE_LIGHT_POPULATED,
+        );
+    }
+
+    /** @internal Persistence/lifecycle primitive. */
+    public function isDirty(): bool
+    {
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->chunkDirty($this->position);
+        }
+
+        return $this->persistedRevision !== $this->revision
+            || $this->persistedLightRevision !== $this->lightRevision
+            || $this->persistedLifecycleFlags !== $this->lifecycleFlags();
+    }
+
+    /** @internal Persistence completion primitive. */
+    public function markPersisted(
+        int $terrainRevision,
+        int $lightRevision,
+        int $lifecycleFlags,
+    ): void {
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->markPersisted(
+                $this->position,
+                $terrainRevision,
+                $lightRevision,
+                $lifecycleFlags,
+            );
+            return;
+        }
+
+        if ($terrainRevision > $this->revision || $lightRevision > $this->lightRevision) {
+            throw new \LogicException('persisted chunk revision cannot exceed live revision');
+        }
+        if ($this->persistedRevision !== null && $terrainRevision < $this->persistedRevision) {
+            throw new \LogicException('persisted terrain revision cannot regress');
+        }
+        if (
+            $this->persistedLightRevision !== null
+            && $lightRevision < $this->persistedLightRevision
+        ) {
+            throw new \LogicException('persisted light revision cannot regress');
+        }
+
+        $this->persistedRevision = $terrainRevision;
+        $this->persistedLightRevision = $lightRevision;
+        $this->persistedLifecycleFlags = $lifecycleFlags;
+    }
+
+    /** @internal Test/bootstrap helper until asynchronous persistence owns completion. */
+    public function markCurrentStatePersisted(): void
+    {
+        $this->markPersisted(
+            $this->revision(),
+            $this->lightRevision()->value,
+            $this->lifecycleFlags(),
+        );
+    }
+
+    private function setLifecycleFlags(int $flags): void
+    {
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->setLifecycleFlags($this->position, $flags);
+            return;
+        }
+
+        $this->generated = ($flags & self::LIFECYCLE_GENERATED) !== 0;
+        $this->populated = ($flags & self::LIFECYCLE_POPULATED) !== 0;
+        $this->lightPopulated = ($flags & self::LIFECYCLE_LIGHT_POPULATED) !== 0;
     }
 
 
