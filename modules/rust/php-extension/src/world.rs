@@ -558,7 +558,8 @@ pub fn cobblestone_world_snapshot(
         let extra_count = u32::try_from(snapshot.extra_data().len())
             .map_err(|_| php_error("native chunk extra-data entry count exceeds u32"))?;
         let mut projection = Vec::with_capacity(
-            snapshot.states().len()
+            16
+                + snapshot.states().len()
                 + CHUNK_NIBBLE_BYTES
                 + snapshot.sky_light().len()
                 + snapshot.block_light().len()
@@ -567,6 +568,9 @@ pub fn cobblestone_world_snapshot(
                 + 4
                 + snapshot.extra_data().len() * 4,
         );
+
+        projection.extend_from_slice(&snapshot.terrain_revision().to_le_bytes());
+        projection.extend_from_slice(&snapshot.light_revision().to_le_bytes());
 
         for &state in snapshot.states() {
             projection.push((state >> 4) as u8);

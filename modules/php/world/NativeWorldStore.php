@@ -309,8 +309,8 @@ final class NativeWorldStore
     /**
      * Materializes one immutable chunk projection for compatibility/debug consumers.
      *
-     * Layout: blockIds, blockData, skyLight, blockLight, biomes, heightMap, extraCount(u32le),
-     * then extraData key/value u16le pairs.
+     * Layout: terrainRevision(u64le), lightRevision(u64le), blockIds, blockData, skyLight,
+     * blockLight, biomes, heightMap, extraCount(u32le), then extraData key/value u16le pairs.
      */
     public function snapshotProjection(ChunkPos $position): string
     {
