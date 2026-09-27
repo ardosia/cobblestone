@@ -6,7 +6,6 @@ namespace Cobblestone\World\Mutation;
 
 use Closure;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\Region\RegionId;
 use Cobblestone\World\Region\RegionMap;
 use Cobblestone\World\World;
 use LogicException;
@@ -83,17 +82,9 @@ final class MutationCoordinator
                     $changedChunks[] = $patch->chunk()->position();
                 }
 
-                $changedRegions = [];
-                foreach ($changedChunks as $position) {
-                    $region = $this->regions->forChunk($position);
-                    $changedRegions[$region->key()] = $region;
-                }
-                ksort($changedRegions);
-
                 return new MutationResult(
                     $value,
                     $changedChunks,
-                    array_values($changedRegions),
                     $attempt,
                 );
             }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\World\Region;
 
+/** @internal Execution ownership identity; not a gameplay/plugin API. */
 final readonly class RegionId
 {
     public function __construct(

@@ -45,7 +45,6 @@ $result = $world->mutate(
 mutationExpect($result->value === 'committed', 'mutation callback result was not preserved');
 mutationExpect($result->attempts === 2, 'cross-chunk discovery did not use discard/replay');
 mutationExpect(count($result->changedChunks) === 2, 'two changed chunks were not reported');
-mutationExpect(count($result->regions) === 2, 'cross-region mutation did not report both regions');
 mutationExpect($firstChunk->revision() === 1, 'first chunk revision did not advance exactly once');
 mutationExpect($secondChunk->revision() === 1, 'second chunk revision did not advance exactly once');
 

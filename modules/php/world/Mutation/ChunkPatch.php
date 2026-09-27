@@ -7,6 +7,7 @@ namespace Cobblestone\World\Mutation;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\Chunk;
+use ValueError;
 
 final class ChunkPatch
 {
@@ -82,6 +83,10 @@ final class ChunkPatch
 
     public function setBlockExtraData(int $x, int $y, int $z, int $data): int
     {
+        if ($data < 0 || $data > 0xffff) {
+            throw new ValueError('fixed-target block extra data must be in range 0..65535');
+        }
+
         $previous = $this->blockExtraData($x, $y, $z);
         $this->extraData[self::blockKey($x, $y, $z)] = $data;
 
@@ -97,6 +102,7 @@ final class ChunkPatch
 
     public function setSkyLight(int $x, int $y, int $z, int $level): int
     {
+        self::assertLight($level);
         $previous = $this->skyLight($x, $y, $z);
         $this->skyLight[self::blockKey($x, $y, $z)] = $level;
 
@@ -112,6 +118,7 @@ final class ChunkPatch
 
     public function setBlockLight(int $x, int $y, int $z, int $level): int
     {
+        self::assertLight($level);
         $previous = $this->blockLight($x, $y, $z);
         $this->blockLight[self::blockKey($x, $y, $z)] = $level;
 
@@ -216,6 +223,13 @@ final class ChunkPatch
     public static function decodeBlockKey(int $key): array
     {
         return [$key & 0x0f, ($key >> 8) & 0x7f, ($key >> 4) & 0x0f];
+    }
+
+    private static function assertLight(int $level): void
+    {
+        if ($level < 0 || $level > 0x0f) {
+            throw new ValueError('fixed-target light level must be in range 0..15');
+        }
     }
 
     private static function columnKey(int $x, int $z): int

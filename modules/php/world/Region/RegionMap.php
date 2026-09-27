@@ -9,6 +9,8 @@ use Cobblestone\World\ChunkPos;
 use InvalidArgumentException;
 
 /**
+ * @internal
+ *
  * Deterministic execution-region mapping.
  *
  * Regions are Cobblestone ownership/scheduling territories, not Minecraft storage-region files.

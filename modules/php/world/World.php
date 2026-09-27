@@ -64,11 +64,6 @@ final class World implements BlockSource
         return $this->chunks;
     }
 
-    public function regions(): RegionMap
-    {
-        return $this->regions;
-    }
-
     public function chunk(ChunkPos $position, bool $generate = true): ?Chunk
     {
         return $generate

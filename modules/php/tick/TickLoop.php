@@ -72,7 +72,10 @@ final class TickLoop
             $postTickBehind = max(0, $finished - $nextDeadline);
             $warnIfBehind($finished, $postTickBehind);
 
-            $maxBacklog = $period * $this->config->maxCatchUpTicks;
+            $maxBacklog = max(
+                $period * $this->config->maxCatchUpTicks,
+                $this->config->warningThresholdNanos(),
+            );
             if ($postTickBehind > $maxBacklog) {
                 $this->logger->debug(
                     'Rebased tick deadline after excessive backlog',
