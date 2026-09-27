@@ -154,7 +154,15 @@ final class ServerKernel
             if ($event instanceof NativeSessionPacket) {
                 try {
                     $result = $this->bootstrap->handle($event);
-                } catch (Throwable) {
+                } catch (Throwable $error) {
+                    fprintf(
+                        STDERR,
+                        "cobblestone-kernel: bootstrap-error session=%d type=%s message=%s\\n",
+                        $event->sessionId,
+                        get_class($error),
+                        $error->getMessage(),
+                    );
+
                     try {
                         $this->sessions->disconnect($event->sessionId);
                     } catch (Throwable) {
