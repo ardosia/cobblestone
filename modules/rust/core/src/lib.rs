@@ -18,4 +18,3 @@ pub use worker::{
     CancellationToken, Completion, ShutdownReport, TaskHandle, TaskId, TrySubmitError, WorkerPool,
     WorkerPoolBuildError,
 };
-
