@@ -1,0 +1,14 @@
+{
+  "name": "ardosia/cobblestone-world",
+  "description": "Cobblestone fixed-target world, chunk, coordinate, and generation API.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\World\\": ""
+    }
+  }
+}
