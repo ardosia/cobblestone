@@ -141,7 +141,10 @@ pub(super) fn write_payload(
     check_limit(LimitKind::NbtBytes, writer.len(), limits.max_bytes)
 }
 
-pub(super) fn read_string(reader: &mut Reader<'_>, limits: NbtLimits) -> Result<String, CodecError> {
+pub(super) fn read_string(
+    reader: &mut Reader<'_>,
+    limits: NbtLimits,
+) -> Result<String, CodecError> {
     let len = usize::from(reader.read_u16_le()?);
     check_limit(LimitKind::NbtString, len, limits.max_string_bytes)?;
     let bytes = reader.read_exact(len)?;

@@ -169,4 +169,3 @@ impl<R> ShutdownReport<R> {
         self.worker_panics
     }
 }
-

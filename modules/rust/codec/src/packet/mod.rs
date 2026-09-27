@@ -279,4 +279,3 @@ pub enum BootstrapPacket {
     /// Zlib packet batch.
     Batch(BatchPacket),
 }
-

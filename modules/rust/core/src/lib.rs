@@ -7,8 +7,8 @@ mod ownership;
 mod runtime;
 mod worker;
 
-pub use buffer::NativeBuffer;
 pub use arena::{Arena, InsertError};
+pub use buffer::NativeBuffer;
 pub use handle::Handle;
 pub use ownership::{OwnedArena, OwnedHandle, OwnershipEpoch, OwnershipError, OwnershipMetadata};
 pub use runtime::RuntimeId;
