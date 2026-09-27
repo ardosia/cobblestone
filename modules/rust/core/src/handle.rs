@@ -3,10 +3,10 @@ use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::num::NonZeroU32;
 
-/// A type-safe identity into a generational arena.
+/// Stable generational identity for one native arena slot.
 ///
-/// Equality and hashing use only the slot index and generation. The type parameter prevents a
-/// handle for one native identity class from being passed to another arena accidentally.
+/// Handles carry no mutable authority. The phantom type prevents a handle for one native identity
+/// class from being passed to another arena accidentally.
 pub struct Handle<T> {
     pub(crate) index: u32,
     pub(crate) generation: NonZeroU32,
@@ -22,7 +22,6 @@ impl<T> Handle<T> {
         }
     }
 
-    /// Zero-based arena slot index.
     pub const fn index(self) -> u32 {
         self.index
     }
@@ -30,6 +29,20 @@ impl<T> Handle<T> {
     /// Nonzero generation associated with the slot when this handle was issued.
     pub const fn generation(self) -> u32 {
         self.generation.get()
+    }
+
+    /// Packs this opaque identity into a process-local scalar suitable for FFI transport.
+    pub const fn into_raw(self) -> u64 {
+        (self.generation.get() as u64) << 32 | self.index as u64
+    }
+
+    /// Reconstructs a type-safe handle from an opaque process-local scalar.
+    pub const fn from_raw(raw: u64) -> Option<Self> {
+        let generation = (raw >> 32) as u32;
+        match NonZeroU32::new(generation) {
+            Some(generation) => Some(Self::new(raw as u32, generation)),
+            None => None,
+        }
     }
 }
 
