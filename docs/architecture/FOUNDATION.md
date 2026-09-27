@@ -31,6 +31,14 @@ Initial module families are:
 
 Sibling modules must not reach into each other's private Rust structs or depend on unstable struct layouts.
 
+## PHP source modules
+
+PHP project modules are an organizational boundary above the kernel, not a second runtime/plugin system. Core runtime, kernel, plugin contracts, and internal native adapters remain under `src/Cobblestone/`. First-party gameplay/domain features live under `modules/` and are autoloaded through the explicit `Cobblestone\\Modules\\` Composer namespace.
+
+The directory name and Composer namespace have no role in Zend extension registration. Native PHP functions are registered by the Rust `ext-php-rs` module builder, and exact exported names are verified independently. Moving or adding PHP classes under `modules/` therefore must not change the native function ABI.
+
+Modules are introduced only with real feature ownership (for example World, Player, Entity, or Inventory work). There is no generic runtime module loader or automatic discovery mechanism at this stage.
+
 ## C001 — engineering bootstrap
 
 C001 creates the durable project identity, fixed-target requirements, S3 parent program, concrete C001-C003 child changes, architecture/provenance docs, repository instructions, and validation/CI entrypoints. It does not claim any native implementation exists.

@@ -11,33 +11,42 @@ Initial compatibility target:
 
 The architecture deliberately keeps PHP in charge of gameplay semantics and developer-facing APIs. Native code owns mechanisms such as networking, bounded workers, native representations, immutable buffers, and measured hot paths. Arbitrary Zend objects are not shared between runtimes.
 
-## PHP package
+## Project layout
 
-The PHP kernel is a Composer/PSR-4 project. Production classes live under `src/Cobblestone/` and use the `Cobblestone\\` namespace.
+Core PHP kernel/runtime infrastructure lives under `src/Cobblestone/` and uses the `Cobblestone\\` namespace.
 
-Prepare the autoloader from the repository root:
+First-party gameplay/domain features live under `modules/` and use `Cobblestone\\Modules\\`. This is only a Composer/PSR-4 source-layout boundary; it does not register runtime modules and does not affect native PHP extension exports.
+
+Third-party/user-facing extensions remain plugins. Rust/native crates remain under `native/`.
+
+## Composer workflow
+
+Composer is the normal developer command surface:
 
 ```text
-composer dump-autoload --classmap-authoritative
+composer modules
+composer build
+composer check
+composer test
+composer verify
+composer serve
 ```
 
-The native `cobblestone_core_php` extension is built separately; Composer owns PHP class loading, not the Rust/PHP extension build.
+Focused native commands are also available:
+
+```text
+composer native:check
+composer native:build
+composer test:php
+```
+
+`composer serve` builds the current native adapter incrementally, prepares the authoritative Composer autoloader, loads the platform extension, and starts `bin/cobblestone`. Server settings currently use `COBBLESTONE_BIND`, `COBBLESTONE_SERVER_NAME`, `COBBLESTONE_MAX_CONNECTIONS`, and `COBBLESTONE_TICK_RATE`.
+
+The native `cobblestone_core_php` extension is built separately from Composer class autoloading. CI explicitly checks the exact native function names, including the `protocol84` exports, so reorganizing PHP modules cannot silently rename the Zend function surface.
 
 ## Engineering state
 
 The durable project state lives under `.agent/`. The current foundation architecture is documented in `docs/architecture/FOUNDATION.md`.
-
-Canonical correctness validation:
-
-```text
-python tools/ci.py all
-```
-
-Native microbenchmarks are explicit measurement work rather than a correctness gate:
-
-```text
-python tools/ci.py bench
-```
 
 C001-C007 are complete. C007 proved the real 0.15.10 client can join through the production PHP-owned `ServerKernel`, reaching Login acceptance, RequestChunkRadius handling, synthetic chunk delivery, and PLAYER_SPAWN through the RakNet-8/session/codec/native bridge.
 

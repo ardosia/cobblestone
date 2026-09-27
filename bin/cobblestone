@@ -1,0 +1,95 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Cobblestone\Kernel\ServerKernel;
+use Cobblestone\Kernel\SessionConnected;
+use Cobblestone\Kernel\SessionDisconnected;
+use Cobblestone\Kernel\SessionLoginAccepted;
+use Cobblestone\Kernel\SessionSpawned;
+
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (!is_file($autoload)) {
+    fwrite(STDERR, "Composer autoloader is missing; run composer build.\n");
+    exit(1);
+}
+
+require_once $autoload;
+
+if (!extension_loaded('cobblestone_core_php')) {
+    fwrite(STDERR, "cobblestone_core_php extension is not loaded; run through composer serve.\n");
+    exit(1);
+}
+
+$bind = getenv('COBBLESTONE_BIND') ?: '0.0.0.0:19132';
+$serverName = getenv('COBBLESTONE_SERVER_NAME') ?: 'Cobblestone';
+$maxConnections = (int) (getenv('COBBLESTONE_MAX_CONNECTIONS') ?: '20');
+$tickRate = (int) (getenv('COBBLESTONE_TICK_RATE') ?: '20');
+
+if ($maxConnections <= 0) {
+    fwrite(STDERR, "COBBLESTONE_MAX_CONNECTIONS must be positive\n");
+    exit(1);
+}
+if ($tickRate <= 0 || $tickRate > 1000) {
+    fwrite(STDERR, "COBBLESTONE_TICK_RATE must be between 1 and 1000\n");
+    exit(1);
+}
+
+$kernel = ServerKernel::start($bind, $maxConnections, $serverName);
+
+$kernel->events()->listen(
+    SessionConnected::class,
+    static fn (object $event) => $event instanceof SessionConnected
+        ? printf("cobblestone: connected session=%d peer=%s\n", $event->sessionId, $event->peer)
+        : null,
+);
+$kernel->events()->listen(
+    SessionLoginAccepted::class,
+    static fn (object $event) => $event instanceof SessionLoginAccepted
+        ? printf("cobblestone: login-accepted session=%d protocol=84\n", $event->sessionId)
+        : null,
+);
+$kernel->events()->listen(
+    SessionSpawned::class,
+    static fn (object $event) => $event instanceof SessionSpawned
+        ? printf(
+            "cobblestone: spawned session=%d requested_radius=%d probe_radius=%d\n",
+            $event->sessionId,
+            $event->requestedRadius,
+            $event->probeRadius,
+        )
+        : null,
+);
+$kernel->events()->listen(
+    SessionDisconnected::class,
+    static fn (object $event) => $event instanceof SessionDisconnected
+        ? printf(
+            "cobblestone: disconnected session=%d reason=%s\n",
+            $event->sessionId,
+            $event->reason,
+        )
+        : null,
+);
+
+printf(
+    "cobblestone: listening=%s name=%s protocol=84 raknet=8 tick_rate=%d\n",
+    $bind,
+    $serverName,
+    $tickRate,
+);
+
+$tickBudgetNanos = intdiv(1_000_000_000, $tickRate);
+
+try {
+    while (true) {
+        $started = hrtime(true);
+        $kernel->tick(256);
+        $remaining = $tickBudgetNanos - (hrtime(true) - $started);
+        if ($remaining > 0) {
+            usleep((int) ($remaining / 1_000));
+        }
+    }
+} finally {
+    $kernel->stop();
+}

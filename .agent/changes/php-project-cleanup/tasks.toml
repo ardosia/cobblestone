@@ -3,42 +3,42 @@ change = "php-project-cleanup"
 
 [[tasks]]
 id = "composer"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Add Composer metadata with PSR-4 production/dev autoloading and keep the native extension build outside Composer."
 
 [[tasks]]
 id = "source-layout"
-status = "implemented"
+status = "verified"
 depends_on = ["composer"]
 acceptance = "Move every nested PHP class/result/event/token into its own PSR-4 file without renaming the existing PHP API."
 
 [[tasks]]
 id = "native-adapter-layout"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Separate generic native session-host PHP bridge code from fixed protocol-84 compatibility/bootstrap machinery without changing exported PHP function names."
 
 [[tasks]]
 id = "test-bootstrap"
-status = "implemented"
+status = "verified"
 depends_on = ["composer", "source-layout"]
 acceptance = "Replace manual test require chains with one Composer bootstrap while preserving explicit plugin-file loading."
 
 [[tasks]]
 id = "ci"
-status = "implemented"
+status = "verified"
 depends_on = ["composer", "test-bootstrap"]
 acceptance = "Have the PHP-ZTS matrix validate composer.json and generate an authoritative Composer autoloader before PHP integration tests."
 
 [[tasks]]
 id = "docs-state"
-status = "implemented"
+status = "verified"
 depends_on = ["composer"]
 acceptance = "Document the Composer package boundary and close C007 against its exact real-client/CI-validated result revision."
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "done"
 depends_on = ["source-layout", "native-adapter-layout", "test-bootstrap", "ci", "docs-state"]
 acceptance = "Run canonical Linux/Windows validation and PHP-ZTS integration on the persisted cleanup revision."

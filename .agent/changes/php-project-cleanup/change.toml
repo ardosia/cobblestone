@@ -2,10 +2,11 @@ schema = 1
 id = "php-project-cleanup"
 kind = "php-project-cleanup"
 size = "S1"
-status = "implemented"
+status = "done"
 workflow = "operation"
 control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
 base_revision = "e5b4e190d4c2fb0e7623cadf04c23038c8138817"
+result_revision = "e5bb1dd0ce108d8972f3e594f020ee9b1ea11601"
 acceptance = [
   "make the PHP kernel a Composer/PSR-4 project without changing public class names or plugin semantics",
   "split multi-class PHP source files into one class or interface per PSR-4 file",
@@ -20,9 +21,9 @@ acceptance = [
 requirements = "aligned"
 specs = "not_applicable"
 implementation = "aligned"
-tests = "pending"
+tests = "aligned"
 documentation = "aligned"
 decisions = "not_applicable"
 tasks = "aligned"
-evidence = "pending"
-repository = "pending"
+evidence = "aligned"
+repository = "aligned"

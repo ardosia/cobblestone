@@ -1,0 +1,27 @@
+schema = 1
+id = "php-modules-ergonomics"
+kind = "project-ergonomics"
+size = "S1"
+status = "implemented"
+workflow = "operation"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "e5bb1dd0ce108d8972f3e594f020ee9b1ea11601"
+acceptance = [
+  "add a first-party PHP modules source boundary without introducing a runtime module loader or changing plugin semantics",
+  "keep native PHP extension exports independent from Composer module/autoload organization and regress exact protocol84 names",
+  "provide Composer scripts for normal build, check, test, verify, native build/check, module listing, and server startup workflows",
+  "provide a real bin/cobblestone entrypoint instead of requiring the test client harness for routine server startup",
+  "dogfood the Composer PHP integration command in Linux/Windows PHP-ZTS CI",
+  "pass canonical and PHP-ZTS validation on the persisted ergonomics revision before closure"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "not_applicable"
+implementation = "aligned"
+tests = "pending"
+documentation = "aligned"
+decisions = "not_applicable"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

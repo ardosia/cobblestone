@@ -11,6 +11,7 @@
   },
   "autoload": {
     "psr-4": {
+      "Cobblestone\\Modules\\": "modules/",
       "Cobblestone\\": "src/Cobblestone/"
     }
   },
@@ -18,6 +19,17 @@
     "psr-4": {
       "Cobblestone\\Tests\\": "tests/php/fixtures/"
     }
+  },
+  "scripts": {
+    "build": "@php tools/project.php build",
+    "check": "@php tools/project.php check",
+    "modules": "@php tools/project.php modules",
+    "native:build": "@php tools/project.php native:build",
+    "native:check": "@php tools/project.php native:check",
+    "serve": "@php tools/project.php serve",
+    "test": "@php tools/project.php test",
+    "test:php": "@php tools/project.php test:php",
+    "verify": "@php tools/project.php verify"
   },
   "config": {
     "optimize-autoloader": true,

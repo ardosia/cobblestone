@@ -101,20 +101,14 @@ jobs:
         shell: bash
         run: |
           extension="$PWD/native/cobblestone-core-php/target/release/libcobblestone_core_php.so"
-          php -n -d "extension=$extension" tests/php/extension-smoke.php
-          php -n -d "extension=$extension" tests/php/fiber-smoke.php
-          php -n -d "extension=$extension" tests/php/session-runtime-smoke.php
-          php -n -d "extension=$extension" tests/php/kernel-smoke.php
+          composer test:php
           php -n -d "extension=$extension" benchmarks/php-boundary.php
       - name: Validate and measure Windows PHP adapter
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $extension = (Resolve-Path "native/cobblestone-core-php/target/release/cobblestone_core_php.dll").Path
-          php -n -d "extension=$extension" tests/php/extension-smoke.php
-          php -n -d "extension=$extension" tests/php/fiber-smoke.php
-          php -n -d "extension=$extension" tests/php/session-runtime-smoke.php
-          php -n -d "extension=$extension" tests/php/kernel-smoke.php
+          composer test:php
           php -n -d "extension=$extension" benchmarks/php-boundary.php
 
   ai-ci-summary:
