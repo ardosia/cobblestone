@@ -1,0 +1,50 @@
+schema = 1
+change = "runtime-boundary-cleanup-v1"
+
+[[tasks]]
+id = "session-hot-path"
+status = "implemented"
+depends_on = []
+acceptance = "Keep lifecycle state locally in the PHP facade and rely on the native operation boundary for owner/runtime validation."
+
+[[tasks]]
+id = "raw-bootstrap-codec"
+status = "implemented"
+depends_on = []
+acceptance = "Expose raw typed bootstrap encode/decode helpers and remove the encode-frame/decode-frame loop from native join composition."
+
+[[tasks]]
+id = "height-cache"
+status = "implemented"
+depends_on = []
+acceptance = "Maintain per-section column heights and use them for chunk height lookup/removal fallback without constructing/scanning 128 BlockState values."
+
+[[tasks]]
+id = "projection-copy"
+status = "implemented"
+depends_on = []
+acceptance = "Build the private bulk chunk projection as parts plus one final implode; keep one bounded FFI submission rather than replacing it with per-chunk calls."
+
+[[tasks]]
+id = "legacy-extraction"
+status = "implemented"
+depends_on = ["raw-bootstrap-codec"]
+acceptance = "Move compatibility-only accept-login/spawn-probe exports into a dedicated Rust legacy module while preserving registered names."
+
+[[tasks]]
+id = "php-packages"
+status = "implemented"
+depends_on = []
+acceptance = "Merge command/event into kernel, fold tick into server, and break Mutation-to-World concrete coupling through ChunkSource without creating cyclic world subpackages."
+
+[[tasks]]
+id = "local-verify"
+status = "planned"
+depends_on = ["session-hot-path", "raw-bootstrap-codec", "height-cache", "projection-copy", "legacy-extraction", "php-packages"]
+acceptance = "Run composer setup followed by composer verify on the persisted implementation revision."
+
+[[tasks]]
+id = "real-client"
+status = "planned"
+depends_on = ["local-verify"]
+acceptance = "Reconnect the fixed 0.15.10 client and confirm the normal Flat join still succeeds."

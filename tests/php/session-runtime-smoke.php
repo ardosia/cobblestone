@@ -40,6 +40,9 @@ if (!$staleRejected) {
 $runtimeId = $runtime->runtimeId();
 $runtime->stop();
 
+if ($runtime->isRunning()) {
+    session_fail('session runtime facade remained locally active after shutdown');
+}
 if (cobblestone_session_running()) {
     session_fail('session runtime remained active after shutdown');
 }

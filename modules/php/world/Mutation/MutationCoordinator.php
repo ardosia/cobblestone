@@ -6,8 +6,8 @@ namespace Cobblestone\World\Mutation;
 
 use Closure;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\ChunkSource;
 use Cobblestone\World\Region\RegionMap;
-use Cobblestone\World\World;
 use LogicException;
 
 /**
@@ -24,7 +24,7 @@ final class MutationCoordinator
     private bool $active = false;
 
     public function __construct(
-        private readonly World $world,
+        private readonly ChunkSource $chunks,
         private readonly RegionMap $regions,
         private readonly int $maxAttempts = 8,
     ) {
@@ -51,7 +51,7 @@ final class MutationCoordinator
         $this->active = true;
         try {
             for ($attempt = 1; $attempt <= $this->maxAttempts; ++$attempt) {
-                $mutation = new WorldMutation($this->world);
+                $mutation = new WorldMutation($this->chunks);
                 $value = $operation($mutation);
                 $patches = $this->orderPatches($mutation->patches());
 

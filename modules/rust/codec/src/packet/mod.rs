@@ -5,7 +5,10 @@ use crate::batch::BatchPacket;
 
 mod codec;
 
-pub use codec::{decode_bootstrap_frame, encode_bootstrap_frame};
+pub use codec::{
+    decode_bootstrap_frame, decode_bootstrap_packet, encode_bootstrap_frame,
+    encode_bootstrap_packet,
+};
 
 /// Fixed MCPE game protocol targeted by Cobblestone.
 pub const PROTOCOL_VERSION: i32 = 84;

@@ -18,15 +18,13 @@ Product code lives under `modules/`:
 ```text
 modules/
 ├── php/
-│   ├── command/
-│   ├── event/
+│   ├── kernel/
 │   ├── log/
 │   ├── native-session/
 │   ├── plugin/
 │   ├── server/
 │   ├── session/
 │   ├── task/
-│   ├── tick/
 │   └── world/
 └── rust/
     ├── core/
@@ -65,7 +63,7 @@ Native Zend exports are registered by `modules/rust/php-extension`; Composer pac
 
 The first gameplay package is `modules/php/world`. It models the fixed 0.15.10 16×16×128 chunk/world surface in PHP and currently implements Flat generation only. Gameplay mutations use a replayable staged `World::mutate()` boundary with per-chunk revisions; execution-region mapping remains internal.
 
-`modules/php/log` provides the PSR-3/Monolog logging implementation with a Spring Boot-inspired console layout and no banner. `modules/php/tick` owns monotonic tick pacing and overload warnings. The server runner handles graceful stop requests/signals instead of leaving a raw infinite loop in the executable.
+`modules/php/kernel` owns the small owner-runtime command/event primitives consumed together by plugins and the server. `modules/php/log` provides the PSR-3/Monolog logging implementation with a Spring Boot-inspired console layout and no banner. Monotonic tick pacing and overload warnings live with the server package that exclusively owns that lifecycle mechanism. The server runner handles graceful stop requests/signals instead of leaving a raw infinite loop in the executable.
 
 The production join path now bulk-projects immutable PHP `World` chunk snapshots into the Rust protocol-84 layered chunk encoder and sends a bounded initial radius around the real Flat spawn. The former synthetic spawn-probe export remains registered only for native ABI compatibility; production server composition does not call it.
 

@@ -75,7 +75,7 @@ final class Chunk
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
         $previous = $this->sections[$section]->setBlock($x, $y & 0x0f, $z, $state);
 
-        if ($previous->id !== $state->id) {
+        if ($previous->isAir() !== $state->isAir()) {
             $this->refreshHeightAfterBlockChange($x, $y, $z, $previous, $state);
         }
 
@@ -160,9 +160,10 @@ final class Chunk
     {
         self::columnIndex($x, $z);
 
-        for ($y = WorldBounds::MAX_Y; $y >= WorldBounds::MIN_Y; --$y) {
-            if (!$this->block($x, $y, $z)->isAir()) {
-                return $y;
+        for ($section = WorldBounds::SECTION_COUNT - 1; $section >= 0; --$section) {
+            $localY = $this->sections[$section]->highestBlockAt($x, $z);
+            if ($localY !== null) {
+                return ($section * WorldBounds::SECTION_EDGE) + $localY;
             }
         }
 
@@ -283,14 +284,18 @@ final class Chunk
         BlockState $previous,
         BlockState $next,
     ): void {
-        $current = $this->heightMap($x, $z);
-        if (!$next->isAir() && ($previous->isAir() || $y >= $current)) {
-            $this->heightMap[self::columnIndex($x, $z)] = chr($y);
+        $column = self::columnIndex($x, $z);
+        $current = ord($this->heightMap[$column]);
+
+        if (!$next->isAir()) {
+            if ($y >= $current) {
+                $this->heightMap[$column] = chr($y);
+            }
             return;
         }
 
-        if (!$previous->isAir() && $next->isAir() && $y >= $current) {
-            $this->heightMap[self::columnIndex($x, $z)] = chr($this->highestBlockAt($x, $z));
+        if (!$previous->isAir() && $y >= $current) {
+            $this->heightMap[$column] = chr($this->highestBlockAt($x, $z));
         }
     }
 

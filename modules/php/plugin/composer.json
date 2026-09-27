@@ -6,8 +6,7 @@
   "require": {
     "php": ">=8.5",
     "psr/log": "^3.0",
-    "ardosia/cobblestone-command": "dev-main",
-    "ardosia/cobblestone-event": "dev-main",
+    "ardosia/cobblestone-kernel": "dev-main",
     "ardosia/cobblestone-log": "dev-main",
     "ardosia/cobblestone-task": "dev-main"
   },

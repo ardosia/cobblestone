@@ -1,0 +1,15 @@
+{
+  "name": "ardosia/cobblestone-kernel",
+  "description": "Cobblestone owner-runtime event and command primitives.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\Command\\": "Command/",
+      "Cobblestone\\Event\\": "Event/"
+    }
+  }
+}

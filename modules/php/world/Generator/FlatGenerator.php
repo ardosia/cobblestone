@@ -62,7 +62,6 @@ final class FlatGenerator implements Generator
             }
         }
 
-        $chunk->recalculateHeightMap();
         $chunk->fillSkyLightFrom($y, 15);
         $chunk->markGenerated();
         $chunk->markLightPopulated();

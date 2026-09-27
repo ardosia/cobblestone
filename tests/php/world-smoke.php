@@ -88,6 +88,19 @@ worldExpect($global->localX() === 15 && $global->localZ() === 15, 'global local 
 $previous = $world->setBlock($global, new BlockState(5, 2));
 worldExpect($previous->isAir(), 'world block replacement previous state mismatch');
 worldExpect($world->block($global)->fullId() === ((5 << 4) | 2), 'world block lookup mismatch');
+worldExpect($chunk->heightMap(15, 15) === 10, 'height cache did not advance after world write');
+
+$mid = new BlockPos(-1, 70, 47);
+$high = new BlockPos(-1, 80, 47);
+$world->setBlock($mid, new BlockState(1));
+$world->setBlock($high, new BlockState(1));
+worldExpect($chunk->highestBlockAt(15, 15) === 80, 'section height cache did not find highest write');
+worldExpect($chunk->heightMap(15, 15) === 80, 'chunk height cache did not track highest write');
+$world->setBlock($high, BlockState::air());
+worldExpect($chunk->highestBlockAt(15, 15) === 70, 'height cache did not fall to next occupied section');
+worldExpect($chunk->heightMap(15, 15) === 70, 'chunk height cache did not fall after removal');
+$world->setBlock($mid, BlockState::air());
+worldExpect($chunk->highestBlockAt(15, 15) === 10, 'height cache did not fall to lower occupied section');
 
 worldExpect($chunk->setBlockExtraData(15, 10, 15, 0xbeef) === 0, 'extra data previous value mismatch');
 worldExpect($chunk->blockExtraData(15, 10, 15) === 0xbeef, 'extra data round-trip mismatch');

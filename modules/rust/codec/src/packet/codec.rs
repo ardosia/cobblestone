@@ -19,11 +19,11 @@ pub fn decode_bootstrap_frame(
     decode_bootstrap_packet(raw, limits)
 }
 
-/// Encodes one implemented bootstrap packet as an outer 0xfe game frame.
-pub fn encode_bootstrap_frame(
+/// Encodes one implemented bootstrap packet to its raw protocol-84 packet representation.
+pub fn encode_bootstrap_packet(
     packet: &BootstrapPacket,
     limits: CodecLimits,
-) -> Result<NativeBuffer, CodecError> {
+) -> Result<RawPacket, CodecError> {
     let raw = match packet {
         BootstrapPacket::Login(packet) => {
             RawPacket::new(packet_id::LOGIN, encode_login(packet, limits)?)
@@ -107,10 +107,20 @@ pub fn encode_bootstrap_frame(
             RawPacket::new(packet_id::BATCH, packet.encode_body(limits)?)
         }
     };
+
+    Ok(raw)
+}
+
+/// Encodes one implemented bootstrap packet as an outer 0xfe game frame.
+pub fn encode_bootstrap_frame(
+    packet: &BootstrapPacket,
+    limits: CodecLimits,
+) -> Result<NativeBuffer, CodecError> {
+    let raw = encode_bootstrap_packet(packet, limits)?;
     encode_game_frame(&raw, limits)
 }
 
-fn decode_bootstrap_packet(
+pub fn decode_bootstrap_packet(
     raw: RawPacket,
     limits: CodecLimits,
 ) -> Result<BootstrapPacket, CodecError> {

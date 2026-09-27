@@ -1,0 +1,35 @@
+schema = 1
+change = "runtime-boundary-cleanup-v1"
+
+[[evidence]]
+id = "review-validation"
+kind = "inspection"
+status = "passed"
+claim = "The implemented cleanup is based on findings that were rechecked against the pinned Cobblestone revision rather than accepted from the external review verbatim."
+source = "user-provided Claude review cross-checked against ardosia/cobblestone@5af564484b75ec305f8a7f7c9bd7d14374d3a3b7"
+result = "Redundant PHP FFI probes, bootstrap encode/decode round-trip, repeated height scans, legacy compatibility code in join.rs, thin command/event/tick package ceremony, and concrete Mutation-to-World coupling were confirmed. The suggested world package split was not copied because the proposed dependency graph still cycles unless a separate model package is introduced; this round fixes the coupling without adding speculative packages."
+trust = "pinned-repository-inspection"
+confidence = "observed"
+limitations = "Inspection does not establish performance improvement or correctness of the new revision; local validation and real-client acceptance remain pending."
+
+[[evidence]]
+id = "local-validation"
+kind = "validation"
+status = "not_run"
+claim = "The persisted runtime/package cleanup passes canonical local validation."
+source = "pending user composer setup + composer verify"
+result = "not run yet"
+trust = "pending"
+confidence = "unknown"
+limitations = "No GitHub Actions run is requested for this project phase."
+
+[[evidence]]
+id = "real-client"
+kind = "acceptance"
+status = "not_run"
+claim = "The fixed Minecraft 0.15.10 client still joins the real Flat world after the join/codec cleanup."
+source = "pending user composer serve real-client check"
+result = "not run yet"
+trust = "pending"
+confidence = "unknown"
+limitations = "Required because native join composition changed even though the intended wire bytes are unchanged."

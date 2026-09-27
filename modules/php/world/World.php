@@ -34,7 +34,7 @@ final class World implements BlockSource
 
         $this->chunks = $chunks ?? new MainChunkSource($generator, $seed);
         $this->regions = new RegionMap();
-        $this->mutations = new MutationCoordinator($this, $this->regions);
+        $this->mutations = new MutationCoordinator($this->chunks, $this->regions);
         $this->spawn = $generator->spawn();
     }
 

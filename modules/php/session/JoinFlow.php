@@ -139,27 +139,27 @@ final class JoinFlow
      */
     private static function nativeProjection(array $snapshots): string
     {
-        $projection = pack('V', count($snapshots));
+        $parts = [pack('V', count($snapshots))];
 
         foreach ($snapshots as $snapshot) {
-            $projection .= self::packInt32Le($snapshot->position->x);
-            $projection .= self::packInt32Le($snapshot->position->z);
-            $projection .= $snapshot->blockIds;
-            $projection .= $snapshot->blockData;
-            $projection .= $snapshot->skyLight;
-            $projection .= $snapshot->blockLight;
-            $projection .= $snapshot->biomes;
-            $projection .= $snapshot->heightMap;
+            $parts[] = self::packInt32Le($snapshot->position->x);
+            $parts[] = self::packInt32Le($snapshot->position->z);
+            $parts[] = $snapshot->blockIds;
+            $parts[] = $snapshot->blockData;
+            $parts[] = $snapshot->skyLight;
+            $parts[] = $snapshot->blockLight;
+            $parts[] = $snapshot->biomes;
+            $parts[] = $snapshot->heightMap;
 
             $extraData = $snapshot->extraData;
             ksort($extraData, SORT_NUMERIC);
-            $projection .= pack('V', count($extraData));
+            $parts[] = pack('V', count($extraData));
             foreach ($extraData as $key => $value) {
-                $projection .= pack('Vv', $key, $value);
+                $parts[] = pack('Vv', $key, $value);
             }
         }
 
-        return $projection;
+        return implode('', $parts);
     }
 
     private static function packInt32Le(int $value): string

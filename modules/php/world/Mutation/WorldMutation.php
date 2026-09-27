@@ -8,7 +8,7 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\World;
+use Cobblestone\World\ChunkSource;
 use ValueError;
 
 /**
@@ -25,7 +25,7 @@ final class WorldMutation
 
     /** @internal Created by World::mutate(). */
     public function __construct(
-        private readonly World $world,
+        private readonly ChunkSource $chunks,
     ) {
     }
 
@@ -148,10 +148,7 @@ final class WorldMutation
             return $this->patches[$key];
         }
 
-        $chunk = $this->world->chunk($position, true);
-        if ($chunk === null) {
-            throw new \LogicException('generated chunk was unexpectedly unavailable');
-        }
+        $chunk = $this->chunks->getOrGenerate($position);
 
         return $this->patches[$key] = new ChunkPatch($chunk);
     }

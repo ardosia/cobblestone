@@ -1,7 +1,7 @@
 use cobblestone_codec::{
     AdventureFlags, AdventureSettingsPacket, BootstrapPacket, CodecLimits, SetDifficultyPacket,
     SetSpawnPositionPacket, SetTimePacket, StartGamePacket, decode_bootstrap_frame,
-    encode_bootstrap_frame,
+    decode_bootstrap_packet, encode_bootstrap_frame, encode_bootstrap_packet,
 };
 
 fn limits() -> CodecLimits {
@@ -27,6 +27,14 @@ fn exact_set_time_fixture_round_trips() {
     );
     assert_eq!(
         decode_bootstrap_frame(&fixture, limits()).expect("decode set time"),
+        packet
+    );
+
+    let raw = encode_bootstrap_packet(&packet, limits()).expect("encode raw set time");
+    assert_eq!(raw.id(), 0x08);
+    assert_eq!(raw.body().as_slice(), &fixture[2..]);
+    assert_eq!(
+        decode_bootstrap_packet(raw, limits()).expect("decode raw set time"),
         packet
     );
 }

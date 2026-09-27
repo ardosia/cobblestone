@@ -26,5 +26,6 @@ pub use nbt::{NamedNbt, NbtDocument, NbtLimits, NbtTag, NbtValue};
 pub use packet::{
     AdventureFlags, AdventureSettingsPacket, BootstrapPacket, DisconnectPacket, LoginPacket,
     PROTOCOL_VERSION, PlayStatusPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket,
-    StartGamePacket, decode_bootstrap_frame, encode_bootstrap_frame, packet_id,
+    StartGamePacket, decode_bootstrap_frame, decode_bootstrap_packet, encode_bootstrap_frame,
+    encode_bootstrap_packet, packet_id,
 };

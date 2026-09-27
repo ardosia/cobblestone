@@ -61,8 +61,7 @@ final class Runtime
 
     public function isRunning(): bool
     {
-        $this->assertOwner();
-        return $this->running && cobblestone_session_running();
+        return $this->running;
     }
 
     public function poll(): Connected|Packet|Disconnected|null
@@ -148,10 +147,10 @@ final class Runtime
 
     public function stop(): void
     {
-        $this->assertOwner();
         if (!$this->running) {
             return;
         }
+
         cobblestone_session_stop();
         $this->running = false;
     }
@@ -185,16 +184,8 @@ final class Runtime
 
     private function assertRunning(): void
     {
-        $this->assertOwner();
-        if (!$this->running || !cobblestone_session_running()) {
+        if (!$this->running) {
             throw new \LogicException('native session runtime is not running');
-        }
-    }
-
-    private function assertOwner(): void
-    {
-        if (cobblestone_core_runtime_id() !== $this->runtimeId) {
-            throw new \LogicException('native session runtime used from the wrong PHP runtime');
         }
     }
 }

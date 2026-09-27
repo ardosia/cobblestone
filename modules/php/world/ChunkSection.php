@@ -16,6 +16,7 @@ final class ChunkSection
     private string $blockData;
     private string $skyLight;
     private string $blockLight;
+    private string $columnHeights;
 
     private function __construct(BlockState $state)
     {
@@ -24,6 +25,8 @@ final class ChunkSection
         $this->blockData = str_repeat($nibble, self::NIBBLE_BYTES);
         $this->skyLight = str_repeat("\x00", self::NIBBLE_BYTES);
         $this->blockLight = str_repeat("\x00", self::NIBBLE_BYTES);
+        $height = $state->isAir() ? 0xff : WorldBounds::SECTION_EDGE - 1;
+        $this->columnHeights = str_repeat(chr($height), WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
     }
 
     public static function filled(BlockState $state): self
@@ -57,7 +60,18 @@ final class ChunkSection
         $this->blockIds[$index] = chr($state->id);
         self::writeNibble($this->blockData, $index, $state->data);
 
+        if ($previous->isAir() !== $state->isAir()) {
+            $this->refreshColumnHeight($x, $y, $z, $previous, $state);
+        }
+
         return $previous;
+    }
+
+    public function highestBlockAt(int $x, int $z): ?int
+    {
+        $height = ord($this->columnHeights[self::columnIndex($x, $z)]);
+
+        return $height === 0xff ? null : $height;
     }
 
     public function skyLight(int $x, int $y, int $z): int
@@ -120,6 +134,46 @@ final class ChunkSection
             $this->skyLight,
             $this->blockLight,
         );
+    }
+
+    private function refreshColumnHeight(
+        int $x,
+        int $y,
+        int $z,
+        BlockState $previous,
+        BlockState $next,
+    ): void {
+        $column = self::columnIndex($x, $z);
+        $current = ord($this->columnHeights[$column]);
+
+        if (!$next->isAir()) {
+            if ($current === 0xff || $y > $current) {
+                $this->columnHeights[$column] = chr($y);
+            }
+            return;
+        }
+
+        if ($previous->isAir() || $current !== $y) {
+            return;
+        }
+
+        for ($candidate = $y - 1; $candidate >= 0; --$candidate) {
+            if (ord($this->blockIds[self::index($x, $candidate, $z)]) !== 0) {
+                $this->columnHeights[$column] = chr($candidate);
+                return;
+            }
+        }
+
+        $this->columnHeights[$column] = "\xff";
+    }
+
+    private static function columnIndex(int $x, int $z): int
+    {
+        if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
+            throw new ValueError('chunk-section column coordinates must be in range 0..15');
+        }
+
+        return ($z << 4) | $x;
     }
 
     private static function index(int $x, int $y, int $z): int
