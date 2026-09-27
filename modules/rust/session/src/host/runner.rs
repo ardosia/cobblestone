@@ -7,9 +7,9 @@ use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tracing::{debug, warn};
 
-use crate::{Session, SessionError, SessionId, SessionServer};
 use super::command::SessionCommand;
 use super::{SessionHostConfig, SessionHostError, SessionHostEvent, lock_sessions};
+use crate::{Session, SessionError, SessionId, SessionServer};
 
 pub(super) fn run_host(
     config: SessionHostConfig,
