@@ -79,6 +79,21 @@ final class PreparedChunkPatch
         ksort($skyLight);
         ksort($blockLight);
 
+        if ($this->chunk->nativeStore() !== null) {
+            $this->chunk->applyNativePatch(
+                $this->baseRevision,
+                $this->revision,
+                $this->baseLightRevision,
+                $this->lightRevision,
+                $blocks,
+                $biomes,
+                $extraData,
+                $skyLight,
+                $blockLight,
+            );
+            return;
+        }
+
         foreach ($blocks as $key => $stateId) {
             [$x, $y, $z] = ChunkPatch::decodeBlockKey($key);
             $this->chunk->setBlockStateId($x, $y, $z, $stateId);

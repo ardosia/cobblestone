@@ -444,6 +444,45 @@ final class Chunk
         return new LightSnapshot(new LightRevision($this->lightRevision), $sky, $block);
     }
 
+
+    /**
+     * @param array<int, int> $blocks
+     * @param array<int, BiomeId> $biomes
+     * @param array<int, int> $extraData
+     * @param array<int, int> $skyLight
+     * @param array<int, int> $blockLight
+     *
+     * @internal Prepared mutation batch primitive.
+     */
+    public function applyNativePatch(
+        int $expectedTerrainRevision,
+        int $nextTerrainRevision,
+        int $expectedLightRevision,
+        int $nextLightRevision,
+        array $blocks,
+        array $biomes,
+        array $extraData,
+        array $skyLight,
+        array $blockLight,
+    ): void {
+        if ($this->nativeStore === null) {
+            throw new \LogicException('native patch requested for a PHP-backed chunk');
+        }
+
+        $this->nativeStore->applyPatch(
+            $this->position,
+            $expectedTerrainRevision,
+            $nextTerrainRevision,
+            $expectedLightRevision,
+            $nextLightRevision,
+            $blocks,
+            $biomes,
+            $extraData,
+            $skyLight,
+            $blockLight,
+        );
+    }
+
     /** @internal */
     public function nativeStore(): ?NativeWorldStore
     {
