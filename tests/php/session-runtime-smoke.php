@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Cobblestone\Internal\NativeSessionRuntime;
+use Cobblestone\Native\Session\Runtime;
 
 require_once __DIR__ . '/bootstrap.php';
 
@@ -16,7 +16,7 @@ if (!extension_loaded('cobblestone_core_php')) {
     session_fail('cobblestone_core_php extension did not load for session runtime smoke test');
 }
 
-$runtime = NativeSessionRuntime::start('127.0.0.1:0', 4, 'Cobblestone PHP Test');
+$runtime = Runtime::start('127.0.0.1:0', 4, 'Cobblestone PHP Test');
 
 if (!$runtime->isRunning()) {
     session_fail('session runtime did not report ownership after startup');

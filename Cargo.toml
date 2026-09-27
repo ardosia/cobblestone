@@ -1,15 +1,15 @@
 [workspace]
 resolver = "3"
 members = [
-    "native/cobblestone-core",
-    "native/cobblestone-codec",
-    "native/cobblestone-network",
-    "native/cobblestone-session",
-    "tests/client-bootstrap",
-    "tests/runtime-probe",
+    "modules/rust/core",
+    "modules/rust/codec",
+    "modules/rust/network",
+    "modules/rust/session",
+    "tests/rust/client-bootstrap",
+    "tests/rust/runtime-probe",
 ]
 exclude = [
-    "native/cobblestone-core-php",
+    "modules/rust/php-extension",
 ]
 
 [workspace.package]

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\Tests;
 
-use Cobblestone\Kernel\ServerStopping;
+use Cobblestone\Server\Event\ServerStopping;
 use Cobblestone\Plugin\Plugin;
 use Cobblestone\Plugin\PluginContext;
 

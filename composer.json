@@ -7,12 +7,11 @@
     "php": ">=8.5"
   },
   "suggest": {
-    "ext-cobblestone_core_php": "Required to run the native-backed Cobblestone kernel."
+    "ext-cobblestone_core_php": "Required to run the native-backed Cobblestone server."
   },
   "autoload": {
     "psr-4": {
-      "Cobblestone\\Modules\\": "modules/",
-      "Cobblestone\\": "src/Cobblestone/"
+      "Cobblestone\\": "modules/php/"
     }
   },
   "autoload-dev": {

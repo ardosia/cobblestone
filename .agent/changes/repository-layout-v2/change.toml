@@ -1,0 +1,28 @@
+schema = 1
+id = "repository-layout-v2"
+kind = "repository-architecture"
+size = "S2"
+status = "implemented"
+workflow = "operation"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "5eb746566f7f274576a02d9da2e2722830f7e77b"
+acceptance = [
+  "remove repository-root product src/ and native/ directories",
+  "place PHP product code under modules/php with responsibility-based namespaces and no Kernel/Internal/Protocol84Bootstrap naming",
+  "place Rust product crates under modules/rust while preserving crate/package identities and native PHP export names",
+  "move Rust-only harnesses under tests/rust and PHP benchmarks under benchmarks/php",
+  "update Cargo, Composer, CI, project scripts, documentation, tests, and server entrypoint to the new paths",
+  "follow with responsibility-based Rust source-module extraction without changing public crate behavior",
+  "pass canonical and PHP-ZTS validation before closure"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "not_applicable"
+implementation = "aligned"
+tests = "pending"
+documentation = "pending"
+decisions = "not_applicable"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

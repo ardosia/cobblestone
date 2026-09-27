@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Cobblestone\Kernel\Scheduler;
-use Cobblestone\Kernel\ServerKernel;
+use Cobblestone\Task\Scheduler;
+use Cobblestone\Server\Server;
 use Cobblestone\Tests\KernelSmokePlugin;
 
 require_once __DIR__ . '/bootstrap.php';
@@ -18,7 +18,7 @@ if (!extension_loaded('cobblestone_core_php')) {
     kernel_fail('cobblestone_core_php extension did not load for kernel smoke test');
 }
 
-$kernel = ServerKernel::start('127.0.0.1:0', 4, 'Cobblestone Kernel Test');
+$kernel = Server::start('127.0.0.1:0', 4, 'Cobblestone Kernel Test');
 
 $pluginFile = __DIR__ . '/fixtures/KernelSmokePlugin.php';
 $kernel->plugins()->load($pluginFile, KernelSmokePlugin::class);

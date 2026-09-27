@@ -3,11 +3,11 @@
 
 declare(strict_types=1);
 
-use Cobblestone\Kernel\ServerKernel;
-use Cobblestone\Kernel\SessionConnected;
-use Cobblestone\Kernel\SessionDisconnected;
-use Cobblestone\Kernel\SessionLoginAccepted;
-use Cobblestone\Kernel\SessionSpawned;
+use Cobblestone\Server\Server;
+use Cobblestone\Session\Event\SessionConnected;
+use Cobblestone\Session\Event\SessionDisconnected;
+use Cobblestone\Session\Event\SessionLoginAccepted;
+use Cobblestone\Session\Event\SessionSpawned;
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
@@ -36,7 +36,7 @@ if ($tickRate <= 0 || $tickRate > 1000) {
     exit(1);
 }
 
-$kernel = ServerKernel::start($bind, $maxConnections, $serverName);
+$kernel = Server::start($bind, $maxConnections, $serverName);
 
 $kernel->events()->listen(
     SessionConnected::class,

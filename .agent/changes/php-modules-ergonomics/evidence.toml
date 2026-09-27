@@ -1,0 +1,13 @@
+schema = 1
+change = "php-modules-ergonomics"
+
+[[evidence]]
+id = "exact-ergonomics-validation"
+kind = "validation"
+status = "passed"
+claim = "The Composer workflow/module-boundary ergonomics revision passed required Linux/Windows validation on its exact persisted revision."
+source = "ardosia/cobblestone@5eb746566f7f274576a02d9da2e2722830f7e77b GitHub ai-ci-summary 108532857029"
+result = "ai-ci-summary completed successfully for the exact revision."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "This revision used the transitional root src/native layout that the following repository architecture cleanup replaces."

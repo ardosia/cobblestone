@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Cobblestone\Kernel\ServerKernel;
-use Cobblestone\Kernel\SessionConnected;
-use Cobblestone\Kernel\SessionDisconnected;
-use Cobblestone\Kernel\SessionLoginAccepted;
-use Cobblestone\Kernel\SessionSpawned;
+use Cobblestone\Server\Server;
+use Cobblestone\Session\Event\SessionConnected;
+use Cobblestone\Session\Event\SessionDisconnected;
+use Cobblestone\Session\Event\SessionLoginAccepted;
+use Cobblestone\Session\Event\SessionSpawned;
 
 require_once __DIR__ . '/bootstrap.php';
 
@@ -17,7 +17,7 @@ if (!extension_loaded('cobblestone_core_php')) {
 
 $bind = getenv('COBBLESTONE_BIND') ?: '0.0.0.0:19132';
 $maxConnections = (int) (getenv('COBBLESTONE_MAX_CONNECTIONS') ?: '20');
-$kernel = ServerKernel::start($bind, $maxConnections, 'Cobblestone');
+$kernel = Server::start($bind, $maxConnections, 'Cobblestone');
 
 $kernel->events()->listen(
     SessionConnected::class,
