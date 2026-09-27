@@ -8,8 +8,6 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\Region\RegionId;
-use Cobblestone\World\Region\RegionMap;
 use Cobblestone\World\World;
 use ValueError;
 
@@ -25,13 +23,9 @@ final class WorldMutation
     /** @var array<string, ChunkPatch> */
     private array $patches = [];
 
-    /** @var array<string, RegionId> */
-    private array $regions = [];
-
     /** @internal Created by World::mutate(). */
     public function __construct(
         private readonly World $world,
-        private readonly RegionMap $regionMap,
     ) {
     }
 
@@ -135,15 +129,6 @@ final class WorldMutation
         return $patches;
     }
 
-    /** @return array<string, RegionId> */
-    public function touchedRegions(): array
-    {
-        $regions = $this->regions;
-        ksort($regions);
-
-        return $regions;
-    }
-
     private function patch(BlockPos $position): ChunkPatch
     {
         if (!$position->isInsideWorld()) {
@@ -164,9 +149,6 @@ final class WorldMutation
         if ($chunk === null) {
             throw new \LogicException('generated chunk was unexpectedly unavailable');
         }
-
-        $region = $this->regionMap->forChunk($position);
-        $this->regions[$region->key()] = $region;
 
         return $this->patches[$key] = new ChunkPatch($chunk);
     }

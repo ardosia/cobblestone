@@ -44,12 +44,18 @@ if ($tickRate <= 0 || $tickRate > 1_000) {
     exit(1);
 }
 
-$server = Server::start(
-    $bind,
-    $maxConnections,
-    $serverName,
-    logs: $logs,
-);
+try {
+    $server = Server::start(
+        $bind,
+        $maxConnections,
+        $serverName,
+        logs: $logs,
+    );
+} catch (Throwable $error) {
+    $logger->critical('Failed to start Cobblestone', ['exception' => $error]);
+    exit(1);
+}
+
 $ticks = new TickLoop(
     new TickLoopConfig(tickRate: $tickRate),
     $logs->logger('Cobblestone.Tick'),

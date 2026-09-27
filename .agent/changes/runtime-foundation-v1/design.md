@@ -18,7 +18,7 @@ Native workers still do not invoke Zend/PHP logging APIs. A future native log br
 
 ## Tick loop
 
-The executable no longer owns a raw `while (true)`. `TickLoop` uses the monotonic clock, a fixed target period, explicit continuation control, and a warning threshold. When the server is late it logs both elapsed milliseconds and equivalent ticks behind. Warning emission is throttled.
+The executable no longer owns a raw `while (true)`. `TickLoop` uses the monotonic clock, a fixed target period, explicit continuation control, and a warning threshold. When the server is late it emits the familiar `Can't keep up! Is the server overloaded?` warning with both elapsed milliseconds and equivalent ticks behind. Warning emission is throttled.
 
 After excessive backlog, the deadline is rebased instead of spinning indefinitely through obsolete catch-up deadlines. Gameplay tick callbacks themselves are never executed concurrently by this loop.
 

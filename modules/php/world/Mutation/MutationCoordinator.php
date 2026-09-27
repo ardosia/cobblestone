@@ -51,9 +51,9 @@ final class MutationCoordinator
         $this->active = true;
         try {
             for ($attempt = 1; $attempt <= $this->maxAttempts; ++$attempt) {
-                $mutation = new WorldMutation($this->world, $this->regions);
+                $mutation = new WorldMutation($this->world);
                 $value = $operation($mutation);
-                $patches = $mutation->patches();
+                $patches = $this->orderPatches($mutation->patches());
 
                 $discovered = array_diff_key($patches, $allowedChunks);
                 if ($discovered !== []) {

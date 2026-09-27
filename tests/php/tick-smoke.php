@@ -62,7 +62,9 @@ $count = $loop->run(
             $clock->advance(250_000_000);
         }
     },
-    static fn (): bool => $executed < 3,
+    static function () use (&$executed): bool {
+        return $executed < 3;
+    },
 );
 
 if ($count !== 3 || $executed !== 3) {
@@ -71,7 +73,10 @@ if ($count !== 3 || $executed !== 3) {
 
 $warnings = array_values(array_filter(
     $logger->records,
-    static fn (array $record): bool => $record['message'] === 'Server is running behind',
+    static fn (array $record): bool => str_starts_with(
+        $record['message'],
+        "Can't keep up! Is the server overloaded?",
+    ),
 ));
 
 if ($warnings === []) {

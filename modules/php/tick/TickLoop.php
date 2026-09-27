@@ -43,7 +43,7 @@ final class TickLoop
 
             $lastWarningAt = $now;
             $this->logger->warning(
-                'Server is running behind',
+                "Can't keep up! Is the server overloaded? Running {behind_ms}ms or {ticks_behind} ticks behind",
                 [
                     'behind_ms' => round($behind / 1_000_000, 3),
                     'ticks_behind' => max(1, intdiv($behind, $period)),

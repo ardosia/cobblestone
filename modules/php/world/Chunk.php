@@ -68,6 +68,7 @@ final class Chunk
         return $this->sections[$section]->block($x, $y & 0x0f, $z);
     }
 
+    /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBlock(int $x, int $y, int $z, BlockState $state): BlockState
     {
         self::assertBlockCoordinates($x, $y, $z);
@@ -89,6 +90,7 @@ final class Chunk
         return $this->sections[$section]->skyLight($x, $y & 0x0f, $z);
     }
 
+    /** @internal Initialization or prepared-mutation commit primitive. */
     public function setSkyLight(int $x, int $y, int $z, int $level): int
     {
         self::assertBlockCoordinates($x, $y, $z);
@@ -105,6 +107,7 @@ final class Chunk
         return $this->sections[$section]->blockLight($x, $y & 0x0f, $z);
     }
 
+    /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBlockLight(int $x, int $y, int $z, int $level): int
     {
         self::assertBlockCoordinates($x, $y, $z);
@@ -118,6 +121,7 @@ final class Chunk
         return new BiomeId(ord($this->biomes[self::columnIndex($x, $z)]));
     }
 
+    /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
     {
         $index = self::columnIndex($x, $z);
@@ -161,6 +165,7 @@ final class Chunk
         return $this->extraData[self::extraDataKey($x, $y, $z)] ?? 0;
     }
 
+    /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBlockExtraData(int $x, int $y, int $z, int $data): int
     {
         self::assertBlockCoordinates($x, $y, $z);
