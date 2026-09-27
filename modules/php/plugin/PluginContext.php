@@ -7,6 +7,7 @@ namespace Cobblestone\Plugin;
 use Cobblestone\Command\CommandRegistry;
 use Cobblestone\Event\EventBus;
 use Cobblestone\Task\Scheduler;
+use Psr\Log\LoggerInterface;
 
 final readonly class PluginContext
 {
@@ -14,6 +15,7 @@ final readonly class PluginContext
         public EventBus $events,
         public CommandRegistry $commands,
         public Scheduler $scheduler,
+        public LoggerInterface $logger,
     ) {
     }
 }

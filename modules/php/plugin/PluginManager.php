@@ -4,24 +4,35 @@ declare(strict_types=1);
 
 namespace Cobblestone\Plugin;
 
+use Cobblestone\Command\CommandRegistry;
+use Cobblestone\Event\EventBus;
+use Cobblestone\Log\LoggerFactory;
+use Cobblestone\Task\Scheduler;
 use LogicException;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
 
 /**
- * Explicit plugin loader for the single owning PHP runtime.
+ * Explicit plugin loader for the owning PHP gameplay runtime.
  *
- * C007 intentionally avoids discovery magic. The server supplies an exact PHP file and class name;
- * the class must implement Plugin and receives only PluginContext.
+ * Discovery magic stays out of the runtime. Every plugin receives semantic services and a
+ * structured logger; runtime/thread ownership machinery remains internal.
  */
 final class PluginManager
 {
     /** @var array<class-string<Plugin>, Plugin> */
     private array $plugins = [];
 
+    private readonly LoggerInterface $logger;
+
     public function __construct(
-        private readonly PluginContext $context,
+        private readonly EventBus $events,
+        private readonly CommandRegistry $commands,
+        private readonly Scheduler $scheduler,
+        private readonly LoggerFactory $logs,
     ) {
+        $this->logger = $logs->logger('Cobblestone.Plugin');
     }
 
     /**
@@ -48,8 +59,19 @@ final class PluginManager
             throw new RuntimeException("plugin class must implement " . Plugin::class . ": {$class}");
         }
 
-        $plugin->enable($this->context);
+        $context = new PluginContext(
+            $this->events,
+            $this->commands,
+            $this->scheduler,
+            $this->logs->logger(
+                'Cobblestone.Plugin.' . str_replace('\\', '.', $class),
+                ['plugin' => $class],
+            ),
+        );
+
+        $plugin->enable($context);
         $this->plugins[$class] = $plugin;
+        $this->logger->info('Enabled plugin', ['plugin' => $class]);
 
         return $plugin;
     }
@@ -57,11 +79,16 @@ final class PluginManager
     public function shutdown(): void
     {
         $firstFailure = null;
-        foreach (array_reverse($this->plugins, true) as $plugin) {
+        foreach (array_reverse($this->plugins, true) as $class => $plugin) {
             try {
                 $plugin->disable();
+                $this->logger->info('Disabled plugin', ['plugin' => $class]);
             } catch (Throwable $error) {
                 $firstFailure ??= $error;
+                $this->logger->error(
+                    'Plugin disable failed',
+                    ['plugin' => $class, 'exception' => $error],
+                );
             }
         }
         $this->plugins = [];

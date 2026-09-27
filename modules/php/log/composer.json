@@ -1,0 +1,16 @@
+{
+  "name": "ardosia/cobblestone-log",
+  "description": "Cobblestone structured logging with a Spring Boot-inspired console layout.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5",
+    "monolog/monolog": "^3.0",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\Log\\": ""
+    }
+  }
+}
