@@ -131,8 +131,9 @@ final class JoinFlow
     /**
      * Serializes semantic snapshots into the private PHP/native bulk bridge.
      *
-     * This is not protocol-84 wire data: block/light planes remain semantic Y/Z/X order and
-     * biome columns remain IDs. Rust owns all fixed-target wire transposition and biome colors.
+     * This is not a complete protocol-84 packet: block/light planes remain semantic Y/Z/X order,
+     * which is already the ORDER_LAYERED terrain order, while biome columns remain semantic IDs.
+     * Rust owns validation, biome-word construction, packet framing, compression, and submission.
      *
      * @param list<ChunkSnapshot> $snapshots
      */

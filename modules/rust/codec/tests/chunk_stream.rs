@@ -94,16 +94,19 @@ fn real_default_flat_chunk_encodes_historical_layered_layout() {
     assert_eq!(u32::from_be_bytes(body[9..13].try_into().unwrap()), 83_204);
 
     let payload = &body[13..];
-    // Layered protocol-84 terrain is X/Z/Y, so one vertical column is contiguous.
-    assert_eq!(&payload[0..5], &[7, 3, 3, 2, 0]);
-    assert_eq!(payload[2_048], 7); // x=1,z=0,y=0
-    assert_eq!(payload[128], 7); // x=0,z=1,y=0
+    // ORDER_LAYERED is Y/Z/X: each horizontal 16x16 layer is contiguous.
+    assert_eq!(payload[0], 7);
+    assert_eq!(payload[255], 7);
+    assert_eq!(payload[256], 3);
+    assert_eq!(payload[512], 3);
+    assert_eq!(payload[768], 2);
+    assert_eq!(payload[1_024], 0);
 
     let sky_offset = CHUNK_BLOCK_COUNT + CHUNK_NIBBLE_BYTES;
     let sky = &payload[sky_offset..sky_offset + CHUNK_NIBBLE_BYTES];
-    assert_eq!(read_nibble(sky, 3), 0);
-    assert_eq!(read_nibble(sky, 4), 15);
-    assert_eq!(read_nibble(sky, 127), 15);
+    assert_eq!(read_nibble(sky, 768), 0);
+    assert_eq!(read_nibble(sky, 1_024), 15);
+    assert_eq!(read_nibble(sky, CHUNK_BLOCK_COUNT - 1), 15);
 
     let height_offset = CHUNK_BLOCK_COUNT + CHUNK_NIBBLE_BYTES * 3;
     assert_eq!(payload[height_offset], 3);

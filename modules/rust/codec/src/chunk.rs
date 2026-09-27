@@ -41,8 +41,9 @@ pub struct Protocol84ChunkSnapshot<'a> {
 
 /// Encodes one semantic chunk snapshot as protocol-84 FullChunkData using layered order.
 ///
-/// The historical wire layout is X/Z/Y for block and nibble planes. Height map stays byte-per
-/// column, biome IDs become fixed-target biome ID/color words, and extra data is little-endian.
+/// Protocol-84 ORDER_LAYERED consumes the same Y/Z/X block and nibble plane order used by the
+/// semantic snapshot. Height map stays byte-per-column, biome IDs become fixed-target biome
+/// ID/color words, and sparse extra data is little-endian.
 pub fn encode_protocol84_full_chunk_data(
     snapshot: Protocol84ChunkSnapshot<'_>,
 ) -> Result<RawPacket, CodecError> {
@@ -56,36 +57,6 @@ pub fn encode_protocol84_full_chunk_data(
     )?;
     require_len("chunk biomes", snapshot.biomes, CHUNK_COLUMN_COUNT)?;
     require_len("chunk height map", snapshot.height_map, CHUNK_COLUMN_COUNT)?;
-
-    let mut wire_block_ids = vec![0_u8; CHUNK_BLOCK_COUNT];
-    let mut wire_block_data = vec![0_u8; CHUNK_NIBBLE_BYTES];
-    let mut wire_sky_light = vec![0_u8; CHUNK_NIBBLE_BYTES];
-    let mut wire_block_light = vec![0_u8; CHUNK_NIBBLE_BYTES];
-
-    for x in 0..16_usize {
-        for z in 0..16_usize {
-            for y in 0..128_usize {
-                let semantic_index = (y << 8) | (z << 4) | x;
-                let wire_index = (x << 11) | (z << 7) | y;
-                wire_block_ids[wire_index] = snapshot.block_ids[semantic_index];
-                write_nibble(
-                    &mut wire_block_data,
-                    wire_index,
-                    read_nibble(snapshot.block_data, semantic_index),
-                );
-                write_nibble(
-                    &mut wire_sky_light,
-                    wire_index,
-                    read_nibble(snapshot.sky_light, semantic_index),
-                );
-                write_nibble(
-                    &mut wire_block_light,
-                    wire_index,
-                    read_nibble(snapshot.block_light, semantic_index),
-                );
-            }
-        }
-    }
 
     let extra_bytes =
         snapshot
@@ -105,10 +76,10 @@ pub fn encode_protocol84_full_chunk_data(
             + 4
             + extra_bytes,
     );
-    payload.extend_from_slice(&wire_block_ids);
-    payload.extend_from_slice(&wire_block_data);
-    payload.extend_from_slice(&wire_sky_light);
-    payload.extend_from_slice(&wire_block_light);
+    payload.extend_from_slice(snapshot.block_ids);
+    payload.extend_from_slice(snapshot.block_data);
+    payload.extend_from_slice(snapshot.sky_light);
+    payload.extend_from_slice(snapshot.block_light);
     payload.extend_from_slice(snapshot.height_map);
 
     for &biome in snapshot.biomes {
@@ -175,21 +146,3 @@ fn validate_extra_data_key(key: u32) -> Result<(), CodecError> {
     Ok(())
 }
 
-fn read_nibble(bytes: &[u8], index: usize) -> u8 {
-    let value = bytes[index >> 1];
-    if index & 1 == 0 {
-        value & 0x0f
-    } else {
-        value >> 4
-    }
-}
-
-fn write_nibble(bytes: &mut [u8], index: usize, value: u8) {
-    debug_assert!(value <= 0x0f);
-    let byte = &mut bytes[index >> 1];
-    if index & 1 == 0 {
-        *byte = (*byte & 0xf0) | value;
-    } else {
-        *byte = (*byte & 0x0f) | (value << 4);
-    }
-}

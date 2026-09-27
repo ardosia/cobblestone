@@ -8,7 +8,7 @@ namespace Cobblestone\World;
  * Immutable semantic snapshot used at bulk native/wire boundaries.
  *
  * The planes are gameplay/world state, not a protocol packet. Block and nibble planes use
- * global Y/Z/X order so protocol-specific transposition remains native codec machinery.
+ * global Y/Z/X order, which also matches protocol-84 ORDER_LAYERED terrain planes.
  */
 final readonly class ChunkSnapshot
 {

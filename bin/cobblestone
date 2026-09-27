@@ -70,7 +70,6 @@ $logger->info(
     'Started Cobblestone',
     [
         'bind' => $bind,
-        'name' => $serverName,
         'protocol' => 84,
         'raknet' => 8,
         'tick_rate' => $tickRate,

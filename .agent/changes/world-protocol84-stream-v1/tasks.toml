@@ -17,7 +17,7 @@ acceptance = "Add immutable PHP chunk/section snapshots with real default-Flat s
 id = "native-encoder"
 status = "implemented"
 depends_on = ["chunk-snapshot"]
-acceptance = "Add validated Rust protocol-84 layered terrain transposition/encoding and real default-Flat encoder tests."
+acceptance = "Add validated Rust protocol-84 ORDER_LAYERED Y/Z/X encoding and real default-Flat encoder tests that reject accidental column-order transposition."
 
 [[tasks]]
 id = "production-join"
@@ -33,6 +33,6 @@ acceptance = "Because the session Composer dependency graph changed, run compose
 
 [[tasks]]
 id = "real-client"
-status = "planned"
+status = "active"
 depends_on = ["local-verify"]
 acceptance = "Run composer serve and confirm the real 0.15.10 client joins and visibly receives bedrock, two dirt layers, and grass."

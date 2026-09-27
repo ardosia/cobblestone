@@ -2,8 +2,8 @@ use cobblestone_codec::{
     AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, CHUNK_BLOCK_COUNT,
     CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, PlayStatusPacket, Protocol84ChunkSnapshot, RawPacket,
     SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket, StartGamePacket,
-    decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame,
-    encode_protocol84_full_chunk_data, encode_game_frame, packet_id,
+    decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame, encode_game_frame,
+    encode_protocol84_full_chunk_data, packet_id,
 };
 use cobblestone_core::{NativeBuffer, RuntimeId};
 use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
@@ -133,10 +133,7 @@ fn initial_bootstrap_packets(bootstrap: &WorldBootstrap) -> PhpResult<Vec<Sessio
             position: bootstrap.position,
             level_id: bootstrap.level_id.clone(),
         }),
-        BootstrapPacket::SetTime(SetTimePacket::new(
-            bootstrap.time,
-            bootstrap.time_started,
-        )),
+        BootstrapPacket::SetTime(SetTimePacket::new(bootstrap.time, bootstrap.time_started)),
         BootstrapPacket::SetSpawnPosition(SetSpawnPositionPacket::new(
             bootstrap.spawn[0],
             bootstrap.spawn[1],
@@ -173,7 +170,10 @@ fn i32_field(field: &'static str, value: i64) -> PhpResult<i32> {
     i32::try_from(value).map_err(|_| php_error(format!("{field} must fit signed 32-bit range")))
 }
 
-fn decode_initial_chunk_projection(input: &[u8], expected_chunks: usize) -> PhpResult<Vec<RawPacket>> {
+fn decode_initial_chunk_projection(
+    input: &[u8],
+    expected_chunks: usize,
+) -> PhpResult<Vec<RawPacket>> {
     if input.len() > MAX_PROJECTION_BYTES {
         return Err(php_error(format!(
             "initial chunk projection exceeds {MAX_PROJECTION_BYTES} bytes"
@@ -208,7 +208,9 @@ fn decode_initial_chunk_projection(input: &[u8], expected_chunks: usize) -> PhpR
         let extra_count = usize::try_from(reader.read_u32_le()?)
             .map_err(|_| php_error("chunk extra-data count exceeds platform size"))?;
         if extra_count > CHUNK_BLOCK_COUNT {
-            return Err(php_error("chunk extra-data count exceeds fixed-target block count"));
+            return Err(php_error(
+                "chunk extra-data count exceeds fixed-target block count",
+            ));
         }
         let mut extra_data = Vec::with_capacity(extra_count);
         for _ in 0..extra_count {
@@ -280,10 +282,7 @@ fn legacy_full_chunk_packet(chunk_x: i32, chunk_z: i32, payload: &NativeBuffer) 
             .to_be_bytes(),
     );
     body.extend_from_slice(payload.as_slice());
-    RawPacket::new(
-        LEGACY_FULL_CHUNK_DATA_ID,
-        NativeBuffer::from_vec(body),
-    )
+    RawPacket::new(LEGACY_FULL_CHUNK_DATA_ID, NativeBuffer::from_vec(body))
 }
 
 fn spawn_probe_packets() -> PhpResult<Vec<SessionPacket>> {

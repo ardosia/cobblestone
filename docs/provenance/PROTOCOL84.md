@@ -21,15 +21,15 @@ Modern Bedrock protocol behavior is not accepted as a substitute for this fixed-
 ## FullChunkData layered terrain
 
 The real-world stream additionally cross-checks the pinned source's `FullChunkDataPacket`,
-LevelDB `Chunk`, and LevelDB provider chunk-request serializer.
+Anvil/BaseChunk layered serializer, and the separate LevelDB column serializer.
 
 For `ORDER_LAYERED = 1`, packet `0x34` carries big-endian chunk X and Z, a one-byte
 order, a big-endian payload length, and then the historical layered payload:
 
-- 32768 block IDs in X/Z/Y order, where the index is `(x << 11) | (z << 7) | y`;
-- 16384 packed block-data nibbles in the same X/Z/Y order;
-- 16384 packed sky-light nibbles in the same X/Z/Y order;
-- 16384 packed block-light nibbles in the same X/Z/Y order;
+- 32768 block IDs in layered Y/Z/X order, where each 16x16 horizontal layer is contiguous and the semantic index is `(y << 8) | (z << 4) | x`;
+- 16384 packed block-data nibbles in the same Y/Z/X order;
+- 16384 packed sky-light nibbles in the same Y/Z/X order;
+- 16384 packed block-light nibbles in the same Y/Z/X order;
 - 256 height-map bytes in Z/X column order;
 - 256 big-endian biome words, with the biome ID in the high byte and 24-bit terrain RGB in the low bytes;
 - a little-endian 32-bit sparse extra-data count followed by little-endian 32-bit keys and 16-bit values;
@@ -39,9 +39,11 @@ The pinned old biome implementation computes Plains (id 1) terrain RGB `0x92bc59
 its 0.15.10 temperature/rainfall model, yielding wire word `0x0192bc59`.
 
 Cobblestone's PHP `ChunkSnapshot` deliberately remains semantic state in Y/Z/X section order.
-The private PHP/native bulk projection is not a gameplay packet. `cobblestone-codec` validates
-the semantic planes, transposes block/light data to historical X/Z/Y order, builds FullChunkData,
-and owns Batch compression and wire endianness.
+That is already the order required by protocol-84 `ORDER_LAYERED = 1`; the native codec validates
+and appends those planes directly. The distinct LevelDB X/Z/Y-style column storage belongs to
+`ORDER_COLUMNS = 0` and must not be transposed into a packet still labelled layered.
+The private PHP/native bulk projection is not a gameplay packet; Rust continues to own
+FullChunkData framing, biome-word construction, sparse extra-data endianness, and Batch compression.
 
 The initial production stream keeps the client-requested radius distinct from a server-selected
 effective radius capped at three for this slice. Radius three is at most 49 chunks and remains

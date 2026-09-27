@@ -9,7 +9,7 @@ base_revision = "084344a3f4e50d09546ab31eb7e428d7ce32fa96"
 acceptance = [
   "add immutable bulk PHP chunk snapshots without exposing mutable ChunkSection internals",
   "preserve PHP authority for chunk selection, block/data, biome identity, height, light, extra data, and revision semantics",
-  "transpose PHP semantic Y/Z/X chunk planes into exact protocol-84 ORDER_LAYERED X/Z/Y FullChunkData in cobblestone-codec",
+  "encode PHP semantic Y/Z/X chunk planes directly as protocol-84 ORDER_LAYERED FullChunkData in cobblestone-codec without column-order transposition",
   "bridge PHP-owned chunk snapshots to native encoding in one bounded bulk projection rather than per-block PHP/native calls",
   "compose the real Flat World into StartGame/bootstrap and bounded initial chunk selection around the actual world spawn",
   "preserve requested radius separately from a server effective initial radius capped at three",

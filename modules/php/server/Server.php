@@ -49,7 +49,7 @@ final class Server
         private readonly World $world,
         int $initialChunkRadius,
     ) {
-        $this->logger = $logs->logger('Cobblestone.Server', ['server' => $serverName]);
+        $this->logger = $logs->logger('Cobblestone.Server');
         $this->events = new EventBus();
         $this->commands = new CommandRegistry();
         $this->scheduler = new Scheduler();
