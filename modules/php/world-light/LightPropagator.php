@@ -60,12 +60,12 @@ final readonly class LightPropagator
         BlockPos $position,
         Closure $submit,
     ): void {
-        $state = $access->blockState($position);
-        if ($state === null) {
+        $stateId = $access->blockStateId($position);
+        if ($stateId === null) {
             throw new LightPropagationException('unsupported or unavailable block state');
         }
 
-        $properties = $this->catalog->properties($state);
+        $properties = $this->catalog->propertiesForStateId($stateId);
         if ($properties === null) {
             throw new LightPropagationException('unsupported fixed-target block state');
         }
@@ -101,11 +101,11 @@ final readonly class LightPropagator
                 continue;
             }
 
-            $neighborState = $access->blockState($neighbor);
-            if ($neighborState === null) {
+            $neighborStateId = $access->blockStateId($neighbor);
+            if ($neighborStateId === null) {
                 throw new LightPropagationException('neighbor block state is unavailable');
             }
-            $neighborProperties = $this->catalog->properties($neighborState);
+            $neighborProperties = $this->catalog->propertiesForStateId($neighborStateId);
             if ($neighborProperties === null) {
                 throw new LightPropagationException('unsupported neighbor block state');
             }

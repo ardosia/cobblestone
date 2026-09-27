@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Cobblestone\World\Light;
 
 use Cobblestone\World\BlockPos;
-use Cobblestone\World\BlockState;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\LightAccess;
@@ -49,7 +48,7 @@ final class WorldLightAccess implements LightAccess
         return true;
     }
 
-    public function blockState(BlockPos $position): ?BlockState
+    public function blockStateId(BlockPos $position): ?int
     {
         if (!$position->isInsideWorld()) {
             return null;
@@ -60,7 +59,7 @@ final class WorldLightAccess implements LightAccess
             return null;
         }
 
-        return $chunk->block($position->localX(), $position->y, $position->localZ());
+        return $chunk->blockStateId($position->localX(), $position->y, $position->localZ());
     }
 
     public function storedLight(LightLayer $layer, BlockPos $position): ?LightLevel
@@ -111,8 +110,8 @@ final class WorldLightAccess implements LightAccess
         }
 
         for ($y = $position->y + 1; $y <= WorldBounds::MAX_Y; ++$y) {
-            $state = $chunk->block($position->localX(), $y, $position->localZ());
-            $properties = $this->catalog->properties($state);
+            $stateId = $chunk->blockStateId($position->localX(), $y, $position->localZ());
+            $properties = $this->catalog->propertiesForStateId($stateId);
             if ($properties === null) {
                 return null;
             }
@@ -177,26 +176,57 @@ final class WorldLightAccess implements LightAccess
         $changed = [];
         foreach ($groups as $group) {
             $chunk = $group['chunk'];
-            foreach ($group['entries'] as $entry) {
-                $position = $entry['position'];
-                if ($entry['layer'] === LightLayer::Sky) {
-                    $chunk->setSkyLight(
-                        $position->localX(),
-                        $position->y,
-                        $position->localZ(),
-                        $entry['level']->value,
-                    );
-                } else {
-                    $chunk->setBlockLight(
-                        $position->localX(),
-                        $position->y,
-                        $position->localZ(),
-                        $entry['level']->value,
-                    );
+            if ($chunk->nativeStore() !== null) {
+                $skyLight = [];
+                $blockLight = [];
+                foreach ($group['entries'] as $entry) {
+                    $position = $entry['position'];
+                    $key = ($position->y << 8)
+                        | ($position->localZ() << 4)
+                        | $position->localX();
+                    if ($entry['layer'] === LightLayer::Sky) {
+                        $skyLight[$key] = $entry['level']->value;
+                    } else {
+                        $blockLight[$key] = $entry['level']->value;
+                    }
                 }
-            }
+                ksort($skyLight);
+                ksort($blockLight);
 
-            $chunk->commitLightRevision($group['base'], $group['base'] + 1);
+                $terrainRevision = $chunk->revision();
+                $chunk->applyNativePatch(
+                    $terrainRevision,
+                    $terrainRevision,
+                    $group['base'],
+                    $group['base'] + 1,
+                    [],
+                    [],
+                    [],
+                    $skyLight,
+                    $blockLight,
+                );
+            } else {
+                foreach ($group['entries'] as $entry) {
+                    $position = $entry['position'];
+                    if ($entry['layer'] === LightLayer::Sky) {
+                        $chunk->setSkyLight(
+                            $position->localX(),
+                            $position->y,
+                            $position->localZ(),
+                            $entry['level']->value,
+                        );
+                    } else {
+                        $chunk->setBlockLight(
+                            $position->localX(),
+                            $position->y,
+                            $position->localZ(),
+                            $entry['level']->value,
+                        );
+                    }
+                }
+
+                $chunk->commitLightRevision($group['base'], $group['base'] + 1);
+            }
             $changed[] = $chunk->position();
         }
 

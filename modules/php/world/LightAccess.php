@@ -13,7 +13,7 @@ interface LightAccess
 {
     public function neighborhoodAvailable(BlockPos $position): bool;
 
-    public function blockState(BlockPos $position): ?BlockState;
+    public function blockStateId(BlockPos $position): ?int;
 
     public function storedLight(LightLayer $layer, BlockPos $position): ?LightLevel;
 

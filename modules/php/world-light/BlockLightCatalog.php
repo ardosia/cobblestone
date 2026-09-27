@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cobblestone\World\Light;
 
 use Cobblestone\World\BlockState;
+use Cobblestone\World\BlockStateId;
 
 /**
  * Fixed-target MCPE 0.15.10 light metadata.
@@ -345,15 +346,22 @@ final class BlockLightCatalog
         246 => 13,
     ];
 
-    public function properties(BlockState $state): ?BlockLightProperties
+    public function propertiesForStateId(int $stateId): ?BlockLightProperties
     {
-        if (!isset(self::SUPPORTED[$state->id])) {
+        $id = BlockStateId::blockId($stateId);
+        if (!isset(self::SUPPORTED[$id])) {
             return null;
         }
 
         return new BlockLightProperties(
-            isset(self::TRANSPARENT[$state->id]) ? 0 : 15,
-            self::EMISSION[$state->id] ?? 0,
+            isset(self::TRANSPARENT[$id]) ? 0 : 15,
+            self::EMISSION[$id] ?? 0,
         );
+    }
+
+    /** Compatibility wrapper for non-hot ergonomic callers. */
+    public function properties(BlockState $state): ?BlockLightProperties
+    {
+        return $this->propertiesForStateId($state->fullId());
     }
 }

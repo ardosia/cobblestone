@@ -7,6 +7,7 @@ require __DIR__ . '/bootstrap.php';
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
+use Cobblestone\World\BlockStateId;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Light\BlockLightCatalog;
 use Cobblestone\World\Light\LightEngine;
@@ -28,9 +29,9 @@ lightExpect(SectionY::fromBlockY(127)?->value === 7, 'block y=127 section mismat
 lightExpect(SectionY::fromBlockY(128) === null, 'block y=128 produced a section');
 
 $catalog = new BlockLightCatalog();
-$air = $catalog->properties(BlockState::air());
-$stone = $catalog->properties(new BlockState(1));
-$torch = $catalog->properties(new BlockState(50));
+$air = $catalog->propertiesForStateId(BlockStateId::fromLegacy(0));
+$stone = $catalog->propertiesForStateId(BlockStateId::fromLegacy(1));
+$torch = $catalog->propertiesForStateId(BlockStateId::fromLegacy(50));
 lightExpect($air?->lightBlock === 0 && $air->lightEmission === 0, 'air light metadata mismatch');
 lightExpect($stone?->lightBlock === 15, 'stone light-block metadata mismatch');
 lightExpect(
