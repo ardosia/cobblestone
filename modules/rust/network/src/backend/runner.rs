@@ -8,11 +8,9 @@ use raknet_rust::server::{PeerId, RaknetServer, RaknetServerEvent, SendOptions};
 use tokio::sync::{mpsc, watch};
 use tracing::{debug, warn};
 
-use super::{
-    BackendCommand, CloseState, PER_CONNECTION_INBOUND_CAPACITY,
-};
-use crate::connection::Connection;
+use super::{BackendCommand, CloseState, PER_CONNECTION_INBOUND_CAPACITY};
 use crate::NetworkError;
+use crate::connection::Connection;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AcceptDispatch {
@@ -224,7 +222,6 @@ async fn close_peer_for_backpressure(
     let _ = server.disconnect(peer_id).await;
 }
 
-
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
@@ -315,4 +312,3 @@ mod tests {
         );
     }
 }
-
