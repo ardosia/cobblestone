@@ -13,6 +13,10 @@ final readonly class JoinResult
     private function __construct(
         public string $kind,
         public ?int $requestedRadius = null,
+        public ?int $effectiveRadius = null,
+        public int $chunksSent = 0,
+        public int $encodedBytes = 0,
+        public int $chunkEncodeNanos = 0,
     ) {
     }
 
@@ -21,9 +25,21 @@ final readonly class JoinResult
         return new self(self::LOGIN_ACCEPTED);
     }
 
-    public static function spawned(int $requestedRadius): self
-    {
-        return new self(self::SPAWNED, $requestedRadius);
+    public static function spawned(
+        int $requestedRadius,
+        int $effectiveRadius,
+        int $chunksSent,
+        int $encodedBytes,
+        int $chunkEncodeNanos,
+    ): self {
+        return new self(
+            self::SPAWNED,
+            $requestedRadius,
+            $effectiveRadius,
+            $chunksSent,
+            $encodedBytes,
+            $chunkEncodeNanos,
+        );
     }
 
     public static function gameplay(): self
