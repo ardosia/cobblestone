@@ -146,8 +146,8 @@ impl std::error::Error for WorkerPoolBuildError {
 /// workers cannot deadlock on a full completion queue, and then joins every worker thread.
 #[derive(Debug)]
 pub struct ShutdownReport<R> {
-    completions: Vec<Completion<R>>,
-    worker_panics: usize,
+    pub(super) completions: Vec<Completion<R>>,
+    pub(super) worker_panics: usize,
 }
 
 impl<R> ShutdownReport<R> {
