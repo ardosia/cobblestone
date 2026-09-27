@@ -138,7 +138,7 @@ impl Drop for SessionHost {
     }
 }
 
-pub(super) fn lock_sessions(
+pub(in crate::host) fn lock_sessions(
     sessions: &Arc<Mutex<HashMap<SessionId, mpsc::Sender<SessionCommand>>>>,
 ) -> MutexGuard<'_, HashMap<SessionId, mpsc::Sender<SessionCommand>>> {
     match sessions.lock() {
