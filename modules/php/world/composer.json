@@ -1,6 +1,6 @@
 {
   "name": "ardosia/cobblestone-world",
-  "description": "Cobblestone fixed-target world, chunk, coordinate, and generation API.",
+  "description": "Cobblestone fixed-target world model and collaboration contracts.",
   "type": "library",
   "license": "MIT OR Apache-2.0",
   "require": {

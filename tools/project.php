@@ -153,6 +153,7 @@ function testPhp(): void
         'log-smoke.php',
         'scheduler-smoke.php',
         'tick-smoke.php',
+        'world-composition-smoke.php',
         'world-smoke.php',
         'world-mutation-smoke.php',
     ] as $test) {

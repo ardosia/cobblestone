@@ -1,0 +1,15 @@
+{
+  "name": "ardosia/cobblestone-world-region",
+  "description": "Cobblestone execution-region mapping mechanism.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5",
+    "ardosia/cobblestone-world": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\World\\Region\\": ""
+    }
+  }
+}

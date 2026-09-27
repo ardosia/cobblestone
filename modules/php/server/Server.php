@@ -84,7 +84,7 @@ final class Server
         int $initialChunkRadius = 2,
     ): self {
         $logs ??= LoggerFactory::console(getenv('COBBLESTONE_LOG_LEVEL') ?: 'INFO');
-        $world ??= new World('Cobblestone', -1, FlatGenerator::defaults());
+        $world ??= WorldFactory::flat();
         $sessions = Runtime::start($bind, $maxConnections, $serverName);
 
         try {

@@ -25,7 +25,10 @@ modules/
 │   ├── server/
 │   ├── session/
 │   ├── task/
-│   └── world/
+│   ├── world/
+│   ├── world-generation/
+│   ├── world-mutation/
+│   └── world-region/
 └── rust/
     ├── core/
     ├── codec/
@@ -61,7 +64,7 @@ The root Composer project consumes these packages through a `modules/php/*` path
 
 Native Zend exports are registered by `modules/rust/php-extension`; Composer package layout cannot rename them.
 
-The first gameplay package is `modules/php/world`. It models the fixed 0.15.10 16×16×128 chunk/world surface in PHP and currently implements Flat generation only. Gameplay mutations use a replayable staged `World::mutate()` boundary with per-chunk revisions; execution-region mapping remains internal.
+The base gameplay package is `modules/php/world`: it owns the fixed 0.15.10 16×16×128 world/chunk model plus the generator, mutation, and execution-region contracts exposed by `World`. Concrete Flat generation, staged mutation, and execution-region mapping live in `world-generation`, `world-mutation`, and `world-region`, each depending one-way on the base world package. The server package is the composition root and assembles the default world graph through `WorldFactory`; `World` itself does not construct concrete collaborators.
 
 `modules/php/kernel` owns the small owner-runtime command/event primitives consumed together by plugins and the server. `modules/php/log` provides the PSR-3/Monolog logging implementation with a Spring Boot-inspired console layout and no banner. Monotonic tick pacing and overload warnings live with the server package that exclusively owns that lifecycle mechanism. The owner-runtime task scheduler keeps scheduled tasks and `TickSleep` Fibers in stable due-time min-heaps, so dormant work does not get scanned every tick; only currently outstanding native awaits still require per-task polling. The server runner handles graceful stop requests/signals instead of leaving a raw infinite loop in the executable.
 

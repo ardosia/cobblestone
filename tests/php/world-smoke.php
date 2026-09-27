@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Generator\FlatPreset;
 use Cobblestone\World\Generator\GeneratorType;
-use Cobblestone\World\World;
 use Cobblestone\World\WorldBounds;
 
 function worldExpect(bool $condition, string $message): void
@@ -47,7 +47,7 @@ worldExpect($generator->type()->value === 2, 'protocol-84 flat generator id mism
 $spawn = $generator->spawn();
 worldExpect([$spawn->x, $spawn->y, $spawn->z] === [128, 4, 128], 'default flat spawn mismatch');
 
-$world = new World('Cobblestone', 12345, $generator);
+$world = WorldFactory::create('Cobblestone', 12345, $generator);
 $chunk = $world->chunk(new ChunkPos(-1, 2));
 worldExpect($chunk !== null, 'generated chunk missing');
 worldExpect($chunk->isGenerated(), 'generated flag missing');

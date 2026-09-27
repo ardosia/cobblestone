@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Mutation\WorldMutation;
 use Cobblestone\World\Region\RegionMap;
-use Cobblestone\World\World;
 
 function mutationExpect(bool $condition, string $message): void
 {
@@ -19,7 +19,7 @@ function mutationExpect(bool $condition, string $message): void
     }
 }
 
-$world = new World('Mutation Test', 99, FlatGenerator::defaults());
+$world = WorldFactory::create('Mutation Test', 99, FlatGenerator::defaults());
 $first = new BlockPos(0, 4, 0);
 $second = new BlockPos(128, 4, 0);
 

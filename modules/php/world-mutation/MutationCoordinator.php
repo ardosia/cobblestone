@@ -7,25 +7,22 @@ namespace Cobblestone\World\Mutation;
 use Closure;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSource;
-use Cobblestone\World\Region\RegionMap;
+use Cobblestone\World\Region\RegionMapInterface;
 use LogicException;
 
 /**
- * @internal
- *
  * Owner-runtime mutation coordinator.
  *
- * The current implementation commits on one owning PHP runtime. Discovery/replay and revision
- * gates are already explicit so native region routing can later acquire the complete region set
- * before the final attempt without changing the World::mutate() API.
+ * Discovery/replay and revision gates stay explicit so native region routing can later acquire the
+ * complete region set before the final attempt without changing the World::mutate() API.
  */
-final class MutationCoordinator
+final class MutationCoordinator implements MutationCoordinatorInterface
 {
     private bool $active = false;
 
     public function __construct(
         private readonly ChunkSource $chunks,
-        private readonly RegionMap $regions,
+        private readonly RegionMapInterface $regions,
         private readonly int $maxAttempts = 8,
     ) {
         if ($maxAttempts <= 0) {
@@ -40,7 +37,9 @@ final class MutationCoordinator
     public function run(Closure $operation, array $hints = []): MutationResult
     {
         if ($this->active) {
-            throw new LogicException('nested World::mutate() calls are not allowed; use the active WorldMutation');
+            throw new LogicException(
+                'nested World::mutate() calls are not allowed; use the active WorldMutation',
+            );
         }
 
         $allowedChunks = [];
@@ -51,7 +50,7 @@ final class MutationCoordinator
         $this->active = true;
         try {
             for ($attempt = 1; $attempt <= $this->maxAttempts; ++$attempt) {
-                $mutation = new WorldMutation($this->chunks);
+                $mutation = new StagedWorldMutation($this->chunks);
                 $value = $operation($mutation);
                 $patches = $this->orderPatches($mutation->patches());
 

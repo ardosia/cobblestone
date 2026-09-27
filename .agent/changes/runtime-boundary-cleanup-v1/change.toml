@@ -12,15 +12,17 @@ acceptance = [
   "replace 128-block height scans with maintained section column heights and bounded section lookup",
   "assemble the bounded initial chunk projection without repeated large-string concatenation growth",
   "isolate legacy protocol-84 compatibility exports from the production join implementation without silently breaking the existing native ABI",
-  "make mutation staging depend on ChunkSource rather than the concrete World aggregate",
   "merge the one-class command/event Composer packages into one kernel package while preserving PHP namespaces",
   "fold the tick-only Composer package into its sole lifecycle owner, cobblestone-server, while preserving Cobblestone\\Tick API identity",
   "replace full live-set scans for scheduled tasks and TickSleep fibers with stable due-time binary min-heaps",
   "keep native-await polling bounded to currently outstanding native waits and document that no ready-set/batch completion ABI exists yet",
   "add a scheduler scaling benchmark covering dormant tasks, sleeping fibers, and due-task throughput",
-  "avoid speculative world subpackage splits that would introduce Composer cycles or new thin packages",
+  "make the base world package own only the semantic model plus generator/mutation/region contracts and value types exposed by World",
+  "make World accept fully built ChunkSource and MutationCoordinatorInterface collaborators instead of constructing concrete mechanisms internally",
+  "split Flat generation, staged mutation, and execution-region mapping into one-way satellite Composer packages that depend only on cobblestone-world",
+  "make cobblestone-server the concrete World composition root through WorldFactory",
   "pass composer setup and composer verify locally on the exact persisted implementation revision",
-  "reconfirm fixed-target 0.15.10 client join after the runtime/scheduler cleanup"
+  "reconfirm fixed-target 0.15.10 client join after the final runtime/package cleanup"
 ]
 
 [convergence]

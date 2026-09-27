@@ -7,17 +7,13 @@ namespace Cobblestone\World;
 use Closure;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
-use Cobblestone\World\Mutation\MutationCoordinator;
+use Cobblestone\World\Mutation\MutationCoordinatorInterface;
 use Cobblestone\World\Mutation\MutationResult;
 use Cobblestone\World\Mutation\WorldMutation;
-use Cobblestone\World\Region\RegionMap;
 use ValueError;
 
 final class World implements BlockSource
 {
-    private readonly ChunkSource $chunks;
-    private readonly RegionMap $regions;
-    private readonly MutationCoordinator $mutations;
     private BlockPos $spawn;
     private int $time = 0;
     private bool $timeStarted = true;
@@ -26,15 +22,13 @@ final class World implements BlockSource
         private readonly string $name,
         private readonly int $seed,
         private readonly Generator $generator,
-        ?ChunkSource $chunks = null,
+        private readonly ChunkSource $chunks,
+        private readonly MutationCoordinatorInterface $mutations,
     ) {
         if ($name === '') {
             throw new ValueError('world name cannot be empty');
         }
 
-        $this->chunks = $chunks ?? new MainChunkSource($generator, $seed);
-        $this->regions = new RegionMap();
-        $this->mutations = new MutationCoordinator($this->chunks, $this->regions);
         $this->spawn = $generator->spawn();
     }
 

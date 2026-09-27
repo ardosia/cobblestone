@@ -35,28 +35,34 @@ acceptance = "Move compatibility-only accept-login/spawn-probe exports into a de
 id = "php-packages"
 status = "implemented"
 depends_on = []
-acceptance = "Merge command/event into kernel, fold tick into server, and break Mutation-to-World concrete coupling through ChunkSource without creating cyclic world subpackages."
+acceptance = "Merge command/event into kernel and fold tick into server without changing their PHP namespace identities."
 
 [[tasks]]
 id = "scheduler-due-queues"
-status = "implemented"
+status = "verified"
 depends_on = []
 acceptance = "Scheduled tasks and TickSleep fibers use stable binary min-heaps so each tick processes only due entries; active native waits remain the only per-wait polling set because no batch-ready native ABI exists."
 
 [[tasks]]
 id = "scheduler-benchmark"
-status = "implemented"
+status = "verified"
 depends_on = ["scheduler-due-queues"]
-acceptance = "Add a repeatable PHP benchmark for tick cost with dormant tasks, sleeping Fibers, and many simultaneously due tasks."
+acceptance = "Measure tick cost with dormant tasks, sleeping Fibers, and many simultaneously due tasks on the target Fedora environment."
+
+[[tasks]]
+id = "world-composition"
+status = "implemented"
+depends_on = []
+acceptance = "Base world owns contracts/value types, concrete generation/mutation/region packages depend one-way on world, World constructs no concrete collaborators, and server WorldFactory wires the default graph."
 
 [[tasks]]
 id = "local-verify"
 status = "planned"
-depends_on = ["session-hot-path", "raw-bootstrap-codec", "height-cache", "projection-copy", "legacy-extraction", "php-packages", "scheduler-due-queues"]
-acceptance = "Run composer setup followed by composer verify on the persisted implementation revision."
+depends_on = ["session-hot-path", "raw-bootstrap-codec", "height-cache", "projection-copy", "legacy-extraction", "php-packages", "scheduler-due-queues", "world-composition"]
+acceptance = "Run composer setup followed by composer verify on the final persisted implementation revision."
 
 [[tasks]]
 id = "real-client"
 status = "planned"
 depends_on = ["local-verify"]
-acceptance = "Reconnect the fixed 0.15.10 client and confirm the normal Flat join still succeeds."
+acceptance = "Reconnect the fixed 0.15.10 client and confirm the normal Flat join still succeeds after server-side world composition changes."
