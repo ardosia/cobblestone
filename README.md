@@ -13,18 +13,18 @@ PHP owns gameplay semantics and the ordinary plugin/developer experience. Rust o
 
 ## Repository layout
 
-Product code lives entirely under `modules/`:
+Product code lives under `modules/`:
 
 ```text
 modules/
 ├── php/
-│   ├── Server/
-│   ├── Session/
-│   ├── Event/
-│   ├── Command/
-│   ├── Task/
-│   ├── Native/
-│   └── Plugin/
+│   ├── command/
+│   ├── event/
+│   ├── native-session/
+│   ├── plugin/
+│   ├── server/
+│   ├── session/
+│   └── task/
 └── rust/
     ├── core/
     ├── codec/
@@ -33,15 +33,40 @@ modules/
     └── php-extension/
 ```
 
-There is intentionally no product `src/` or `native/` directory at repository root. Rust crates still use their normal local `src/` directories.
+There is intentionally no repository-root product `src/` or `native/`. Rust crates keep their normal Cargo-local `src/` directories.
 
-Composer maps `Cobblestone\\` directly to `modules/php/`. PHP names describe responsibilities instead of a generic Kernel/Core bucket: the running server is `Cobblestone\Server\Server`, session join ordering lives in `Cobblestone\Session\JoinFlow`, and native session bridge values stay under `Cobblestone\Native\Session`.
+### PHP packages
 
-Rust crate names remain stable (`cobblestone-core`, `cobblestone-codec`, `cobblestone-network`, `cobblestone-session`, `cobblestone-core-php`) even though their repository paths now live under `modules/rust/`.
+Each direct child of `modules/php/` is an independent local Composer package with its own `composer.json`. Package and directory identities are lowercase:
+
+```text
+modules/php/session
+ardosia/cobblestone-session
+```
+
+PHP API identities remain idiomatic PascalCase:
+
+```php
+use Cobblestone\Session\JoinFlow;
+use Cobblestone\Native\Session\Runtime;
+use Cobblestone\Server\Server;
+```
+
+Package roots are source roots; package-local `src/` directories are intentionally not used.
+
+The root Composer project consumes these packages through a `modules/php/*` path repository and composes the application through `ardosia/cobblestone-server`. It does not provide a second catch-all production PSR-4 mapping.
+
+Native Zend exports are registered by `modules/rust/php-extension`; Composer package layout cannot rename them.
 
 ## Developer workflow
 
-Composer is the normal project command surface:
+First checkout or after PHP dependency-graph changes:
+
+```text
+composer setup
+```
+
+Normal commands:
 
 ```text
 composer modules
@@ -60,12 +85,12 @@ composer native:build
 composer test:php
 ```
 
-`composer serve` incrementally builds `modules/rust/php-extension`, generates the authoritative Composer autoloader, loads the platform extension, and starts `bin/cobblestone`.
+`composer modules` lists the local PHP packages and Rust crates.
 
-Native Zend exports remain owned by the Rust extension and are independent from Composer class paths. CI explicitly verifies the exact `protocol84` export names.
+Automatic GitHub Actions runs are temporarily disabled while the current repository/package cleanup is validated locally. The workflow remains available through manual dispatch.
 
 ## Engineering state
 
 Durable project state lives under `.agent/`; architecture is documented in `docs/architecture/FOUNDATION.md`.
 
-C001-C007 are complete. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. The current repository-architecture cleanup is reorganizing the source tree without changing that fixed-target behavior before C008 world work begins.
+C001-C007 are complete. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. Repository and package cleanup remains implemented-but-unverified until the requested local validation runs against the persisted revision.

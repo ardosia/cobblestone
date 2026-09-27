@@ -47,8 +47,13 @@ Run `python tools/ci.py all`. A test or check counts only if it actually ran aga
 
 ## Repository layout
 
-- PHP product code belongs under `modules/php/` and is autoloaded from the `Cobblestone\\` namespace.
+- PHP product code belongs in lowercase local Composer packages under `modules/php/<package>/`; each package root is its PSR-4 source root and package-local `src/` wrappers are not used.
 - Rust product crates belong under `modules/rust/`; root-level `native/` is not used.
 - Rust-only harness crates belong under `tests/rust/`; PHP tests remain under `tests/php/`.
 - Keep repository root free of product `src/`; Rust crates may use their normal local `src/` directories.
-- PHP responsibility names should be concrete (`Server`, `Session`, `Event`, `Command`, `Task`, `Native`, `Plugin`) rather than generic Kernel/Core/Internal buckets.
+- PHP package/directory and Composer package identities are lowercase, while PHP namespaces/classes stay PascalCase. Keep responsibilities concrete (`server`, `session`, `event`, `command`, `task`, `native-session`, `plugin`) rather than generic Kernel/Core/Internal buckets.
+
+
+## Temporary validation mode
+
+Automatic GitHub Actions triggers are disabled during the active repository/package cleanup at the user's direction. Do not poll or gate routine work on Actions until the user explicitly re-enables CI. Preserve truthful validation state and request local `composer verify` evidence when a compile/integration check is needed.

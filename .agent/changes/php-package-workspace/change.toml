@@ -1,0 +1,29 @@
+schema = 1
+id = "php-package-workspace"
+kind = "repository-architecture"
+size = "S2"
+status = "implemented"
+workflow = "operation"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "21c14ae3979f7046e4899de8b71ae93e8bea7440"
+acceptance = [
+  "flatten modules/php into lowercase local Composer packages with no package-local src wrappers",
+  "keep PHP namespaces and imports PascalCase while package/directory identities remain lowercase",
+  "give each PHP package its own composer.json and declare real sibling dependencies",
+  "make the root Composer project consume modules/php/* as path repositories instead of catch-all production autoloading",
+  "preserve the existing PHP API namespaces and native Zend export names",
+  "keep Composer scripts ergonomic for package setup, validation, native build/test, server startup, and module listing",
+  "disable automatic GitHub Actions triggers until the user explicitly requests CI again",
+  "record local compile/integration evidence before closure"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "not_applicable"
+implementation = "aligned"
+tests = "pending"
+documentation = "aligned"
+decisions = "aligned"
+tasks = "aligned"
+evidence = "pending"
+repository = "pending"

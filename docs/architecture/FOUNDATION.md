@@ -33,11 +33,13 @@ Sibling modules must not reach into each other's private Rust structs or depend 
 
 ## Repository module layout
 
-All product code lives under `modules/`. PHP code lives in `modules/php/` and Composer maps `Cobblestone\\` directly to that directory. Rust mechanism crates live in `modules/rust/`; each keeps Cargo-standard local `src/` and test directories.
+All product code lives under `modules/`. Rust mechanism crates live in `modules/rust/`; each keeps Cargo-standard local `src/` and test directories.
 
-PHP folders are responsibility boundaries, not runtime modules: `Server`, `Session`, `Event`, `Command`, `Task`, `Native`, and `Plugin`. Gameplay domains such as World, Player, Entity, Block, and Inventory are added when their work begins rather than pre-created as empty frameworks.
+PHP code is a flat local Composer-package workspace under `modules/php/`. Direct child package directories and Composer package identities are lowercase (for example `modules/php/session` and `ardosia/cobblestone-session`), while PHP namespace/class identity remains PascalCase (for example `Cobblestone\\Session\\JoinFlow`). Each package root is its PSR-4 source root; package-local `src/` wrappers are deliberately omitted.
 
-The repository-level `modules/` directory has no role in Zend extension registration. Native PHP functions are registered only by the Rust `ext-php-rs` extension under `modules/rust/php-extension`, and exact exported names are verified independently. Composer/PSR-4 reorganization therefore must not alter the native function ABI.
+The root Composer application consumes `modules/php/*` as path repositories and composes the running application through the server package. Package manifests declare their actual sibling dependencies, so boundaries are dependency-enforced rather than a decorative filesystem split. Gameplay packages such as world, player, entity, block, and inventory are introduced only with real implementation.
+
+The repository-level `modules/` directory and Composer package graph have no role in Zend extension registration. Native PHP functions are registered only by the Rust `ext-php-rs` extension under `modules/rust/php-extension`, and exact exported names are verified independently. Composer/PSR-4 reorganization therefore must not alter the native function ABI.
 
 Rust crate identities remain stable even when repository paths change. Cross-crate public APIs are preserved during source cleanup; internal files are split only along real ownership/dependency seams.
 

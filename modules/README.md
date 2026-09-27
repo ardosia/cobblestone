@@ -1,32 +1,69 @@
 # Modules
 
-Cobblestone product code lives under one top-level module boundary:
+Cobblestone uses one repository-level product boundary:
 
-- `modules/php/` — PHP server/domain code, autoloaded as `Cobblestone\\...`.
-- `modules/rust/` — Rust mechanism crates and the PHP native extension.
-
-The repository root contains orchestration, documentation, tests, benchmarks, and tooling only. There is intentionally no product `src/` or `native/` directory at repository root.
+```text
+modules/
+├── php/
+└── rust/
+```
 
 ## PHP
 
-PHP directories describe concrete responsibilities rather than a generic Kernel/Core/Internal bucket:
+`modules/php/` is a flat workspace of local Composer packages. Package directories and Composer names are lowercase; PHP namespaces/classes remain PascalCase.
 
 ```text
 modules/php/
-├── Server/
-├── Session/
-├── Event/
-├── Command/
-├── Task/
-├── Native/
-└── Plugin/
+├── command/
+│   ├── composer.json
+│   └── CommandRegistry.php
+├── event/
+│   ├── composer.json
+│   └── EventBus.php
+├── native-session/
+│   ├── composer.json
+│   ├── Runtime.php
+│   ├── Connected.php
+│   ├── Disconnected.php
+│   └── Packet.php
+├── plugin/
+│   ├── composer.json
+│   ├── Plugin.php
+│   ├── PluginContext.php
+│   └── PluginManager.php
+├── server/
+│   ├── composer.json
+│   ├── Server.php
+│   └── Event/
+├── session/
+│   ├── composer.json
+│   ├── JoinFlow.php
+│   ├── JoinResult.php
+│   └── Event/
+└── task/
+    ├── composer.json
+    ├── Scheduler.php
+    ├── NativeTaskAwait.php
+    └── TickSleep.php
 ```
 
-Gameplay domains such as World, Player, Entity, Block, and Inventory are added only when their implementation begins.
+Package roots are their PSR-4 roots; do not add package-local `src/` wrappers.
+
+Current dependency direction:
+
+```text
+command ──────────────┐
+event ────────────────┤
+task ─────────────────┼──> plugin ──┐
+native-session ──> session ─────────┼──> server
+native-session ─────────────────────┘
+```
+
+The root Composer application consumes `modules/php/*` through path repositories and requires the server composition package.
+
+Gameplay packages such as `world/`, `player/`, `entity/`, `block/`, and `inventory/` are created only when their implementation begins.
 
 ## Rust
-
-Rust crate identities remain stable while repository paths become concise:
 
 ```text
 modules/rust/
@@ -37,6 +74,6 @@ modules/rust/
 └── php-extension/
 ```
 
-Each crate keeps normal Cargo-local `src/` directories. Large source files are split only at real responsibility seams: core arena/worker internals, codec packet/NBT model-vs-codec logic, session values/server/wire/host runner, network backend surface-vs-runner, and PHP-extension boundary/runtime/diagnostics/session join.
+Rust crate names remain stable and each crate keeps normal Cargo-local `src/` directories.
 
-The repository-level `modules/` directory is not a runtime module loader. Composer class paths do not control Zend exports; the extension under `modules/rust/php-extension` owns and tests those names independently.
+Repository-level module/package layout has no role in Zend function registration. The PHP extension owns native exports independently and exact export names remain regression-tested.
