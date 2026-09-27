@@ -7,6 +7,7 @@ namespace Cobblestone\World\Generator;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\NativeWorldStore;
 
 interface Generator
 {
@@ -17,7 +18,11 @@ interface Generator
     /** @return array<string, mixed> */
     public function settings(): array;
 
-    public function generate(ChunkPos $position, int $seed): Chunk;
+    public function generate(
+        ChunkPos $position,
+        int $seed,
+        ?NativeWorldStore $nativeStore = null,
+    ): Chunk;
 
     public function populate(Chunk $chunk, int $seed): void;
 

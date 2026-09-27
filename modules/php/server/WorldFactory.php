@@ -7,6 +7,7 @@ namespace Cobblestone\Server;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\MainChunkSource;
+use Cobblestone\World\NativeWorldStore;
 use Cobblestone\World\Mutation\MutationCoordinator;
 use Cobblestone\World\Region\RegionMap;
 use Cobblestone\World\World;
@@ -21,10 +22,11 @@ final class WorldFactory
 
     public static function create(string $name, int $seed, Generator $generator): World
     {
-        $chunks = new MainChunkSource($generator, $seed);
+        $nativeStore = NativeWorldStore::available() ? NativeWorldStore::create() : null;
+        $chunks = new MainChunkSource($generator, $seed, $nativeStore);
         $regions = new RegionMap();
         $mutations = new MutationCoordinator($chunks, $regions);
 
-        return new World($name, $seed, $generator, $chunks, $mutations);
+        return new World($name, $seed, $generator, $chunks, $mutations, $nativeStore);
     }
 }

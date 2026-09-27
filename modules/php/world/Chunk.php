@@ -9,9 +9,9 @@ use ValueError;
 final class Chunk
 {
     /** @var array<int, ChunkSection> */
-    private array $sections;
-    private string $biomes;
-    private string $heightMap;
+    private array $sections = [];
+    private string $biomes = '';
+    private string $heightMap = '';
 
     /** @var array<int, int> */
     private array $extraData = [];
@@ -25,13 +25,19 @@ final class Chunk
     public function __construct(
         private readonly ChunkPos $position,
         ?BiomeId $biome = null,
+        private readonly ?NativeWorldStore $nativeStore = null,
     ) {
+        $biome ??= new BiomeId(1);
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->ensureChunk($this->position, $biome);
+            return;
+        }
+
         $this->sections = array_fill(0, WorldBounds::SECTION_COUNT, null);
         for ($index = 0; $index < WorldBounds::SECTION_COUNT; ++$index) {
             $this->sections[$index] = ChunkSection::air();
         }
 
-        $biome ??= new BiomeId(1);
         $this->biomes = str_repeat(chr($biome->value), WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
         $this->heightMap = str_repeat("\x00", WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
     }
@@ -43,7 +49,7 @@ final class Chunk
 
     public function revision(): int
     {
-        return $this->revision;
+        return $this->nativeStore?->terrainRevision($this->position) ?? $this->revision;
     }
 
     public function terrainRevision(): ChunkRevision
@@ -63,12 +69,19 @@ final class Chunk
 
     public function lightRevision(): LightRevision
     {
-        return new LightRevision($this->lightRevision);
+        return new LightRevision(
+            $this->nativeStore?->lightRevision($this->position) ?? $this->lightRevision,
+        );
     }
 
     /** @internal Mutation commit primitive. */
     public function commitRevision(int $expected, int $next): void
     {
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->commitTerrainRevision($this->position, $expected, $next);
+            return;
+        }
+
         if ($this->revision !== $expected) {
             throw new \LogicException(
                 "chunk revision changed: expected {$expected}, current {$this->revision}",
@@ -84,6 +97,11 @@ final class Chunk
     /** @internal Light-commit primitive. */
     public function commitLightRevision(int $expected, int $next): void
     {
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->commitLightRevision($this->position, $expected, $next);
+            return;
+        }
+
         if ($this->lightRevision !== $expected) {
             throw new \LogicException(
                 "chunk light revision changed: expected {$expected}, current {$this->lightRevision}",
@@ -99,6 +117,10 @@ final class Chunk
     public function blockStateId(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->blockStateId($this->position, $x, $y, $z);
+        }
+
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
         return $this->sections[$section]->blockStateId($x, $y & 0x0f, $z);
@@ -114,6 +136,10 @@ final class Chunk
     {
         BlockStateId::assert($stateId);
         self::assertBlockCoordinates($x, $y, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->setBlockStateId($this->position, $x, $y, $z, $stateId);
+        }
+
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
         $previous = $this->sections[$section]->setBlockStateId($x, $y & 0x0f, $z, $stateId);
 
@@ -149,6 +175,10 @@ final class Chunk
         if ($count === 0) {
             return;
         }
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->fillLayers($this->position, $startY, $count, $stateId);
+            return;
+        }
 
         $endY = $startY + $count;
         $cursor = $startY;
@@ -178,6 +208,10 @@ final class Chunk
     public function skyLight(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->skyLight($this->position, $x, $y, $z);
+        }
+
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
         return $this->sections[$section]->skyLight($x, $y & 0x0f, $z);
@@ -187,6 +221,10 @@ final class Chunk
     public function setSkyLight(int $x, int $y, int $z, int $level): int
     {
         self::assertBlockCoordinates($x, $y, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->setSkyLight($this->position, $x, $y, $z, $level);
+        }
+
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
         return $this->sections[$section]->setSkyLight($x, $y & 0x0f, $z, $level);
@@ -205,6 +243,10 @@ final class Chunk
         if ($level < 0 || $level > 0x0f) {
             throw new ValueError('fixed-target light level must be in range 0..15');
         }
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->fillSkyLightFrom($this->position, $y, $level);
+            return;
+        }
 
         foreach ($this->sections as $index => $section) {
             $sectionStart = $index * WorldBounds::SECTION_EDGE;
@@ -220,6 +262,10 @@ final class Chunk
     public function blockLight(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->blockLight($this->position, $x, $y, $z);
+        }
+
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
         return $this->sections[$section]->blockLight($x, $y & 0x0f, $z);
@@ -229,6 +275,10 @@ final class Chunk
     public function setBlockLight(int $x, int $y, int $z, int $level): int
     {
         self::assertBlockCoordinates($x, $y, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->setBlockLight($this->position, $x, $y, $z, $level);
+        }
+
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
         return $this->sections[$section]->setBlockLight($x, $y & 0x0f, $z, $level);
@@ -236,13 +286,24 @@ final class Chunk
 
     public function biome(int $x, int $z): BiomeId
     {
-        return new BiomeId(ord($this->biomes[self::columnIndex($x, $z)]));
+        $index = self::columnIndex($x, $z);
+        if ($this->nativeStore !== null) {
+            return new BiomeId($this->nativeStore->biome($this->position, $x, $z));
+        }
+
+        return new BiomeId(ord($this->biomes[$index]));
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
     {
         $index = self::columnIndex($x, $z);
+        if ($this->nativeStore !== null) {
+            return new BiomeId(
+                $this->nativeStore->setBiome($this->position, $x, $z, $biome->value),
+            );
+        }
+
         $previous = new BiomeId(ord($this->biomes[$index]));
         $this->biomes[$index] = chr($biome->value);
 
@@ -252,6 +313,9 @@ final class Chunk
     public function highestBlockAt(int $x, int $z): int
     {
         self::columnIndex($x, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->heightMap($this->position, $x, $z);
+        }
 
         for ($section = WorldBounds::SECTION_COUNT - 1; $section >= 0; --$section) {
             $localY = $this->sections[$section]->highestBlockAt($x, $z);
@@ -265,11 +329,21 @@ final class Chunk
 
     public function heightMap(int $x, int $z): int
     {
-        return ord($this->heightMap[self::columnIndex($x, $z)]);
+        $index = self::columnIndex($x, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->heightMap($this->position, $x, $z);
+        }
+
+        return ord($this->heightMap[$index]);
     }
 
     public function recalculateHeightMap(): void
     {
+        if ($this->nativeStore !== null) {
+            $this->nativeStore->recalculateHeightMap($this->position);
+            return;
+        }
+
         for ($z = 0; $z < WorldBounds::CHUNK_EDGE; ++$z) {
             for ($x = 0; $x < WorldBounds::CHUNK_EDGE; ++$x) {
                 $this->heightMap[self::columnIndex($x, $z)] = chr($this->highestBlockAt($x, $z));
@@ -280,6 +354,9 @@ final class Chunk
     public function blockExtraData(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->blockExtraData($this->position, $x, $y, $z);
+        }
 
         return $this->extraData[self::extraDataKey($x, $y, $z)] ?? 0;
     }
@@ -290,6 +367,9 @@ final class Chunk
         self::assertBlockCoordinates($x, $y, $z);
         if ($data < 0 || $data > 0xffff) {
             throw new ValueError('fixed-target block extra data must be in range 0..65535');
+        }
+        if ($this->nativeStore !== null) {
+            return $this->nativeStore->setBlockExtraData($this->position, $x, $y, $z, $data);
         }
 
         $key = self::extraDataKey($x, $y, $z);
@@ -306,7 +386,9 @@ final class Chunk
     /** @return array<int, int> */
     public function extraData(): array
     {
-        return $this->extraData;
+        return $this->nativeStore !== null
+            ? $this->nativeSnapshot()->extraData
+            : $this->extraData;
     }
 
     /**
@@ -314,6 +396,10 @@ final class Chunk
      */
     public function snapshot(): ChunkSnapshot
     {
+        if ($this->nativeStore !== null) {
+            return $this->nativeSnapshot();
+        }
+
         $blockIds = '';
         $blockData = '';
         $skyLight = '';
@@ -343,6 +429,10 @@ final class Chunk
 
     public function lightSnapshot(): LightSnapshot
     {
+        if ($this->nativeStore !== null) {
+            return $this->nativeSnapshot()->light();
+        }
+
         $sky = '';
         $block = '';
         foreach ($this->sections as $section) {
@@ -352,6 +442,12 @@ final class Chunk
         }
 
         return new LightSnapshot(new LightRevision($this->lightRevision), $sky, $block);
+    }
+
+    /** @internal */
+    public function nativeStore(): ?NativeWorldStore
+    {
+        return $this->nativeStore;
     }
 
     public function isGenerated(): bool
@@ -382,6 +478,73 @@ final class Chunk
     public function markLightPopulated(bool $lightPopulated = true): void
     {
         $this->lightPopulated = $lightPopulated;
+    }
+
+
+    private function nativeSnapshot(): ChunkSnapshot
+    {
+        $projection = $this->nativeStore?->snapshotProjection($this->position)
+            ?? throw new \LogicException('native chunk snapshot requested without a native store');
+
+        $offset = 0;
+        $take = static function (string $bytes, int &$offset, int $length): string {
+            $value = substr($bytes, $offset, $length);
+            if (strlen($value) !== $length) {
+                throw new \UnexpectedValueException('native chunk snapshot projection is truncated');
+            }
+            $offset += $length;
+            return $value;
+        };
+
+        $terrainParts = unpack('Pvalue', $take($projection, $offset, 8));
+        $lightParts = unpack('Pvalue', $take($projection, $offset, 8));
+        if ($terrainParts === false || $lightParts === false) {
+            throw new \UnexpectedValueException('native chunk snapshot revision header is invalid');
+        }
+        $terrainRevision = $terrainParts['value'];
+        $lightRevision = $lightParts['value'];
+        if (!is_int($terrainRevision) || $terrainRevision < 0 || !is_int($lightRevision) || $lightRevision < 0) {
+            throw new \UnexpectedValueException('native chunk snapshot revision exceeds PHP integer range');
+        }
+
+        $blockIds = $take($projection, $offset, ChunkSnapshot::BLOCK_COUNT);
+        $blockData = $take($projection, $offset, ChunkSnapshot::NIBBLE_BYTES);
+        $skyLight = $take($projection, $offset, ChunkSnapshot::NIBBLE_BYTES);
+        $blockLight = $take($projection, $offset, ChunkSnapshot::NIBBLE_BYTES);
+        $biomes = $take($projection, $offset, ChunkSnapshot::COLUMN_COUNT);
+        $heightMap = $take($projection, $offset, ChunkSnapshot::COLUMN_COUNT);
+
+        $countParts = unpack('Vvalue', $take($projection, $offset, 4));
+        if ($countParts === false || !is_int($countParts['value'])) {
+            throw new \UnexpectedValueException('native chunk snapshot extra-data count is invalid');
+        }
+        $extraCount = $countParts['value'];
+        $remaining = strlen($projection) - $offset;
+        if ($extraCount > intdiv($remaining, 4) || $remaining !== $extraCount * 4) {
+            throw new \UnexpectedValueException('native chunk snapshot extra-data payload length mismatch');
+        }
+
+        $extraData = [];
+        for ($entry = 0; $entry < $extraCount; ++$entry) {
+            $parts = unpack('vkey/vvalue', $take($projection, $offset, 4));
+            if ($parts === false) {
+                throw new \UnexpectedValueException('native chunk snapshot extra-data entry is invalid');
+            }
+            $extraData[$parts['key']] = $parts['value'];
+        }
+
+        return new ChunkSnapshot(
+            $this->position,
+            $terrainRevision,
+            $blockIds,
+            $blockData,
+            $skyLight,
+            $blockLight,
+            $biomes,
+            $heightMap,
+            $extraData,
+            $lightRevision,
+        );
     }
 
     private function refreshHeightAfterBlockChange(

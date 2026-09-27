@@ -24,6 +24,7 @@ final class World implements BlockSource
         private readonly Generator $generator,
         private readonly ChunkSource $chunks,
         private readonly MutationCoordinatorInterface $mutations,
+        private readonly ?NativeWorldStore $nativeStore = null,
     ) {
         if ($name === '') {
             throw new ValueError('world name cannot be empty');
@@ -55,6 +56,12 @@ final class World implements BlockSource
     public function chunks(): ChunkSource
     {
         return $this->chunks;
+    }
+
+    /** @internal */
+    public function nativeStore(): ?NativeWorldStore
+    {
+        return $this->nativeStore;
     }
 
     public function chunk(ChunkPos $position, bool $generate = true): ?Chunk

@@ -14,6 +14,7 @@ final class MainChunkSource implements ChunkSource
     public function __construct(
         private readonly Generator $generator,
         private readonly int $seed,
+        private readonly ?NativeWorldStore $nativeStore = null,
     ) {
     }
 
@@ -29,7 +30,7 @@ final class MainChunkSource implements ChunkSource
             return $existing;
         }
 
-        $chunk = $this->generator->generate($position, $this->seed);
+        $chunk = $this->generator->generate($position, $this->seed, $this->nativeStore);
         if ($chunk->position()->x !== $position->x || $chunk->position()->z !== $position->z) {
             throw new \LogicException('world generator returned a chunk for the wrong position');
         }
@@ -40,6 +41,12 @@ final class MainChunkSource implements ChunkSource
         $this->put($chunk);
 
         return $chunk;
+    }
+
+    /** @internal */
+    public function nativeStore(): ?NativeWorldStore
+    {
+        return $this->nativeStore;
     }
 
     public function put(Chunk $chunk): void
