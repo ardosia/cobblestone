@@ -39,6 +39,6 @@ acceptance = "Remove current kernel-named test/harness surfaces and keep Server 
 
 [[tasks]]
 id = "verify"
-status = "planned"
+status = "verified"
 depends_on = ["logging", "tick-loop", "graceful-shutdown", "world-mutation", "regions", "naming-cleanup"]
 acceptance = "Run composer setup and composer verify locally on PHP 8.5 ZTS against the persisted result revision."

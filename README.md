@@ -104,4 +104,4 @@ Automatic GitHub Actions runs are temporarily disabled while the current reposit
 
 Durable project state lives under `.agent/`; architecture is documented in `docs/architecture/FOUNDATION.md`.
 
-C001-C007 are complete. The PHP package workspace and initial Flat world API were locally verified on PHP 8.5.11 ZTS at revision `9f4786380afe307d8b4c6eb610b6f449a7e6a72f`. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. The newer logging/tick/shutdown/mutation/region foundation remains implemented pending the requested local `composer verify` run.
+C001-C007 are complete. The PHP package workspace and initial Flat world API were locally verified on PHP 8.5.11 ZTS at revision `9f4786380afe307d8b4c6eb610b6f449a7e6a72f`. The logging/tick/shutdown/mutation/region foundation is locally verified on PHP 8.5.11 ZTS at revision `ff5411bdff963b976d6a2232b62c288249d7fe94`. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. Real PHP `World` chunk projection into protocol 84 remains the next world integration slice.
