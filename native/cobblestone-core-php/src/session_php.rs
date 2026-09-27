@@ -224,8 +224,8 @@ pub fn cobblestone_session_send(
 
 fn bootstrap_session_packet(packet: BootstrapPacket) -> PhpResult<SessionPacket> {
     let limits = codec_limits();
-    let frame = encode_bootstrap_frame(&packet, limits)
-        .map_err(|error| php_error(error.to_string()))?;
+    let frame =
+        encode_bootstrap_frame(&packet, limits).map_err(|error| php_error(error.to_string()))?;
     let raw = decode_game_frame(frame.as_slice(), limits)
         .map_err(|error| php_error(error.to_string()))?;
     Ok(SessionPacket::new(raw.id(), raw.body().clone()))
@@ -234,8 +234,7 @@ fn bootstrap_session_packet(packet: BootstrapPacket) -> PhpResult<SessionPacket>
 fn validate_login_body(body: Vec<u8>) -> PhpResult<()> {
     let limits = codec_limits();
     let raw = RawPacket::new(packet_id::LOGIN, NativeBuffer::from_vec(body));
-    let frame = encode_game_frame(&raw, limits)
-        .map_err(|error| php_error(error.to_string()))?;
+    let frame = encode_game_frame(&raw, limits).map_err(|error| php_error(error.to_string()))?;
 
     match decode_bootstrap_frame(frame.as_slice(), limits)
         .map_err(|error| php_error(error.to_string()))?
@@ -363,6 +362,7 @@ fn queue_reliable_ordered(
 ///
 /// This is kernel-internal compatibility machinery; gameplay/plugin APIs never call it directly.
 #[php_function]
+#[php(name = "cobblestone_session_protocol84_accept_login")]
 pub fn cobblestone_session_protocol84_accept_login(
     session_id: i64,
     body: Binary<u8>,
@@ -380,6 +380,7 @@ pub fn cobblestone_session_protocol84_accept_login(
 /// Returns the client-requested radius for owner-runtime observability. The compatibility probe
 /// remains capped at radius two until the real world/chunk system replaces it.
 #[php_function]
+#[php(name = "cobblestone_session_protocol84_spawn_probe")]
 pub fn cobblestone_session_protocol84_spawn_probe(
     session_id: i64,
     body: Binary<u8>,
