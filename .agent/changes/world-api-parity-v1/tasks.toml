@@ -1,0 +1,50 @@
+schema = 1
+change = "world-api-parity-v1"
+
+[[tasks]]
+id = "parity-inventory"
+status = "implemented"
+depends_on = []
+acceptance = "Inventory every public crates/world semantic export and record its Cobblestone mapping or explicit runtime adaptation."
+
+[[tasks]]
+id = "coordinates-revisions"
+status = "implemented"
+depends_on = ["parity-inventory"]
+acceptance = "Add SectionY, BlockPos section/local-y helpers, ChunkRevision, LightRevision, and independent terrain/light revision identities."
+
+[[tasks]]
+id = "terrain-edit-api"
+status = "implemented"
+depends_on = ["coordinates-revisions"]
+acceptance = "Provide ChunkTerrain, TerrainPatch, PreparedTerrainPatch, TerrainEdit, and TerrainEditResult with read-your-writes, no-op/revert filtering, preflight revision, and single revision advancement."
+
+[[tasks]]
+id = "light-state-api"
+status = "implemented"
+depends_on = ["coordinates-revisions"]
+acceptance = "Provide LightLevel, ChunkLight, LightEdit, LightEditResult, LightSnapshot, independent light revisions, and immutable snapshot behavior."
+
+[[tasks]]
+id = "light-propagation"
+status = "implemented"
+depends_on = ["light-state-api"]
+acceptance = "Port LightLayer, LightUpdate, LightAccess, recovered block-light metadata, low-level propagation, queue/coalescing budget control, and staged per-chunk commit."
+
+[[tasks]]
+id = "residency-snapshot"
+status = "implemented"
+depends_on = ["terrain-edit-api", "light-state-api"]
+acceptance = "Provide owner-runtime ResidentChunkCell/Handle identity and coherent ChunkSnapshot terrain/light views; omit Rust lock guards explicitly."
+
+[[tasks]]
+id = "parity-smokes"
+status = "implemented"
+depends_on = ["terrain-edit-api", "light-propagation", "residency-snapshot"]
+acceptance = "Add canonical world-parity and world-light smokes covering revisions, no-op/revert edits, snapshot stability, resident identity, recovered light metadata, and propagation."
+
+[[tasks]]
+id = "local-verify"
+status = "planned"
+depends_on = ["parity-smokes"]
+acceptance = "Run composer setup and composer verify locally against the persisted parity revision."

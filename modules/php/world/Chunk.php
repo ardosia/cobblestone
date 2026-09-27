@@ -20,6 +20,7 @@ final class Chunk
     private bool $populated = false;
     private bool $lightPopulated = false;
     private int $revision = 0;
+    private int $lightRevision = 0;
 
     public function __construct(
         private readonly ChunkPos $position,
@@ -45,6 +46,26 @@ final class Chunk
         return $this->revision;
     }
 
+    public function terrainRevision(): ChunkRevision
+    {
+        return new ChunkRevision($this->revision);
+    }
+
+    public function terrain(): ChunkTerrain
+    {
+        return new ChunkTerrain($this);
+    }
+
+    public function light(): ChunkLight
+    {
+        return new ChunkLight($this);
+    }
+
+    public function lightRevision(): LightRevision
+    {
+        return new LightRevision($this->lightRevision);
+    }
+
     /** @internal Mutation commit primitive. */
     public function commitRevision(int $expected, int $next): void
     {
@@ -58,6 +79,21 @@ final class Chunk
         }
 
         $this->revision = $next;
+    }
+
+    /** @internal Light-commit primitive. */
+    public function commitLightRevision(int $expected, int $next): void
+    {
+        if ($this->lightRevision !== $expected) {
+            throw new \LogicException(
+                "chunk light revision changed: expected {$expected}, current {$this->lightRevision}",
+            );
+        }
+        if ($next !== $expected + 1) {
+            throw new \LogicException('chunk light revision must advance exactly once');
+        }
+
+        $this->lightRevision = $next;
     }
 
     public function block(int $x, int $y, int $z): BlockState
@@ -244,7 +280,21 @@ final class Chunk
             $this->biomes,
             $this->heightMap,
             $this->extraData,
+            $this->lightRevision,
         );
+    }
+
+    public function lightSnapshot(): LightSnapshot
+    {
+        $sky = '';
+        $block = '';
+        foreach ($this->sections as $section) {
+            $snapshot = $section->snapshot();
+            $sky .= $snapshot->skyLight;
+            $block .= $snapshot->blockLight;
+        }
+
+        return new LightSnapshot(new LightRevision($this->lightRevision), $sky, $block);
     }
 
     public function isGenerated(): bool

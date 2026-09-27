@@ -14,6 +14,7 @@
     "ardosia/cobblestone-task": "dev-main",
     "ardosia/cobblestone-world": "dev-main",
     "ardosia/cobblestone-world-generation": "dev-main",
+    "ardosia/cobblestone-world-light": "dev-main",
     "ardosia/cobblestone-world-mutation": "dev-main",
     "ardosia/cobblestone-world-region": "dev-main"
   },

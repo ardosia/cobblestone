@@ -22,6 +22,8 @@ final class PreparedChunkPatch
         private readonly Chunk $chunk,
         private readonly int $baseRevision,
         private readonly int $revision,
+        private readonly int $baseLightRevision,
+        private readonly int $lightRevision,
         private readonly array $blocks,
         private readonly array $biomes,
         private readonly array $extraData,
@@ -37,13 +39,26 @@ final class PreparedChunkPatch
 
     public function changed(): bool
     {
+        return $this->terrainChanged() || $this->lightChanged();
+    }
+
+    public function terrainChanged(): bool
+    {
         return $this->revision !== $this->baseRevision;
+    }
+
+    public function lightChanged(): bool
+    {
+        return $this->lightRevision !== $this->baseLightRevision;
     }
 
     public function validate(): void
     {
         if ($this->chunk->revision() !== $this->baseRevision) {
-            throw new MutationConflict('chunk revision changed before mutation commit');
+            throw new MutationConflict('chunk terrain revision changed before mutation commit');
+        }
+        if ($this->chunk->lightRevision()->value !== $this->baseLightRevision) {
+            throw new MutationConflict('chunk light revision changed before mutation commit');
         }
     }
 
@@ -86,6 +101,11 @@ final class PreparedChunkPatch
             $this->chunk->setBlockLight($x, $y, $z, $level);
         }
 
-        $this->chunk->commitRevision($this->baseRevision, $this->revision);
+        if ($this->terrainChanged()) {
+            $this->chunk->commitRevision($this->baseRevision, $this->revision);
+        }
+        if ($this->lightChanged()) {
+            $this->chunk->commitLightRevision($this->baseLightRevision, $this->lightRevision);
+        }
     }
 }

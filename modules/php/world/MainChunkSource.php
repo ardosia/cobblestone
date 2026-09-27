@@ -60,4 +60,11 @@ final class MainChunkSource implements ChunkSource
     {
         return count($this->chunks);
     }
+
+    public function resident(ChunkPos $position, bool $generate = false): ?ResidentChunkHandle
+    {
+        $chunk = $generate ? $this->getOrGenerate($position) : $this->get($position);
+
+        return $chunk === null ? null : new ResidentChunkHandle($chunk);
+    }
 }

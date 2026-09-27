@@ -29,6 +29,7 @@ final readonly class ChunkSnapshot
         public string $biomes,
         public string $heightMap,
         public array $extraData,
+        public int $lightRevision = 0,
     ) {
         if (strlen($blockIds) !== self::BLOCK_COUNT) {
             throw new \ValueError('chunk block-id snapshot has invalid length');
@@ -56,5 +57,32 @@ final readonly class ChunkSnapshot
                 throw new \ValueError('chunk extra-data value must fit 16 bits');
             }
         }
+        if ($lightRevision < 0) {
+            throw new \ValueError('chunk light snapshot revision cannot be negative');
+        }
+    }
+
+    public function position(): ChunkPos
+    {
+        return $this->position;
+    }
+
+    public function revision(): ChunkRevision
+    {
+        return new ChunkRevision($this->revision);
+    }
+
+    public function terrain(): ChunkDataSnapshot
+    {
+        return new ChunkDataSnapshot($this->blockIds, $this->blockData, $this->biomes);
+    }
+
+    public function light(): LightSnapshot
+    {
+        return new LightSnapshot(
+            new LightRevision($this->lightRevision),
+            $this->skyLight,
+            $this->blockLight,
+        );
     }
 }

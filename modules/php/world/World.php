@@ -64,6 +64,13 @@ final class World implements BlockSource
             : $this->chunks->get($position);
     }
 
+    public function residentChunk(ChunkPos $position, bool $generate = true): ?ResidentChunkHandle
+    {
+        $chunk = $this->chunk($position, $generate);
+
+        return $chunk === null ? null : new ResidentChunkHandle($chunk);
+    }
+
     /**
      * Runs one replayable, atomic semantic world mutation.
      *

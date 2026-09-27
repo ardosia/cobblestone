@@ -65,3 +65,10 @@ The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\Wo
 `BlockState` is a fixed-target state token (legacy id + data), not block behavior. Block behavior belongs to a later `block` package.
 
 The follow-up `world-protocol84-stream-v1` slice adds immutable `ChunkSectionSnapshot` / `ChunkSnapshot` bulk projections. PHP remains authoritative for chunk selection, block/data state, biome identity, heightmap, sky/block light, sparse extra data, and revision. PHP's section-concatenated Y/Z/X planes already match protocol-84 `ORDER_LAYERED`; Rust validates those planes, builds the remaining FullChunkData wire fields, compresses the Batch, and submits it through the session host. The old synthetic probe remains exported only for ABI compatibility and is no longer on the production join path.
+
+## World API parity expansion
+
+`world-api-parity-v1` uses `ardosia/ardosia@766f2a2a073889583334758b500b7b6e05acb1f1` `crates/world` as the semantic oracle for the broader world substrate. Cobblestone now tracks separate terrain/light revisions, chunk-local staged terrain and light edits, immutable light snapshots, `SectionY`, resident chunk cell identity, `LightLayer`/`LightUpdate`/`LightAccess`, and the recovered low-level light propagation order.
+
+Ardosia's recovered block-light table uses dense semantic registry ordinals, while Cobblestone intentionally retains protocol-84 legacy `id:data` states. The 191 recovered identities are therefore mapped to legacy IDs through the pinned matching-source `legacy/old-src/block/BlockIds.php`; unsupported legacy IDs are rejected instead of guessed. See `WORLD_API_PARITY.md` for the full parity matrix and explicit runtime adaptations.
+

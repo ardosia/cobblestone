@@ -49,6 +49,7 @@ mutationExpect($firstChunk->revision() === 1, 'first chunk revision did not adva
 mutationExpect($secondChunk->revision() === 1, 'second chunk revision did not advance exactly once');
 
 $before = $firstChunk->revision();
+$beforeLight = $firstChunk->lightRevision()->value;
 $noOp = $world->mutate(
     static function (WorldMutation $mutation) use ($first): void {
         $original = $mutation->block($first);
@@ -57,7 +58,11 @@ $noOp = $world->mutate(
     },
 );
 mutationExpect(!$noOp->changed(), 'reverted mutation must not report a net change');
-mutationExpect($firstChunk->revision() === $before, 'reverted mutation advanced revision');
+mutationExpect($firstChunk->revision() === $before, 'reverted mutation advanced terrain revision');
+mutationExpect(
+    $firstChunk->lightRevision()->value === $beforeLight,
+    'reverted mutation advanced light revision',
+);
 
 $compound = $world->mutate(
     static function (WorldMutation $mutation) use ($first): void {
@@ -68,7 +73,14 @@ $compound = $world->mutate(
     },
 );
 mutationExpect($compound->changed(), 'compound mutation did not report change');
-mutationExpect($firstChunk->revision() === $before + 1, 'compound mutation advanced revision more than once');
+mutationExpect(
+    $firstChunk->revision() === $before + 1,
+    'compound mutation did not advance terrain revision exactly once',
+);
+mutationExpect(
+    $firstChunk->lightRevision()->value === $beforeLight + 1,
+    'compound mutation did not advance light revision exactly once',
+);
 mutationExpect($world->block($first)->id === 2, 'compound block state did not commit');
 mutationExpect($world->skyLight($first) === 15, 'compound sky light did not commit');
 mutationExpect($world->blockLight($first) === 7, 'compound block light did not commit');

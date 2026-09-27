@@ -1,0 +1,46 @@
+schema = 1
+change = "world-api-parity-v1"
+
+[[evidence]]
+id = "ardosia-world-oracle"
+kind = "source"
+status = "passed"
+claim = "The parity target is the public semantic world substrate from the pinned Ardosia revision."
+source = "ardosia/ardosia@766f2a2a073889583334758b500b7b6e05acb1f1: crates/world/src/{lib,coord,section,chunk,edit,light,light_propagation,residency,snapshot}.rs"
+result = "The source oracle defines fixed 16x16x128 coordinates, SectionY, terrain revisions/edits, independent light state/revisions/edits/snapshots, low-level sky/block propagation, resident cell/handle identity, and coherent snapshots."
+trust = "pinned-source"
+confidence = "observed"
+limitations = "Rust lock guard types are mechanism-specific and are adapted to Cobblestone's single-owner PHP runtime rather than exposed verbatim."
+
+[[evidence]]
+id = "fixed-target-light-map"
+kind = "fixed-target-source"
+status = "passed"
+claim = "Ardosia's binary-derived light properties can be mapped onto Cobblestone's legacy protocol-84 block IDs without guessing."
+source = "ardosia/ardosia@766f2a2a073889583334758b500b7b6e05acb1f1 crates/catalog/src/block.rs + KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e legacy/old-src/block/BlockIds.php"
+result = "All 191 Ardosia semantic block identities map to unique fixed-target legacy block IDs after explicit aliases for historical registry naming differences; the recovered light-block and emission values are preserved on those IDs."
+trust = "pinned-cross-source"
+confidence = "observed"
+limitations = "Legacy IDs outside the mapped 191 identities remain explicitly unsupported by the parity light catalog."
+
+[[evidence]]
+id = "baseline-local-validation"
+kind = "validation"
+status = "passed"
+claim = "The base revision before world parity work is locally green."
+source = "user Fedora composer setup + composer verify on ardosia/cobblestone@e5401a98b0a6c87010eaf17b6dd8ffaf6b8fc3d9"
+result = "Composer metadata, PHP syntax, Rust fmt/check/clippy/tests, extension build, PHP 8.5.11 ZTS probes, scheduler/tick/world-composition/world/world-mutation smokes, session runtime, and server lifecycle all passed."
+trust = "exact-revision-local-validation"
+confidence = "observed"
+limitations = "This baseline does not validate the subsequent world-api-parity implementation."
+
+[[evidence]]
+id = "parity-local-validation"
+kind = "validation"
+status = "not_run"
+claim = "The persisted world-api-parity implementation passes canonical local validation."
+source = "pending user composer setup + composer verify"
+result = "not run yet"
+trust = "pending"
+confidence = "unknown"
+limitations = "Automatic GitHub Actions remain intentionally disabled by repository instruction."

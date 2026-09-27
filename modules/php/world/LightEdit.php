@@ -1,0 +1,146 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Cobblestone\World;
+
+/** Staged, atomic chunk-local update to sky and block light channels. */
+final class LightEdit
+{
+    private readonly int $baseRevision;
+
+    /** @var array<int, LightLevel> */
+    private array $sky = [];
+
+    /** @var array<int, LightLevel> */
+    private array $block = [];
+
+    public function __construct(private readonly Chunk $chunk)
+    {
+        $this->baseRevision = $chunk->lightRevision()->value;
+    }
+
+    public function sky(int $x, int $y, int $z): ?LightLevel
+    {
+        $key = self::key($x, $y, $z);
+        if ($key === null) {
+            return null;
+        }
+
+        return $this->sky[$key] ?? new LightLevel($this->chunk->skyLight($x, $y, $z));
+    }
+
+    public function block(int $x, int $y, int $z): ?LightLevel
+    {
+        $key = self::key($x, $y, $z);
+        if ($key === null) {
+            return null;
+        }
+
+        return $this->block[$key] ?? new LightLevel($this->chunk->blockLight($x, $y, $z));
+    }
+
+    public function setSky(int $x, int $y, int $z, LightLevel $level): ?LightLevel
+    {
+        $key = self::key($x, $y, $z);
+        if ($key === null) {
+            return null;
+        }
+
+        $previous = $this->sky($x, $y, $z);
+        if ($previous?->value !== $level->value) {
+            $this->sky[$key] = $level;
+        }
+
+        return $previous;
+    }
+
+    public function setBlock(int $x, int $y, int $z, LightLevel $level): ?LightLevel
+    {
+        $key = self::key($x, $y, $z);
+        if ($key === null) {
+            return null;
+        }
+
+        $previous = $this->block($x, $y, $z);
+        if ($previous?->value !== $level->value) {
+            $this->block[$key] = $level;
+        }
+
+        return $previous;
+    }
+
+    public function commit(): LightEditResult
+    {
+        if ($this->chunk->lightRevision()->value !== $this->baseRevision) {
+            throw new \LogicException('chunk light changed while LightEdit was staged');
+        }
+
+        $sky = array_filter(
+            $this->sky,
+            fn (LightLevel $level, int $key): bool => $level->value !== $this->authoritativeSky($key),
+            ARRAY_FILTER_USE_BOTH,
+        );
+        $block = array_filter(
+            $this->block,
+            fn (LightLevel $level, int $key): bool => $level->value !== $this->authoritativeBlock($key),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        if ($sky === [] && $block === []) {
+            return new LightEditResult(false, new LightRevision($this->baseRevision));
+        }
+        if ($this->baseRevision === PHP_INT_MAX) {
+            throw new \OverflowException('chunk light revision space exhausted');
+        }
+
+        ksort($sky);
+        ksort($block);
+        foreach ($sky as $key => $level) {
+            [$x, $y, $z] = self::decode($key);
+            $this->chunk->setSkyLight($x, $y, $z, $level->value);
+        }
+        foreach ($block as $key => $level) {
+            [$x, $y, $z] = self::decode($key);
+            $this->chunk->setBlockLight($x, $y, $z, $level->value);
+        }
+
+        $next = $this->baseRevision + 1;
+        $this->chunk->commitLightRevision($this->baseRevision, $next);
+
+        return new LightEditResult(true, new LightRevision($next));
+    }
+
+    private function authoritativeSky(int $key): int
+    {
+        [$x, $y, $z] = self::decode($key);
+
+        return $this->chunk->skyLight($x, $y, $z);
+    }
+
+    private function authoritativeBlock(int $key): int
+    {
+        [$x, $y, $z] = self::decode($key);
+
+        return $this->chunk->blockLight($x, $y, $z);
+    }
+
+    private static function key(int $x, int $y, int $z): ?int
+    {
+        if (
+            !WorldBounds::containsLocal($x)
+            || !WorldBounds::containsLocal($z)
+            || !WorldBounds::containsY($y)
+        ) {
+            return null;
+        }
+
+        return ($y << 8) | ($z << 4) | $x;
+    }
+
+    /** @return array{int, int, int} */
+    private static function decode(int $key): array
+    {
+        return [$key & 0x0f, ($key >> 8) & 0x7f, ($key >> 4) & 0x0f];
+    }
+}

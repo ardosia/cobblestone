@@ -154,6 +154,8 @@ function testPhp(): void
         'scheduler-smoke.php',
         'tick-smoke.php',
         'world-composition-smoke.php',
+        'world-light-smoke.php',
+        'world-parity-smoke.php',
         'world-smoke.php',
         'world-mutation-smoke.php',
     ] as $test) {

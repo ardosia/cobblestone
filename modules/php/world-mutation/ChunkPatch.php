@@ -13,6 +13,7 @@ use ValueError;
 final class ChunkPatch
 {
     private readonly int $baseRevision;
+    private readonly int $baseLightRevision;
 
     /** @var array<int, BlockState> */
     private array $blocks = [];
@@ -33,6 +34,7 @@ final class ChunkPatch
         private readonly Chunk $chunk,
     ) {
         $this->baseRevision = $chunk->revision();
+        $this->baseLightRevision = $chunk->lightRevision()->value;
     }
 
     public function chunk(): Chunk
@@ -43,6 +45,11 @@ final class ChunkPatch
     public function baseRevision(): int
     {
         return $this->baseRevision;
+    }
+
+    public function baseLightRevision(): int
+    {
+        return $this->baseLightRevision;
     }
 
     public function block(int $x, int $y, int $z): BlockState
@@ -129,7 +136,10 @@ final class ChunkPatch
     public function prepare(): PreparedChunkPatch
     {
         if ($this->chunk->revision() !== $this->baseRevision) {
-            throw new MutationConflict('chunk changed while mutation was being prepared');
+            throw new MutationConflict('chunk terrain changed while mutation was being prepared');
+        }
+        if ($this->chunk->lightRevision()->value !== $this->baseLightRevision) {
+            throw new MutationConflict('chunk light changed while mutation was being prepared');
         }
 
         $blocks = array_filter(
@@ -158,20 +168,25 @@ final class ChunkPatch
             ARRAY_FILTER_USE_BOTH,
         );
 
-        $changed = $blocks !== []
+        $terrainChanged = $blocks !== []
             || $biomes !== []
-            || $extraData !== []
-            || $skyLight !== []
+            || $extraData !== [];
+        $lightChanged = $skyLight !== []
             || $blockLight !== [];
 
-        if ($changed && $this->baseRevision === PHP_INT_MAX) {
-            throw new MutationConflict('chunk revision space exhausted');
+        if ($terrainChanged && $this->baseRevision === PHP_INT_MAX) {
+            throw new MutationConflict('chunk terrain revision space exhausted');
+        }
+        if ($lightChanged && $this->baseLightRevision === PHP_INT_MAX) {
+            throw new MutationConflict('chunk light revision space exhausted');
         }
 
         return new PreparedChunkPatch(
             $this->chunk,
             $this->baseRevision,
-            $changed ? $this->baseRevision + 1 : $this->baseRevision,
+            $terrainChanged ? $this->baseRevision + 1 : $this->baseRevision,
+            $this->baseLightRevision,
+            $lightChanged ? $this->baseLightRevision + 1 : $this->baseLightRevision,
             $blocks,
             $biomes,
             $extraData,
