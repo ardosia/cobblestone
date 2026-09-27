@@ -200,7 +200,7 @@ The application logging boundary is PSR-3. The default implementation uses Monol
 
 The executable delegates pacing to a monotonic `TickLoop` instead of owning a raw infinite loop. The loop targets the configured tick rate, reports sustained lateness as both milliseconds and ticks behind, throttles warnings, and rebases after excessive backlog rather than spinning through obsolete deadlines.
 
-`Server` owns an explicit Starting/Running/Stopping/Stopped lifecycle. Stop requests end the loop after the current tick. SIGINT/SIGTERM are handled where pcntl exists, and a PHP shutdown hook provides a final best-effort stop. Shutdown continues through stopping-event dispatch, plugin disable, scheduler shutdown, and native-session shutdown even if an earlier phase fails.
+`Server` owns an explicit Starting/Running/Stopping/Stopped lifecycle. Stop requests end the loop after the current tick. SIGINT/SIGTERM are handled where pcntl exists, and a PHP shutdown hook provides a final best-effort stop. Shutdown continues through stopping-event dispatch, native-session shutdown, plugin disable, and scheduler shutdown even if an earlier phase fails.
 
 Gameplay world changes use `World::mutate()`. `WorldMutation` stages block, biome, extra-data, sky-light, and block-light writes and provides read-your-writes semantics. The coordinator discovers the touched chunk set, discards/replays when that set expands, prepares every chunk against a base revision, rejects stale revisions, filters net-no-op/reverted edits, then commits changed chunks with one revision advance each. Ordinary `World` mutation conveniences use this path; generation remains direct initialization.
 

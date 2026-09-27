@@ -11,6 +11,8 @@ use Cobblestone\World\World;
 use LogicException;
 
 /**
+ * @internal
+ *
  * Owner-runtime mutation coordinator.
  *
  * The current implementation commits on one owning PHP runtime. Discovery/replay and revision

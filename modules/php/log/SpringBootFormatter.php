@@ -56,12 +56,15 @@ final class SpringBootFormatter implements FormatterInterface
         return $line;
     }
 
-    /** @param list<LogRecord> $records
-     *  @return list<string>
-     */
-    public function formatBatch(array $records): array
+    /** @param list<LogRecord> $records */
+    public function formatBatch(array $records): string
     {
-        return array_map($this->format(...), $records);
+        $output = '';
+        foreach ($records as $record) {
+            $output .= $this->format($record);
+        }
+
+        return $output;
     }
 
     private function levelName(Level $level): string

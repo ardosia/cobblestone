@@ -26,7 +26,7 @@ impl RegionId {
     }
 }
 
-/// Current native routing record for one execution region.
+/// Current native routing record for one assigned execution region.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct RegionRoute {
     owner: RuntimeId,
@@ -58,12 +58,20 @@ pub enum RegionRouteError {
     EpochExhausted,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+struct RegionRouteState {
+    owner: Option<RuntimeId>,
+    epoch: OwnershipEpoch,
+}
+
 /// Scheduler-owned directory mapping semantic region identities to PHP runtime owners.
 ///
 /// This is routing mechanism only. It contains no chunks, blocks, entities, or gameplay callbacks.
+/// Unassignment advances the epoch and leaves a tombstone so reassigning the same coordinates cannot
+/// make an older route valid again.
 #[derive(Debug, Default)]
 pub struct RegionDirectory {
-    routes: HashMap<RegionId, RegionRoute>,
+    routes: HashMap<RegionId, RegionRouteState>,
 }
 
 impl RegionDirectory {
@@ -72,11 +80,14 @@ impl RegionDirectory {
     }
 
     pub fn len(&self) -> usize {
-        self.routes.len()
+        self.routes
+            .values()
+            .filter(|route| route.owner.is_some())
+            .count()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.routes.is_empty()
+        self.len() == 0
     }
 
     pub fn assign(
@@ -84,22 +95,31 @@ impl RegionDirectory {
         region: RegionId,
         owner: RuntimeId,
     ) -> Result<OwnershipEpoch, RegionRouteError> {
-        if self.routes.contains_key(&region) {
-            return Err(RegionRouteError::AlreadyAssigned);
+        match self.routes.get_mut(&region) {
+            Some(route) if route.owner.is_some() => Err(RegionRouteError::AlreadyAssigned),
+            Some(route) => {
+                route.owner = Some(owner);
+                Ok(route.epoch)
+            }
+            None => {
+                self.routes.insert(
+                    region,
+                    RegionRouteState {
+                        owner: Some(owner),
+                        epoch: OwnershipEpoch::ZERO,
+                    },
+                );
+                Ok(OwnershipEpoch::ZERO)
+            }
         }
-
-        self.routes.insert(
-            region,
-            RegionRoute {
-                owner,
-                epoch: OwnershipEpoch::ZERO,
-            },
-        );
-        Ok(OwnershipEpoch::ZERO)
     }
 
     pub fn route(&self, region: RegionId) -> Option<RegionRoute> {
-        self.routes.get(&region).copied()
+        let state = self.routes.get(&region)?;
+        Some(RegionRoute {
+            owner: state.owner?,
+            epoch: state.epoch,
+        })
     }
 
     pub fn transfer(
@@ -113,11 +133,12 @@ impl RegionDirectory {
             .routes
             .get_mut(&region)
             .ok_or(RegionRouteError::Unassigned)?;
+        let current_owner = route.owner.ok_or(RegionRouteError::Unassigned)?;
 
-        if route.owner != requester {
+        if current_owner != requester {
             return Err(RegionRouteError::WrongOwner {
                 requester,
-                current: route.owner,
+                current: current_owner,
             });
         }
         if route.epoch != expected_epoch {
@@ -127,14 +148,8 @@ impl RegionDirectory {
             });
         }
 
-        let next = route
-            .epoch
-            .get()
-            .checked_add(1)
-            .map(OwnershipEpoch::new)
-            .ok_or(RegionRouteError::EpochExhausted)?;
-
-        route.owner = new_owner;
+        let next = next_epoch(route.epoch)?;
+        route.owner = Some(new_owner);
         route.epoch = next;
         Ok(next)
     }
@@ -144,17 +159,17 @@ impl RegionDirectory {
         region: RegionId,
         requester: RuntimeId,
         expected_epoch: OwnershipEpoch,
-    ) -> Result<(), RegionRouteError> {
+    ) -> Result<OwnershipEpoch, RegionRouteError> {
         let route = self
             .routes
-            .get(&region)
-            .copied()
+            .get_mut(&region)
             .ok_or(RegionRouteError::Unassigned)?;
+        let current_owner = route.owner.ok_or(RegionRouteError::Unassigned)?;
 
-        if route.owner != requester {
+        if current_owner != requester {
             return Err(RegionRouteError::WrongOwner {
                 requester,
-                current: route.owner,
+                current: current_owner,
             });
         }
         if route.epoch != expected_epoch {
@@ -164,9 +179,19 @@ impl RegionDirectory {
             });
         }
 
-        self.routes.remove(&region);
-        Ok(())
+        let next = next_epoch(route.epoch)?;
+        route.owner = None;
+        route.epoch = next;
+        Ok(next)
     }
+}
+
+fn next_epoch(epoch: OwnershipEpoch) -> Result<OwnershipEpoch, RegionRouteError> {
+    epoch
+        .get()
+        .checked_add(1)
+        .map(OwnershipEpoch::new)
+        .ok_or(RegionRouteError::EpochExhausted)
 }
 
 #[cfg(test)]
@@ -219,14 +244,24 @@ mod tests {
     }
 
     #[test]
-    fn unassign_requires_current_owner_and_epoch() {
+    fn unassign_and_reassign_never_revalidate_stale_epoch() {
         let one = runtime(1);
+        let two = runtime(2);
         let region = RegionId::new(0, 0);
         let mut directory = RegionDirectory::new();
-        let epoch = directory.assign(region, one).unwrap();
 
-        assert_eq!(directory.unassign(region, one, epoch), Ok(()));
+        let first = directory.assign(region, one).unwrap();
+        let tombstone = directory.unassign(region, one, first).unwrap();
+        assert_eq!(tombstone.get(), first.get() + 1);
         assert_eq!(directory.route(region), None);
         assert!(directory.is_empty());
+
+        let replacement = directory.assign(region, two).unwrap();
+        assert_eq!(replacement, tombstone);
+        assert!(matches!(
+            directory.transfer(region, two, first, one),
+            Err(RegionRouteError::StaleEpoch { .. })
+        ));
+        assert_eq!(directory.route(region).unwrap().owner(), two);
     }
 }

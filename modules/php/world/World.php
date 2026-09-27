@@ -27,14 +27,13 @@ final class World implements BlockSource
         private readonly int $seed,
         private readonly Generator $generator,
         ?ChunkSource $chunks = null,
-        ?RegionMap $regions = null,
     ) {
         if ($name === '') {
             throw new ValueError('world name cannot be empty');
         }
 
         $this->chunks = $chunks ?? new MainChunkSource($generator, $seed);
-        $this->regions = $regions ?? new RegionMap();
+        $this->regions = new RegionMap();
         $this->mutations = new MutationCoordinator($this, $this->regions);
         $this->spawn = $generator->spawn();
     }

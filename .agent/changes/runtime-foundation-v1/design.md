@@ -26,7 +26,7 @@ After excessive backlog, the deadline is rebased instead of spinning indefinitel
 
 `Server` has Starting/Running/Stopping/Stopped states and an idempotent stop path. A stop request causes the loop to finish the current tick and exit. On platforms with pcntl, SIGINT and SIGTERM become stop requests. A PHP shutdown hook is a final best-effort guard.
 
-Shutdown continues through later phases after an earlier phase fails and rethrows the first failure after teardown. The order is stopping event, plugin disable, scheduler shutdown, then native session shutdown.
+Shutdown continues through later phases after an earlier phase fails and rethrows the first failure after teardown. The order is stopping event, native session shutdown, plugin disable, then scheduler shutdown.
 
 ## World mutations
 

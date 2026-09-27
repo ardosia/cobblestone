@@ -8,6 +8,7 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\Chunk;
 
+/** @internal */
 final class PreparedChunkPatch
 {
     /**

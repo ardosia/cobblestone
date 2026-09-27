@@ -209,9 +209,9 @@ final class Server
 
         foreach ([
             'stopping-event' => fn () => $this->events->dispatch(new ServerStopping()),
+            'sessions' => fn () => $this->sessions->stop(),
             'plugins' => fn () => $this->plugins->shutdown(),
             'scheduler' => fn () => $this->scheduler->shutdown(),
-            'sessions' => fn () => $this->sessions->stop(),
         ] as $phase => $shutdown) {
             try {
                 $shutdown();

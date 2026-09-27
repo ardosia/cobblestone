@@ -28,6 +28,7 @@ final class WorldMutation
     /** @var array<string, RegionId> */
     private array $regions = [];
 
+    /** @internal Created by World::mutate(). */
     public function __construct(
         private readonly World $world,
         private readonly RegionMap $regionMap,

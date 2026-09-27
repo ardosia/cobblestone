@@ -9,6 +9,7 @@ use Cobblestone\World\BlockState;
 use Cobblestone\World\Chunk;
 use ValueError;
 
+/** @internal */
 final class ChunkPatch
 {
     private readonly int $baseRevision;
