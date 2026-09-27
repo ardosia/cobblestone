@@ -31,7 +31,7 @@ $output = stream_get_contents($stream);
 if (
     $output === false
     || !str_contains($output, ' INFO ')
-    || !str_contains($output, '--- [')
+    || !str_contains($output, '--- [Cobblestone] [')
     || !str_contains($output, 'Cobblestone.Test.Logging')
     || !str_contains($output, ': hello world')
     || !str_contains($output, 'answer=42')

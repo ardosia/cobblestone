@@ -17,13 +17,15 @@ final class LoggerFactory
     ) {
     }
 
-    public static function console(?string $minimumLevel = null): self
-    {
+    public static function console(
+        ?string $minimumLevel = null,
+        string $applicationName = 'Cobblestone',
+    ): self {
         $level = self::normalizeLevel($minimumLevel ?? 'INFO');
         $handler = new StreamHandler('php://stdout', $level, true);
-        $handler->setFormatter(new SpringBootFormatter());
+        $handler->setFormatter(new SpringBootFormatter($applicationName));
 
-        $logger = new Logger('Cobblestone', [$handler]);
+        $logger = new Logger($applicationName, [$handler]);
         $logger->setTimezone(new DateTimeZone(date_default_timezone_get()));
 
         return new self($logger);

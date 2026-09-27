@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\Log;
 
+use InvalidArgumentException;
 use Monolog\Formatter\FormatterInterface;
 use Monolog\Level;
 use Monolog\LogRecord;
@@ -12,6 +13,14 @@ use Throwable;
 
 final class SpringBootFormatter implements FormatterInterface
 {
+    public function __construct(
+        private readonly string $applicationName = 'Cobblestone',
+    ) {
+        if (trim($applicationName) === '') {
+            throw new InvalidArgumentException('application name cannot be empty');
+        }
+    }
+
     public function format(LogRecord $record): string
     {
         $context = $record->context;
@@ -24,10 +33,11 @@ final class SpringBootFormatter implements FormatterInterface
         $exception = $record->context['exception'] ?? null;
 
         $line = sprintf(
-            "%s %5s %d --- [%15s] %-40s : %s%s\n",
+            "%s %5s %d --- [%s] [%15s] %-40s : %s%s\n",
             $record->datetime->format('Y-m-d\TH:i:s.vP'),
             $this->levelName($record->level),
             getmypid() ?: 0,
+            $this->applicationName,
             $this->tail($execution, 15),
             $this->tail($logger, 40),
             $message,
