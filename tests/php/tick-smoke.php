@@ -8,7 +8,6 @@ use Cobblestone\Tick\Clock;
 use Cobblestone\Tick\TickLoop;
 use Cobblestone\Tick\TickLoopConfig;
 use Psr\Log\AbstractLogger;
-use Stringable;
 
 $clock = new class implements Clock {
     public int $now = 0;
@@ -33,7 +32,7 @@ $logger = new class extends AbstractLogger {
     /** @var list<array{level: mixed, message: string, context: array<string, mixed>}> */
     public array $records = [];
 
-    public function log($level, string|Stringable $message, array $context = []): void
+    public function log($level, string|\Stringable $message, array $context = []): void
     {
         $this->records[] = [
             'level' => $level,
