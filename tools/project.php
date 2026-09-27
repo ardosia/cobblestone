@@ -11,9 +11,7 @@ function fail(string $message, int $code = 1): never
     exit($code);
 }
 
-/**
- * @param list<string> $command
- */
+/** @param list<string> $command */
 function run(array $command, ?string $cwd = null): void
 {
     $process = proc_open(
@@ -51,9 +49,36 @@ function extensionPath(): string
     };
 }
 
+/** @return list<string> */
+function composerPackageManifests(): array
+{
+    $manifests = glob(ROOT . '/modules/php/*/composer.json') ?: [];
+    sort($manifests);
+
+    return array_values($manifests);
+}
+
+function setupComposer(): void
+{
+    run(['composer', 'update', '--no-interaction']);
+}
+
 function ensureAutoload(): void
 {
+    if (!is_file(ROOT . '/vendor/autoload.php')) {
+        fail('Composer packages are not installed; run composer setup');
+    }
+
     run(['composer', 'dump-autoload', '--no-interaction', '--classmap-authoritative']);
+}
+
+function validateComposer(): void
+{
+    run(['composer', 'validate', '--strict', '--no-check-publish', ROOT . '/composer.json']);
+
+    foreach (composerPackageManifests() as $manifest) {
+        run(['composer', 'validate', '--strict', '--no-check-publish', $manifest]);
+    }
 }
 
 function buildNative(): void
@@ -77,7 +102,6 @@ function lintPhp(): void
         ROOT . '/tests/php',
         ROOT . '/tools',
     ];
-
     $files = [ROOT . '/bin/cobblestone'];
 
     foreach ($roots as $root) {
@@ -103,10 +127,7 @@ function lintPhp(): void
     }
 }
 
-/**
- * @param string $script
- * @param list<string> $arguments
- */
+/** @param list<string> $arguments */
 function runWithExtension(string $script, array $arguments = []): void
 {
     $extension = extensionPath();
@@ -141,30 +162,39 @@ function testPhp(): void
 
 function listModules(): void
 {
-    foreach ([
-        'php' => ROOT . '/modules/php',
-        'rust' => ROOT . '/modules/rust',
-    ] as $kind => $root) {
-        $modules = [];
-        if (is_dir($root)) {
-            foreach (new DirectoryIterator($root) as $entry) {
-                if ($entry->isDot() || !$entry->isDir()) {
-                    continue;
-                }
-                $modules[] = $entry->getFilename();
+    foreach (composerPackageManifests() as $manifest) {
+        $package = json_decode((string) file_get_contents($manifest), true, flags: JSON_THROW_ON_ERROR);
+        printf(
+            "php: %s (%s)%s",
+            basename(dirname($manifest)),
+            $package['name'] ?? 'unknown',
+            PHP_EOL,
+        );
+    }
+
+    $rustRoot = ROOT . '/modules/rust';
+    $rust = [];
+    if (is_dir($rustRoot)) {
+        foreach (new DirectoryIterator($rustRoot) as $entry) {
+            if (!$entry->isDot() && $entry->isDir()) {
+                $rust[] = $entry->getFilename();
             }
         }
+    }
+    sort($rust);
 
-        sort($modules);
-        foreach ($modules as $module) {
-            fwrite(STDOUT, "{$kind}: {$module}" . PHP_EOL);
-        }
+    foreach ($rust as $module) {
+        printf("rust: %s%s", $module, PHP_EOL);
     }
 }
 
 $command = $argv[1] ?? null;
 
 switch ($command) {
+    case 'setup':
+        setupComposer();
+        break;
+
     case 'native:build':
         buildNative();
         break;
@@ -179,7 +209,7 @@ switch ($command) {
         break;
 
     case 'check':
-        run(['composer', 'validate', '--strict', '--no-check-publish']);
+        validateComposer();
         lintPhp();
         run(['python', 'tools/ci.py', 'all']);
         checkNative();
@@ -213,7 +243,7 @@ switch ($command) {
 
     default:
         fail(
-            'usage: composer {build|check|modules|native:build|native:check|serve|test|test:php|verify}',
+            'usage: composer {setup|build|check|modules|native:build|native:check|serve|test|test:php|verify}',
             64,
         );
 }

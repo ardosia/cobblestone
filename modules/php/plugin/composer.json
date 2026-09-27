@@ -1,0 +1,17 @@
+{
+  "name": "ardosia/cobblestone-plugin",
+  "description": "Cobblestone plugin contracts and plugin lifecycle.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5",
+    "ardosia/cobblestone-command": "dev-main",
+    "ardosia/cobblestone-event": "dev-main",
+    "ardosia/cobblestone-task": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\Plugin\\": ""
+    }
+  }
+}

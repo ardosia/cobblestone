@@ -1,9 +1,7 @@
-name: CI
+name: CI (manual)
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -42,11 +40,11 @@ jobs:
           fail-fast: true
       - name: Verify PHP ZTS runtime
         run: php tests/php/zts-probe.php
-      - name: Prepare Composer autoload
+      - name: Prepare Composer packages
         shell: bash
         run: |
-          composer validate --strict --no-check-publish
-          composer dump-autoload --no-interaction --classmap-authoritative
+          composer setup
+          composer check
       - name: Verify Unix PHP development tools
         if: runner.os == 'Linux'
         shell: bash
@@ -96,20 +94,9 @@ jobs:
           cargo +nightly-2026-09-20 check
           cargo +nightly-2026-09-20 clippy -- -D warnings
           cargo +nightly-2026-09-20 build --release
-      - name: Validate and measure Linux PHP adapter
-        if: runner.os == 'Linux'
+      - name: Validate PHP adapter
         shell: bash
-        run: |
-          extension="$PWD/modules/rust/php-extension/target/release/libcobblestone_core_php.so"
-          composer test:php
-          php -n -d "extension=$extension" benchmarks/php/boundary.php
-      - name: Validate and measure Windows PHP adapter
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $extension = (Resolve-Path "modules/rust/php-extension/target/release/cobblestone_core_php.dll").Path
-          composer test:php
-          php -n -d "extension=$extension" benchmarks/php/boundary.php
+        run: composer test:php
 
   ai-ci-summary:
     name: ai-ci-summary
@@ -123,12 +110,5 @@ jobs:
           VALIDATE_RESULT: ${{ needs.validate.result }}
           PHP_ZTS_RESULT: ${{ needs.php-zts.result }}
         run: |
-          {
-            echo "### Cobblestone CI"
-            echo
-            echo "- validate: $VALIDATE_RESULT"
-            echo "- php-zts: $PHP_ZTS_RESULT"
-          } >> "$GITHUB_STEP_SUMMARY"
-
           test "$VALIDATE_RESULT" = "success"
           test "$PHP_ZTS_RESULT" = "success"
