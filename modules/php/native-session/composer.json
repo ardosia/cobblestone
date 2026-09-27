@@ -1,0 +1,14 @@
+{
+  "name": "ardosia/cobblestone-native-session",
+  "description": "Cobblestone PHP facade over the native session mechanism.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\Native\\Session\\": ""
+    }
+  }
+}
