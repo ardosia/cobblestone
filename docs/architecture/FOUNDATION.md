@@ -37,7 +37,7 @@ All product code lives under `modules/`. Rust mechanism crates live in `modules/
 
 PHP code is a flat local Composer-package workspace under `modules/php/`. Direct child package directories and Composer package identities are lowercase (for example `modules/php/session` and `ardosia/cobblestone-session`), while PHP namespace/class identity remains PascalCase (for example `Cobblestone\\Session\\JoinFlow`). Each package root is its PSR-4 source root; package-local `src/` wrappers are deliberately omitted.
 
-The root Composer application consumes `modules/php/*` as path repositories and composes the running application through the server package. Package manifests declare their actual sibling dependencies, so boundaries are dependency-enforced rather than a decorative filesystem split. Gameplay packages such as world, player, entity, block, and inventory are introduced only with real implementation.
+The root Composer application consumes `modules/php/*` as path repositories and composes the running application through the server package. Package manifests declare their actual sibling dependencies, so boundaries are dependency-enforced rather than a decorative filesystem split. `world` is the first gameplay package now introduced with real implementation; player, entity, block, and inventory remain deferred until their work begins.
 
 The repository-level `modules/` directory and Composer package graph have no role in Zend extension registration. Native PHP functions are registered only by the Rust `ext-php-rs` extension under `modules/rust/php-extension`, and exact exported names are verified independently. Composer/PSR-4 reorganization therefore must not alter the native function ABI.
 
@@ -181,6 +181,18 @@ C007 starts from the proven real-client boundary rather than rebuilding transpor
 The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session\\Runtime` facade enforces owner-runtime identity and converts those native events into kernel-internal PHP values. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
 The first ordinary PHP kernel surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive only `PluginContext` with those facilities. `Server` translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, applies a finite native-event budget per tick, and disconnects sessions whose raw packets have no installed kernel handler. Fiber waits on native completions are polled and resumed only during the owner-runtime scheduler tick. The fixed-target real-client bootstrap is now orchestrated by an internal PHP state machine while Login validation, packet encoding, compression, and the temporary synthetic chunk probe remain native wire mechanisms.
+
+## C008 — PHP world API and Flat generation
+
+The first C008 slice establishes the PHP-owned fixed-target world surface before replacing the synthetic client chunk probe. `Cobblestone\\World\\World` is the semantic root. `BlockSource` and `ChunkSource` preserve useful fixed-target access seams observed in the client binary without exposing native ownership or transport objects. `MainChunkSource` is initially an in-memory resident source.
+
+The chunk model is exact to the currently evidenced structural target: 16×16 horizontal chunks, eight 16-block vertical sections, Y 0..127, legacy block id+data state, per-column biome identity, heightmap, separate sky/block light, and block extra data. Negative world coordinates map to chunks using Euclidean/floor division.
+
+Generator ids retain the fixed StartGame vocabulary (old=0, infinite=1, flat=2), but only Flat is implemented. Its default preset is the historical version-2 `2;7,2x3,2;1;` layout (bedrock, two dirt, grass, biome 1). Decoration, storage, broad block behavior, and non-flat generation remain outside this slice.
+
+The world package is PHP semantics. A native `cobblestone-world` crate is not introduced merely because Ardosia has one; native world representation remains contingent on ownership/performance evidence. Protocol-84 chunk encoding and replacing the temporary synthetic spawn probe are the next world integration slice.
+
+See `docs/provenance/WORLD015.md` for the evidence boundary.
 
 ## GC posture
 

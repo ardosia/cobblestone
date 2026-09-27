@@ -1,0 +1,38 @@
+schema = 1
+change = "world-api-flat-v1"
+
+[[tasks]]
+id = "evidence"
+status = "implemented"
+depends_on = []
+acceptance = "Record fixed-target world vocabulary and structural facts from Ardosia, supplied artifacts, and the pinned matching source."
+
+[[tasks]]
+id = "world-primitives"
+status = "implemented"
+depends_on = ["evidence"]
+acceptance = "Implement fixed 16x16x128 coordinates, chunk sections, block state/data, biome columns, heightmap, extra data, and light channels in PHP."
+
+[[tasks]]
+id = "world-sources"
+status = "implemented"
+depends_on = ["world-primitives"]
+acceptance = "Expose BlockSource/ChunkSource and an in-memory MainChunkSource with PHP-owned World semantics."
+
+[[tasks]]
+id = "flat-generator"
+status = "implemented"
+depends_on = ["world-primitives"]
+acceptance = "Implement GeneratorType vocabulary and FlatGenerator/FlatPreset only, including the historical default preset."
+
+[[tasks]]
+id = "composition"
+status = "implemented"
+depends_on = ["world-sources", "flat-generator"]
+acceptance = "Add the world package to server composition and local PHP test execution without changing the current real-client chunk stream."
+
+[[tasks]]
+id = "verify"
+status = "planned"
+depends_on = ["composition"]
+acceptance = "Run composer setup and composer verify locally against the persisted revision."

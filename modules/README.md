@@ -40,11 +40,20 @@ modules/php/
 │   ├── JoinFlow.php
 │   ├── JoinResult.php
 │   └── Event/
-└── task/
+├── task/
+│   ├── composer.json
+│   ├── Scheduler.php
+│   ├── NativeTaskAwait.php
+│   └── TickSleep.php
+└── world/
     ├── composer.json
-    ├── Scheduler.php
-    ├── NativeTaskAwait.php
-    └── TickSleep.php
+    ├── World.php
+    ├── Chunk.php
+    ├── ChunkSection.php
+    ├── BlockSource.php
+    ├── ChunkSource.php
+    ├── MainChunkSource.php
+    └── Generator/
 ```
 
 Package roots are their PSR-4 roots; do not add package-local `src/` wrappers.
@@ -56,12 +65,13 @@ command ──────────────┐
 event ────────────────┤
 task ─────────────────┼──> plugin ──┐
 native-session ──> session ─────────┼──> server
-native-session ─────────────────────┘
+native-session ─────────────────────┤
+world ──────────────────────────────┘
 ```
 
 The root Composer application consumes `modules/php/*` through path repositories and requires the server composition package.
 
-Gameplay packages such as `world/`, `player/`, `entity/`, `block/`, and `inventory/` are created only when their implementation begins.
+`world/` is now active. It owns fixed-target coordinates/chunks/world semantics and Flat generation. Later gameplay packages such as `player/`, `entity/`, `block/`, and `inventory/` are still created only when their implementation begins.
 
 ## Rust
 
