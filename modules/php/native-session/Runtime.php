@@ -33,6 +33,9 @@ final class Runtime
             'cobblestone_session_send',
             'cobblestone_session_protocol84_accept_login',
             'cobblestone_session_protocol84_spawn_probe',
+            'cobblestone_session_protocol84_accept_login_world',
+            'cobblestone_session_protocol84_request_chunk_radius',
+            'cobblestone_session_protocol84_send_initial_chunks',
             'cobblestone_session_disconnect',
             'cobblestone_session_stop',
         ] as $function) {
@@ -92,17 +95,49 @@ final class Runtime
     }
 
     /** @internal */
-    public function acceptLogin(int $sessionId, string $body): void
-    {
+    public function acceptLogin(
+        int $sessionId,
+        string $body,
+        int $seed,
+        int $generator,
+        int $spawnX,
+        int $spawnY,
+        int $spawnZ,
+        int $time,
+        bool $timeStarted,
+        string $levelId,
+    ): void {
         $this->assertRunning();
-        cobblestone_session_protocol84_accept_login($sessionId, $body);
+        cobblestone_session_protocol84_accept_login_world(
+            $sessionId,
+            $body,
+            $seed,
+            $generator,
+            $spawnX,
+            $spawnY,
+            $spawnZ,
+            $time,
+            $timeStarted,
+            $levelId,
+        );
     }
 
     /** @internal */
-    public function completeJoin(int $sessionId, string $body): int
+    public function requestedChunkRadius(string $body): int
     {
         $this->assertRunning();
-        return cobblestone_session_protocol84_spawn_probe($sessionId, $body);
+        return cobblestone_session_protocol84_request_chunk_radius($body);
+    }
+
+    /** @internal */
+    public function sendInitialChunks(int $sessionId, int $effectiveRadius, string $projection): int
+    {
+        $this->assertRunning();
+        return cobblestone_session_protocol84_send_initial_chunks(
+            $sessionId,
+            $effectiveRadius,
+            $projection,
+        );
     }
 
     public function disconnect(int $sessionId): void
