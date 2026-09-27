@@ -5,21 +5,14 @@ use std::collections::HashMap;
 
 use bytes::Bytes;
 use raknet_rust::server::{PeerId, RaknetServer, RaknetServerEvent, SendOptions};
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{mpsc, watch};
 use tracing::{debug, warn};
 
+use super::{
+    BackendCommand, CloseState, PER_CONNECTION_INBOUND_CAPACITY,
+};
 use crate::connection::Connection;
-use crate::{NetworkError, Reliability};
-
-pub(crate) const COMMAND_QUEUE_CAPACITY: usize = 4096;
-pub(crate) const PER_CONNECTION_INBOUND_CAPACITY: usize = 1024;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CloseState {
-    Open,
-    Closed,
-    Backpressure,
-}
+use crate::NetworkError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AcceptDispatch {
@@ -33,22 +26,6 @@ enum InboundDispatch {
     Enqueued,
     Full,
     Closed,
-}
-
-pub(crate) enum BackendCommand {
-    Send {
-        peer_id: PeerId,
-        payload: Bytes,
-        reliability: Reliability,
-        response: oneshot::Sender<Result<(), NetworkError>>,
-    },
-    Disconnect {
-        peer_id: PeerId,
-        response: oneshot::Sender<Result<(), NetworkError>>,
-    },
-    Shutdown {
-        response: oneshot::Sender<Result<(), NetworkError>>,
-    },
 }
 
 struct PeerState {
@@ -247,6 +224,7 @@ async fn close_peer_for_backpressure(
     let _ = server.disconnect(peer_id).await;
 }
 
+
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
@@ -337,3 +315,4 @@ mod tests {
         );
     }
 }
+
