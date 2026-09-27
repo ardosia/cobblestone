@@ -4,7 +4,7 @@ use cobblestone_codec::{
     SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket, StartGamePacket,
     decode_bootstrap_packet, encode_bootstrap_packet, encode_protocol84_full_chunk_data, packet_id,
 };
-use cobblestone_core::{NativeBuffer, RuntimeId};
+use cobblestone_core::{ChunkCoord, NativeBuffer, RuntimeId};
 use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
@@ -287,6 +287,58 @@ pub fn cobblestone_session_protocol84_request_chunk_radius(body: Binary<u8>) -> 
     })
 }
 
+
+fn initial_chunk_count(effective_radius: i32) -> PhpResult<usize> {
+    if !(1..=MAX_INITIAL_CHUNK_RADIUS).contains(&effective_radius) {
+        return Err(php_error(format!(
+            "effective initial chunk radius must be in range 1..={MAX_INITIAL_CHUNK_RADIUS}"
+        )));
+    }
+
+    let side = effective_radius
+        .checked_mul(2)
+        .and_then(|value| value.checked_add(1))
+        .ok_or_else(|| php_error("initial chunk radius overflow"))?;
+    usize::try_from(side * side)
+        .map_err(|_| php_error("initial chunk count exceeds platform size"))
+}
+
+fn queue_initial_chunk_batch(
+    owner: RuntimeId,
+    session_id: SessionId,
+    effective_radius: i32,
+    chunks: Vec<RawPacket>,
+) -> PhpResult<i64> {
+    let expected_chunks = initial_chunk_count(effective_radius)?;
+    if chunks.len() != expected_chunks {
+        return Err(php_error(format!(
+            "initial native chunk count mismatch: expected {expected_chunks}, got {}",
+            chunks.len()
+        )));
+    }
+
+    let batch = bootstrap_session_packet(BootstrapPacket::Batch(BatchPacket::new(chunks)))?;
+    let encoded_bytes = batch
+        .body()
+        .len()
+        .checked_add(1)
+        .and_then(|value| i64::try_from(value).ok())
+        .ok_or_else(|| php_error("encoded chunk Batch length exceeds PHP integer range"))?;
+
+    let packets = vec![
+        SessionPacket::new(
+            CHUNK_RADIUS_UPDATED_ID,
+            NativeBuffer::copy_from_slice(&effective_radius.to_be_bytes()),
+        ),
+        batch,
+        bootstrap_session_packet(BootstrapPacket::PlayStatus(PlayStatusPacket::new(
+            PlayStatusPacket::PLAYER_SPAWN,
+        )))?,
+    ];
+    queue_reliable_ordered(owner, session_id, packets)?;
+    Ok(encoded_bytes)
+}
+
 /// Decodes the private PHP/native bulk projection, encodes exact protocol-84 chunks, and queues
 /// ChunkRadiusUpdated + one compressed Batch + PLAYER_SPAWN.
 ///
@@ -302,41 +354,57 @@ pub fn cobblestone_session_protocol84_send_initial_chunks(
         let owner = current_runtime_id().map_err(php_error)?;
         let session_id = owner_session_id(session_id)?;
         let effective_radius = i32_field("effective chunk radius", effective_radius)?;
-        if !(1..=MAX_INITIAL_CHUNK_RADIUS).contains(&effective_radius) {
-            return Err(php_error(format!(
-                "effective initial chunk radius must be in range 1..={MAX_INITIAL_CHUNK_RADIUS}"
-            )));
-        }
-
-        let side = effective_radius
-            .checked_mul(2)
-            .and_then(|value| value.checked_add(1))
-            .ok_or_else(|| php_error("initial chunk radius overflow"))?;
-        let expected_chunks = usize::try_from(side * side)
-            .map_err(|_| php_error("initial chunk count exceeds platform size"))?;
+        let expected_chunks = initial_chunk_count(effective_radius)?;
         let projection: Vec<u8> = projection.into();
         let chunks = decode_initial_chunk_projection(&projection, expected_chunks)?;
 
-        let batch = bootstrap_session_packet(BootstrapPacket::Batch(BatchPacket::new(chunks)))?;
-        let encoded_bytes = batch
-            .body()
-            .len()
-            .checked_add(1)
-            .and_then(|value| i64::try_from(value).ok())
-            .ok_or_else(|| php_error("encoded chunk Batch length exceeds PHP integer range"))?;
+        queue_initial_chunk_batch(owner, session_id, effective_radius, chunks)
+    })
+}
 
-        let packets = vec![
-            SessionPacket::new(
-                CHUNK_RADIUS_UPDATED_ID,
-                NativeBuffer::copy_from_slice(&effective_radius.to_be_bytes()),
-            ),
-            batch,
-            bootstrap_session_packet(BootstrapPacket::PlayStatus(PlayStatusPacket::new(
-                PlayStatusPacket::PLAYER_SPAWN,
-            )))?,
-        ];
-        queue_reliable_ordered(owner, session_id, packets)?;
-        Ok(encoded_bytes)
+
+/// Reads immutable native world snapshots directly, reuses revision-keyed protocol-84 chunk
+/// packets, and queues ChunkRadiusUpdated + one compressed Batch + PLAYER_SPAWN.
+#[php_function]
+#[php(name = "cobblestone_session_protocol84_send_native_chunks")]
+pub fn cobblestone_session_protocol84_send_native_chunks(
+    session_id: i64,
+    effective_radius: i64,
+    world_handle: i64,
+    center_chunk_x: i64,
+    center_chunk_z: i64,
+) -> PhpResult<i64> {
+    php_boundary(|| {
+        let owner = current_runtime_id().map_err(php_error)?;
+        let session_id = owner_session_id(session_id)?;
+        let effective_radius = i32_field("effective chunk radius", effective_radius)?;
+        let expected_chunks = initial_chunk_count(effective_radius)?;
+        let center_x = i32_field("center chunk x", center_chunk_x)?;
+        let center_z = i32_field("center chunk z", center_chunk_z)?;
+        let min_x = center_x
+            .checked_sub(effective_radius)
+            .ok_or_else(|| php_error("initial chunk x range underflow"))?;
+        let max_x = center_x
+            .checked_add(effective_radius)
+            .ok_or_else(|| php_error("initial chunk x range overflow"))?;
+        let min_z = center_z
+            .checked_sub(effective_radius)
+            .ok_or_else(|| php_error("initial chunk z range underflow"))?;
+        let max_z = center_z
+            .checked_add(effective_radius)
+            .ok_or_else(|| php_error("initial chunk z range overflow"))?;
+
+        let mut chunks = Vec::with_capacity(expected_chunks);
+        for x in min_x..=max_x {
+            for z in min_z..=max_z {
+                chunks.push(crate::world::protocol84_chunk(
+                    world_handle,
+                    ChunkCoord::new(x, z),
+                )?);
+            }
+        }
+
+        queue_initial_chunk_batch(owner, session_id, effective_radius, chunks)
     })
 }
 
@@ -350,5 +418,8 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
         ))
         .function(wrap_function!(
             cobblestone_session_protocol84_send_initial_chunks
+        ))
+        .function(wrap_function!(
+            cobblestone_session_protocol84_send_native_chunks
         ))
 }

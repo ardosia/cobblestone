@@ -36,6 +36,7 @@ final class Runtime
             'cobblestone_session_protocol84_accept_login_world',
             'cobblestone_session_protocol84_request_chunk_radius',
             'cobblestone_session_protocol84_send_initial_chunks',
+            'cobblestone_session_protocol84_send_native_chunks',
             'cobblestone_session_disconnect',
             'cobblestone_session_stop',
         ] as $function) {
@@ -136,6 +137,25 @@ final class Runtime
             $sessionId,
             $effectiveRadius,
             $projection,
+        );
+    }
+
+
+    /** @internal */
+    public function sendInitialWorldChunks(
+        int $sessionId,
+        int $effectiveRadius,
+        int $worldHandle,
+        int $centerChunkX,
+        int $centerChunkZ,
+    ): int {
+        $this->assertRunning();
+        return cobblestone_session_protocol84_send_native_chunks(
+            $sessionId,
+            $effectiveRadius,
+            $worldHandle,
+            $centerChunkX,
+            $centerChunkZ,
         );
     }
 

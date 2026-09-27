@@ -85,22 +85,34 @@ final class JoinFlow
 
             $requestedRadius = $this->sessions->requestedChunkRadius($packet->body);
             $effectiveRadius = min($requestedRadius, $this->initialChunkRadius);
-            $snapshots = $this->initialChunkSnapshots($effectiveRadius);
-            $projection = self::nativeProjection($snapshots);
+            $center = $this->world->spawn()->chunk();
+            $chunkCount = $this->ensureInitialChunks($effectiveRadius, $center);
 
             $encodeStarted = hrtime(true);
-            $encodedBytes = $this->sessions->sendInitialChunks(
-                $packet->sessionId,
-                $effectiveRadius,
-                $projection,
-            );
+            $nativeStore = $this->world->nativeStore();
+            if ($nativeStore !== null) {
+                $encodedBytes = $this->sessions->sendInitialWorldChunks(
+                    $packet->sessionId,
+                    $effectiveRadius,
+                    $nativeStore->handle(),
+                    $center->x,
+                    $center->z,
+                );
+            } else {
+                $snapshots = $this->initialChunkSnapshots($effectiveRadius, $center);
+                $encodedBytes = $this->sessions->sendInitialChunks(
+                    $packet->sessionId,
+                    $effectiveRadius,
+                    self::nativeProjection($snapshots),
+                );
+            }
             $encodeNanos = hrtime(true) - $encodeStarted;
 
             $this->states[$packet->sessionId] = self::SPAWNED;
             return JoinResult::spawned(
                 $requestedRadius,
                 $effectiveRadius,
-                count($snapshots),
+                $chunkCount,
                 $encodedBytes,
                 $encodeNanos,
             );
@@ -109,17 +121,31 @@ final class JoinFlow
         return JoinResult::gameplay();
     }
 
-    /** @return list<ChunkSnapshot> */
-    private function initialChunkSnapshots(int $radius): array
+    private function ensureInitialChunks(int $radius, ChunkPos $center): int
     {
-        $center = $this->world->spawn()->chunk();
+        $count = 0;
+        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
+            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
+                if ($this->world->chunk(new ChunkPos($x, $z)) === null) {
+                    throw new LogicException("world failed to generate initial chunk {$x}:{$z}");
+                }
+                ++$count;
+            }
+        }
+
+        return $count;
+    }
+
+    /** @return list<ChunkSnapshot> */
+    private function initialChunkSnapshots(int $radius, ChunkPos $center): array
+    {
         $snapshots = [];
 
         for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
             for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
-                $chunk = $this->world->chunk(new ChunkPos($x, $z));
+                $chunk = $this->world->chunk(new ChunkPos($x, $z), false);
                 if ($chunk === null) {
-                    throw new LogicException("world failed to generate initial chunk {$x}:{$z}");
+                    throw new LogicException("initial chunk {$x}:{$z} disappeared before snapshot");
                 }
                 $snapshots[] = $chunk->snapshot();
             }
