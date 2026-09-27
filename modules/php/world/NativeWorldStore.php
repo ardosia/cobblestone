@@ -50,6 +50,7 @@ final class NativeWorldStore
             'cobblestone_world_recalculate_height_map',
             'cobblestone_world_block_extra_data',
             'cobblestone_world_set_block_extra_data',
+            'cobblestone_world_snapshot',
         ] as $function) {
             if (!\function_exists($function)) {
                 return false;
@@ -301,6 +302,22 @@ final class NativeWorldStore
             $y,
             $z,
             $data,
+        );
+    }
+
+
+    /**
+     * Materializes one immutable chunk projection for compatibility/debug consumers.
+     *
+     * Layout: blockIds, blockData, skyLight, blockLight, biomes, heightMap, extraCount(u32le),
+     * then extraData key/value u16le pairs.
+     */
+    public function snapshotProjection(ChunkPos $position): string
+    {
+        return cobblestone_world_snapshot(
+            $this->requireHandle(),
+            $position->x,
+            $position->z,
         );
     }
 
