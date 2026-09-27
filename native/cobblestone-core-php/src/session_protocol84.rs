@@ -1,7 +1,8 @@
 use cobblestone_codec::{
     AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, PlayStatusPacket,
     RawPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket, StartGamePacket,
-    decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame, encode_game_frame, packet_id,
+    decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame, encode_game_frame,
+    packet_id,
 };
 use cobblestone_core::{NativeBuffer, RuntimeId};
 use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
@@ -192,8 +193,6 @@ pub fn cobblestone_session_protocol84_spawn_probe(
 
 pub(crate) fn register_protocol84_session_functions(module: ModuleBuilder) -> ModuleBuilder {
     module
-        .function(wrap_function!(
-            cobblestone_session_protocol84_accept_login
-        ))
+        .function(wrap_function!(cobblestone_session_protocol84_accept_login))
         .function(wrap_function!(cobblestone_session_protocol84_spawn_probe))
 }
