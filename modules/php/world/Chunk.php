@@ -99,6 +99,31 @@ final class Chunk
         return $this->sections[$section]->setSkyLight($x, $y & 0x0f, $z, $level);
     }
 
+    /**
+     * Fills semantic sky light from a global chunk-local Y through the world top.
+     *
+     * @internal Generator initialization primitive.
+     */
+    public function fillSkyLightFrom(int $y, int $level): void
+    {
+        if ($y < WorldBounds::MIN_Y || $y > WorldBounds::WORLD_HEIGHT) {
+            throw new ValueError('chunk sky-light fill y must be in range 0..128');
+        }
+        if ($level < 0 || $level > 0x0f) {
+            throw new ValueError('fixed-target light level must be in range 0..15');
+        }
+
+        foreach ($this->sections as $index => $section) {
+            $sectionStart = $index * WorldBounds::SECTION_EDGE;
+            $sectionEnd = $sectionStart + WorldBounds::SECTION_EDGE;
+            if ($y >= $sectionEnd) {
+                continue;
+            }
+
+            $section->fillSkyLightFrom(max(0, $y - $sectionStart), $level);
+        }
+    }
+
     public function blockLight(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
@@ -188,6 +213,37 @@ final class Chunk
     public function extraData(): array
     {
         return $this->extraData;
+    }
+
+    /**
+     * Captures immutable semantic chunk state without exposing mutable section objects.
+     */
+    public function snapshot(): ChunkSnapshot
+    {
+        $blockIds = '';
+        $blockData = '';
+        $skyLight = '';
+        $blockLight = '';
+
+        foreach ($this->sections as $section) {
+            $snapshot = $section->snapshot();
+            $blockIds .= $snapshot->blockIds;
+            $blockData .= $snapshot->blockData;
+            $skyLight .= $snapshot->skyLight;
+            $blockLight .= $snapshot->blockLight;
+        }
+
+        return new ChunkSnapshot(
+            $this->position,
+            $this->revision,
+            $blockIds,
+            $blockData,
+            $skyLight,
+            $blockLight,
+            $this->biomes,
+            $this->heightMap,
+            $this->extraData,
+        );
     }
 
     public function isGenerated(): bool
