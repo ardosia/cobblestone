@@ -56,6 +56,12 @@ final class Scheduler
      */
     private array $waiting = [];
 
+    /**
+     * Schedules a one-shot task after the requested number of future ticks.
+     *
+     * A zero-delay task cannot run in the already-active tick, so zero and one both become due on
+     * the next owner-runtime tick.
+     */
     public function schedule(int $delayTicks, Closure $task): int
     {
         if ($delayTicks < 0) {
@@ -64,7 +70,7 @@ final class Scheduler
 
         $id = $this->nextTaskId++;
         $this->tasks[$id] = [
-            'due' => $this->tick + $delayTicks + 1,
+            'due' => $this->tick + max(1, $delayTicks),
             'interval' => null,
             'task' => $task,
         ];
