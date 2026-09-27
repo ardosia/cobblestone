@@ -120,7 +120,10 @@ final class WorldMutation
         );
     }
 
-    /** @return array<string, ChunkPatch> */
+    /**
+     * @internal Coordinator snapshot of staged chunk patches.
+     * @return array<string, ChunkPatch>
+     */
     public function patches(): array
     {
         $patches = $this->patches;

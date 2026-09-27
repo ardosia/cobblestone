@@ -98,4 +98,28 @@ final class MutationCoordinator
             "world mutation did not stabilize within {$this->maxAttempts} attempts",
         );
     }
+
+    /**
+     * @param array<string, ChunkPatch> $patches
+     * @return array<string, ChunkPatch>
+     */
+    private function orderPatches(array $patches): array
+    {
+        uasort(
+            $patches,
+            function (ChunkPatch $left, ChunkPatch $right): int {
+                $leftPosition = $left->chunk()->position();
+                $rightPosition = $right->chunk()->position();
+                $leftRegion = $this->regions->forChunk($leftPosition);
+                $rightRegion = $this->regions->forChunk($rightPosition);
+
+                return $leftRegion->x <=> $rightRegion->x
+                    ?: $leftRegion->z <=> $rightRegion->z
+                    ?: $leftPosition->x <=> $rightPosition->x
+                    ?: $leftPosition->z <=> $rightPosition->z;
+            },
+        );
+
+        return $patches;
+    }
 }
