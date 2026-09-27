@@ -121,7 +121,9 @@ impl SessionHost {
         }
 
         if let Some(thread) = self.thread.take() {
-            thread.join().map_err(|_| SessionHostError::ThreadPanicked)?;
+            thread
+                .join()
+                .map_err(|_| SessionHostError::ThreadPanicked)?;
         }
         Ok(())
     }
