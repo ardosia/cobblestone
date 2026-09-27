@@ -15,9 +15,12 @@ acceptance = [
   "make mutation staging depend on ChunkSource rather than the concrete World aggregate",
   "merge the one-class command/event Composer packages into one kernel package while preserving PHP namespaces",
   "fold the tick-only Composer package into its sole lifecycle owner, cobblestone-server, while preserving Cobblestone\\Tick API identity",
+  "replace full live-set scans for scheduled tasks and TickSleep fibers with stable due-time binary min-heaps",
+  "keep native-await polling bounded to currently outstanding native waits and document that no ready-set/batch completion ABI exists yet",
+  "add a scheduler scaling benchmark covering dormant tasks, sleeping fibers, and due-task throughput",
   "avoid speculative world subpackage splits that would introduce Composer cycles or new thin packages",
   "pass composer setup and composer verify locally on the exact persisted implementation revision",
-  "reconfirm fixed-target 0.15.10 client join after the join/codec boundary cleanup"
+  "reconfirm fixed-target 0.15.10 client join after the runtime/scheduler cleanup"
 ]
 
 [convergence]

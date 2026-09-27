@@ -26,6 +26,7 @@
   "scripts": {
     "setup": "@php tools/project.php setup",
     "build": "@php tools/project.php build",
+    "bench:scheduler": "@php benchmarks/php/scheduler.php",
     "check": "@php tools/project.php check",
     "modules": "@php tools/project.php modules",
     "native:build": "@php tools/project.php native:build",

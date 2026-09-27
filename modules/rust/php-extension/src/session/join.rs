@@ -83,8 +83,8 @@ impl<'a> ProjectionReader<'a> {
 }
 
 pub(crate) fn bootstrap_session_packet(packet: BootstrapPacket) -> PhpResult<SessionPacket> {
-    let raw =
-        encode_bootstrap_packet(&packet, codec_limits()).map_err(|error| php_error(error.to_string()))?;
+    let raw = encode_bootstrap_packet(&packet, codec_limits())
+        .map_err(|error| php_error(error.to_string()))?;
     Ok(SessionPacket::new(raw.id(), raw.body().clone()))
 }
 

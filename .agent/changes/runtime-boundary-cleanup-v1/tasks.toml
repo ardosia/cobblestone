@@ -38,9 +38,21 @@ depends_on = []
 acceptance = "Merge command/event into kernel, fold tick into server, and break Mutation-to-World concrete coupling through ChunkSource without creating cyclic world subpackages."
 
 [[tasks]]
+id = "scheduler-due-queues"
+status = "implemented"
+depends_on = []
+acceptance = "Scheduled tasks and TickSleep fibers use stable binary min-heaps so each tick processes only due entries; active native waits remain the only per-wait polling set because no batch-ready native ABI exists."
+
+[[tasks]]
+id = "scheduler-benchmark"
+status = "implemented"
+depends_on = ["scheduler-due-queues"]
+acceptance = "Add a repeatable PHP benchmark for tick cost with dormant tasks, sleeping Fibers, and many simultaneously due tasks."
+
+[[tasks]]
 id = "local-verify"
 status = "planned"
-depends_on = ["session-hot-path", "raw-bootstrap-codec", "height-cache", "projection-copy", "legacy-extraction", "php-packages"]
+depends_on = ["session-hot-path", "raw-bootstrap-codec", "height-cache", "projection-copy", "legacy-extraction", "php-packages", "scheduler-due-queues"]
 acceptance = "Run composer setup followed by composer verify on the persisted implementation revision."
 
 [[tasks]]

@@ -8,9 +8,14 @@ use Closure;
 use Fiber;
 use InvalidArgumentException;
 use LogicException;
+use Throwable;
 
 /**
  * Single-owner tick scheduler with Fiber integration.
+ *
+ * Scheduled work and TickSleep fibers live in due-time min-heaps, so dormant entries do not add
+ * fixed work to every tick. Native waits remain in a compact active-wait set because the current
+ * native completion proof exposes only per-task readiness polling.
  *
  * Fibers are resumed only from tick() on the owning PHP runtime. Native workers publish completion
  * state through the existing bounded native completion mechanism and never invoke Zend directly.
@@ -20,6 +25,9 @@ final class Scheduler
     private int $tick = 0;
     private int $nextTaskId = 1;
     private int $nextFiberId = 1;
+    private int $staleTaskEntries = 0;
+    private readonly DueQueue $taskQueue;
+    private readonly DueQueue $sleepQueue;
 
     /** @var array<int, array{due: int, interval: ?int, task: Closure(): void}> */
     private array $tasks = [];
@@ -27,8 +35,17 @@ final class Scheduler
     /** @var array<int, Fiber<mixed, mixed, mixed, mixed>> */
     private array $fibers = [];
 
-    /** @var array<int, NativeTaskAwait|array{wake: int}> */
-    private array $waiting = [];
+    /** @var array<int, int> fiber id => wake tick */
+    private array $sleeping = [];
+
+    /** @var array<int, NativeTaskAwait> */
+    private array $nativeWaiting = [];
+
+    public function __construct()
+    {
+        $this->taskQueue = new DueQueue();
+        $this->sleepQueue = new DueQueue();
+    }
 
     public function schedule(int $delayTicks, Closure $task): int
     {
@@ -37,11 +54,13 @@ final class Scheduler
         }
 
         $id = $this->nextTaskId++;
+        $due = $this->tick + max(1, $delayTicks);
         $this->tasks[$id] = [
-            'due' => $this->tick + max(1, $delayTicks),
+            'due' => $due,
             'interval' => null,
             'task' => $task,
         ];
+        $this->taskQueue->push($due, $id);
 
         return $id;
     }
@@ -53,11 +72,13 @@ final class Scheduler
         }
 
         $id = $this->nextTaskId++;
+        $due = $this->tick + $intervalTicks;
         $this->tasks[$id] = [
-            'due' => $this->tick + $intervalTicks,
+            'due' => $due,
             'interval' => $intervalTicks,
             'task' => $task,
         ];
+        $this->taskQueue->push($due, $id);
 
         return $id;
     }
@@ -69,6 +90,8 @@ final class Scheduler
         }
 
         unset($this->tasks[$taskId]);
+        ++$this->staleTaskEntries;
+        $this->compactTaskQueueIfNeeded();
 
         return true;
     }
@@ -97,53 +120,108 @@ final class Scheduler
     public function tick(): void
     {
         ++$this->tick;
+        $this->runDueTasks();
+        $this->wakeSleepingFibers();
+        $this->pollNativeFibers();
+    }
 
-        foreach (array_keys($this->tasks) as $taskId) {
+    public function shutdown(): void
+    {
+        $this->tasks = [];
+        $this->sleeping = [];
+        $this->nativeWaiting = [];
+        $this->fibers = [];
+        $this->staleTaskEntries = 0;
+        $this->taskQueue->clear();
+        $this->sleepQueue->clear();
+    }
+
+    private function runDueTasks(): void
+    {
+        while (($due = $this->taskQueue->peekDue()) !== null && $due <= $this->tick) {
+            $entry = $this->taskQueue->pop();
+            if ($entry === null) {
+                return;
+            }
+
+            $taskId = $entry['id'];
             $scheduled = $this->tasks[$taskId] ?? null;
-            if ($scheduled === null || $scheduled['due'] > $this->tick) {
+            if ($scheduled === null) {
+                if ($this->staleTaskEntries > 0) {
+                    --$this->staleTaskEntries;
+                }
+                continue;
+            }
+            if ($scheduled['due'] !== $entry['due']) {
                 continue;
             }
 
-            ($scheduled['task'])();
+            try {
+                ($scheduled['task'])();
+            } catch (Throwable $error) {
+                if (
+                    isset($this->tasks[$taskId])
+                    && $this->tasks[$taskId]['due'] === $entry['due']
+                ) {
+                    $this->taskQueue->push($entry['due'], $taskId);
+                }
+                throw $error;
+            }
 
             if (!isset($this->tasks[$taskId])) {
                 continue;
             }
             if ($scheduled['interval'] === null) {
                 unset($this->tasks[$taskId]);
-            } else {
-                $this->tasks[$taskId]['due'] = $this->tick + $scheduled['interval'];
-            }
-        }
-
-        foreach (array_keys($this->waiting) as $fiberId) {
-            $wait = $this->waiting[$fiberId] ?? null;
-            $fiber = $this->fibers[$fiberId] ?? null;
-            if ($wait === null || $fiber === null) {
                 continue;
             }
 
-            if ($wait instanceof NativeTaskAwait) {
-                if (!cobblestone_core_async_ready($wait->taskId)) {
-                    continue;
-                }
-                $yielded = $fiber->resume(cobblestone_core_async_take($wait->taskId));
-            } else {
-                if ($wait['wake'] > $this->tick) {
-                    continue;
-                }
-                $yielded = $fiber->resume();
+            $nextDue = $this->tick + $scheduled['interval'];
+            $this->tasks[$taskId]['due'] = $nextDue;
+            $this->taskQueue->push($nextDue, $taskId);
+        }
+    }
+
+    private function wakeSleepingFibers(): void
+    {
+        while (($wake = $this->sleepQueue->peekDue()) !== null && $wake <= $this->tick) {
+            $entry = $this->sleepQueue->pop();
+            if ($entry === null) {
+                return;
             }
 
+            $fiberId = $entry['id'];
+            if (($this->sleeping[$fiberId] ?? null) !== $entry['due']) {
+                continue;
+            }
+
+            unset($this->sleeping[$fiberId]);
+            $fiber = $this->fibers[$fiberId] ?? null;
+            if ($fiber === null) {
+                continue;
+            }
+
+            $yielded = $fiber->resume();
             $this->captureFiberState($fiberId, $yielded);
         }
     }
 
-    public function shutdown(): void
+    private function pollNativeFibers(): void
     {
-        $this->tasks = [];
-        $this->waiting = [];
-        $this->fibers = [];
+        foreach (array_keys($this->nativeWaiting) as $fiberId) {
+            $wait = $this->nativeWaiting[$fiberId] ?? null;
+            $fiber = $this->fibers[$fiberId] ?? null;
+            if ($wait === null || $fiber === null) {
+                continue;
+            }
+            if (!cobblestone_core_async_ready($wait->taskId)) {
+                continue;
+            }
+
+            unset($this->nativeWaiting[$fiberId]);
+            $yielded = $fiber->resume(cobblestone_core_async_take($wait->taskId));
+            $this->captureFiberState($fiberId, $yielded);
+        }
     }
 
     private function captureFiberState(int $fiberId, mixed $yielded): void
@@ -153,17 +231,52 @@ final class Scheduler
             return;
         }
         if ($fiber->isTerminated()) {
-            unset($this->fibers[$fiberId], $this->waiting[$fiberId]);
+            unset(
+                $this->fibers[$fiberId],
+                $this->sleeping[$fiberId],
+                $this->nativeWaiting[$fiberId],
+            );
 
             return;
         }
 
-        $this->waiting[$fiberId] = match (true) {
-            $yielded instanceof NativeTaskAwait => $yielded,
-            $yielded instanceof TickSleep => ['wake' => $this->tick + $yielded->ticks],
-            default => throw new LogicException(
-                'Cobblestone Fiber suspended without Scheduler::awaitNative() or Scheduler::sleep()',
-            ),
-        };
+        if ($yielded instanceof NativeTaskAwait) {
+            unset($this->sleeping[$fiberId]);
+            $this->nativeWaiting[$fiberId] = $yielded;
+
+            return;
+        }
+
+        if ($yielded instanceof TickSleep) {
+            unset($this->nativeWaiting[$fiberId]);
+            $wake = $this->tick + $yielded->ticks;
+            $this->sleeping[$fiberId] = $wake;
+            $this->sleepQueue->push($wake, $fiberId);
+
+            return;
+        }
+
+        throw new LogicException(
+            'Cobblestone Fiber suspended without Scheduler::awaitNative() or Scheduler::sleep()',
+        );
+    }
+
+    private function compactTaskQueueIfNeeded(): void
+    {
+        if ($this->tasks === []) {
+            $this->taskQueue->clear();
+            $this->staleTaskEntries = 0;
+            return;
+        }
+
+        if ($this->staleTaskEntries < 1_024 || $this->staleTaskEntries < count($this->tasks)) {
+            return;
+        }
+
+        $this->taskQueue->clear();
+        foreach ($this->tasks as $taskId => $scheduled) {
+            $this->taskQueue->push($scheduled['due'], $taskId);
+        }
+        $this->staleTaskEntries = 0;
     }
 }
