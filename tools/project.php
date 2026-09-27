@@ -148,6 +148,7 @@ function runWithExtension(string $script, array $arguments = []): void
 function testPhp(): void
 {
     run([PHP_BINARY, ROOT . '/tests/php/zts-probe.php']);
+    run([PHP_BINARY, ROOT . '/tests/php/world-smoke.php']);
 
     foreach ([
         'native-exports-smoke.php',
