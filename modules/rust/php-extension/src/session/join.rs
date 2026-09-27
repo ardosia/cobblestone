@@ -10,8 +10,9 @@ use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 
-use crate::session_php::{codec_limits, owner_session_id, with_runtime};
-use crate::{current_runtime_id, php_boundary, php_error};
+use crate::boundary::{php_boundary, php_error};
+use crate::runtime::current_runtime_id;
+use crate::session::bridge::{codec_limits, owner_session_id, with_runtime};
 
 const PROBE_CHUNK_RADIUS: i32 = 2;
 const FULL_CHUNK_DATA_ID: u8 = 0x34;
@@ -191,7 +192,7 @@ pub fn cobblestone_session_protocol84_spawn_probe(
     })
 }
 
-pub(crate) fn register_protocol84_session_functions(module: ModuleBuilder) -> ModuleBuilder {
+pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
         .function(wrap_function!(cobblestone_session_protocol84_accept_login))
         .function(wrap_function!(cobblestone_session_protocol84_spawn_probe))

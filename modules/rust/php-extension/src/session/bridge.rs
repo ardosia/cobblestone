@@ -15,7 +15,8 @@ use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::Zval;
 
-use super::{current_runtime_id, php_boundary, php_error};
+use crate::boundary::{php_boundary, php_error};
+use crate::runtime::current_runtime_id;
 
 const EVENT_QUEUE_CAPACITY: usize = 4096;
 const SESSION_COMMAND_CAPACITY: usize = 256;
@@ -250,7 +251,7 @@ pub fn cobblestone_session_stop() -> PhpResult<()> {
     })
 }
 
-pub(crate) fn register_session_functions(module: ModuleBuilder) -> ModuleBuilder {
+pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
         .function(wrap_function!(cobblestone_session_start))
         .function(wrap_function!(cobblestone_session_running))
@@ -260,7 +261,7 @@ pub(crate) fn register_session_functions(module: ModuleBuilder) -> ModuleBuilder
         .function(wrap_function!(cobblestone_session_stop))
 }
 
-pub(crate) fn shutdown_session_runtime() {
+pub(crate) fn shutdown() {
     let runtime = session_runtime().take();
     if let Some(runtime) = runtime {
         let _ = runtime.host.shutdown();
