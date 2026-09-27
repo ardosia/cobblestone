@@ -9,9 +9,7 @@ use cobblestone_network::NetworkConfig;
 use cobblestone_session::{
     SessionDelivery, SessionHost, SessionHostConfig, SessionHostEvent, SessionPacket,
 };
-use raknet_rust::client::{
-    ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent,
-};
+use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
 use raknet_rust::low_level::protocol::Reliability as RaknetReliability;
 use tokio::time::{sleep, timeout};
 

@@ -10,9 +10,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tracing::{debug, warn};
 
-use crate::{
-    Session, SessionDelivery, SessionError, SessionId, SessionPacket, SessionServer,
-};
+use crate::{Session, SessionDelivery, SessionError, SessionId, SessionPacket, SessionServer};
 use cobblestone_codec::CodecLimits;
 use cobblestone_network::NetworkConfig;
 
@@ -192,10 +190,7 @@ impl SessionHost {
         packet: SessionPacket,
         delivery: SessionDelivery,
     ) -> Result<(), SessionHostError> {
-        self.try_command(
-            session_id,
-            SessionCommand::Send { packet, delivery },
-        )
+        self.try_command(session_id, SessionCommand::Send { packet, delivery })
     }
 
     /// Queues a disconnect for a live session.
@@ -220,16 +215,12 @@ impl SessionHost {
 
         match sender.try_send(command) {
             Ok(()) => Ok(()),
-            Err(mpsc::error::TrySendError::Full(_)) => {
-                Err(SessionHostError::CommandBackpressure {
-                    session_id: session_id.get(),
-                })
-            }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                Err(SessionHostError::CommandClosed {
-                    session_id: session_id.get(),
-                })
-            }
+            Err(mpsc::error::TrySendError::Full(_)) => Err(SessionHostError::CommandBackpressure {
+                session_id: session_id.get(),
+            }),
+            Err(mpsc::error::TrySendError::Closed(_)) => Err(SessionHostError::CommandClosed {
+                session_id: session_id.get(),
+            }),
         }
     }
 
@@ -243,7 +234,9 @@ impl SessionHost {
         }
 
         if let Some(thread) = self.thread.take() {
-            thread.join().map_err(|_| SessionHostError::ThreadPanicked)?;
+            thread
+                .join()
+                .map_err(|_| SessionHostError::ThreadPanicked)?;
         }
         Ok(())
     }

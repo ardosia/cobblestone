@@ -131,7 +131,9 @@ pub fn cobblestone_session_start(
         let max_connections = usize::try_from(max_connections)
             .ok()
             .and_then(NonZeroUsize::new)
-            .ok_or_else(|| php_error("max_connections must be a positive platform-sized integer"))?;
+            .ok_or_else(|| {
+                php_error("max_connections must be a positive platform-sized integer")
+            })?;
         let event_capacity =
             NonZeroUsize::new(EVENT_QUEUE_CAPACITY).expect("fixed nonzero event capacity");
         let command_capacity =
@@ -246,6 +248,16 @@ pub fn cobblestone_session_stop() -> PhpResult<()> {
             .shutdown()
             .map_err(|error| php_error(error.to_string()))
     })
+}
+
+pub(crate) fn register_session_functions(module: ModuleBuilder) -> ModuleBuilder {
+    module
+        .function(wrap_function!(cobblestone_session_start))
+        .function(wrap_function!(cobblestone_session_running))
+        .function(wrap_function!(cobblestone_session_poll_event))
+        .function(wrap_function!(cobblestone_session_send))
+        .function(wrap_function!(cobblestone_session_disconnect))
+        .function(wrap_function!(cobblestone_session_stop))
 }
 
 pub(crate) fn shutdown_session_runtime() {

@@ -13,11 +13,7 @@ use cobblestone_core::{Arena, Completion, Handle, NativeBuffer, RuntimeId, Worke
 use ext_php_rs::exception::{PhpException, PhpResult};
 use ext_php_rs::prelude::*;
 
-use session_php::{
-    cobblestone_session_disconnect, cobblestone_session_poll_event, cobblestone_session_running,
-    cobblestone_session_send, cobblestone_session_start, cobblestone_session_stop,
-    shutdown_session_runtime,
-};
+use session_php::{register_session_functions, shutdown_session_runtime};
 
 static NEXT_RUNTIME_ID: AtomicU32 = AtomicU32::new(1);
 static PROBES: OnceLock<Mutex<ProbeRegistry>> = OnceLock::new();
@@ -385,7 +381,7 @@ unsafe extern "C" fn cobblestone_core_shutdown(_type: i32, _module_number: i32) 
 /// Registers the diagnostic C002 extension proof.
 #[php_module]
 pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
-    module
+    let module = module
         .name("cobblestone_core_php")
         .version(env!("CARGO_PKG_VERSION"))
         .shutdown_function(cobblestone_core_shutdown)
@@ -398,11 +394,7 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_core_probe_panic))
         .function(wrap_function!(cobblestone_core_async_submit))
         .function(wrap_function!(cobblestone_core_async_ready))
-        .function(wrap_function!(cobblestone_core_async_take))
-        .function(wrap_function!(cobblestone_session_start))
-        .function(wrap_function!(cobblestone_session_running))
-        .function(wrap_function!(cobblestone_session_poll_event))
-        .function(wrap_function!(cobblestone_session_send))
-        .function(wrap_function!(cobblestone_session_disconnect))
-        .function(wrap_function!(cobblestone_session_stop))
+        .function(wrap_function!(cobblestone_core_async_take));
+
+    register_session_functions(module)
 }
