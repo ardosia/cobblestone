@@ -8,8 +8,8 @@ use core::num::NonZeroU32;
 /// Equality and hashing use only the slot index and generation. The type parameter prevents a
 /// handle for one native identity class from being passed to another arena accidentally.
 pub struct Handle<T> {
-    index: u32,
-    generation: NonZeroU32,
+    pub(crate) index: u32,
+    pub(crate) generation: NonZeroU32,
     marker: PhantomData<fn() -> T>,
 }
 
