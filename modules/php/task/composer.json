@@ -1,0 +1,14 @@
+{
+  "name": "ardosia/cobblestone-task",
+  "description": "Cobblestone owner-runtime scheduling and Fiber primitives.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\Task\\": ""
+    }
+  }
+}
