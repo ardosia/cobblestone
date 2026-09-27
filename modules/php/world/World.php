@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace Cobblestone\World;
 
+use Closure;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
+use Cobblestone\World\Mutation\MutationCoordinator;
+use Cobblestone\World\Mutation\MutationResult;
+use Cobblestone\World\Mutation\WorldMutation;
+use Cobblestone\World\Region\RegionMap;
 use ValueError;
 
 final class World implements BlockSource
 {
     private readonly ChunkSource $chunks;
+    private readonly RegionMap $regions;
+    private readonly MutationCoordinator $mutations;
     private BlockPos $spawn;
     private int $time = 0;
     private bool $timeStarted = true;
@@ -20,12 +27,15 @@ final class World implements BlockSource
         private readonly int $seed,
         private readonly Generator $generator,
         ?ChunkSource $chunks = null,
+        ?RegionMap $regions = null,
     ) {
         if ($name === '') {
             throw new ValueError('world name cannot be empty');
         }
 
         $this->chunks = $chunks ?? new MainChunkSource($generator, $seed);
+        $this->regions = $regions ?? new RegionMap();
+        $this->mutations = new MutationCoordinator($this, $this->regions);
         $this->spawn = $generator->spawn();
     }
 
@@ -54,11 +64,26 @@ final class World implements BlockSource
         return $this->chunks;
     }
 
+    public function regions(): RegionMap
+    {
+        return $this->regions;
+    }
+
     public function chunk(ChunkPos $position, bool $generate = true): ?Chunk
     {
         return $generate
             ? $this->chunks->getOrGenerate($position)
             : $this->chunks->get($position);
+    }
+
+    /**
+     * Runs one replayable, atomic semantic world mutation.
+     *
+     * @param Closure(WorldMutation): mixed $operation
+     */
+    public function mutate(Closure $operation): MutationResult
+    {
+        return $this->mutations->run($operation);
     }
 
     public function block(BlockPos $position): BlockState
@@ -70,9 +95,12 @@ final class World implements BlockSource
 
     public function setBlock(BlockPos $position, BlockState $state): BlockState
     {
-        $chunk = $this->chunkForBlock($position);
+        $result = $this->mutations->run(
+            static fn (WorldMutation $mutation): BlockState => $mutation->setBlock($position, $state),
+            [$position->chunk()],
+        );
 
-        return $chunk->setBlock($position->localX(), $position->y, $position->localZ(), $state);
+        return $result->value;
     }
 
     public function biomeAt(int $x, int $z): BiomeId
@@ -83,6 +111,17 @@ final class World implements BlockSource
         return $chunk->biome(ChunkPos::localCoordinate($x), ChunkPos::localCoordinate($z));
     }
 
+    public function setBiomeAt(int $x, int $z, BiomeId $biome): BiomeId
+    {
+        $chunkPosition = ChunkPos::fromBlock($x, $z);
+        $result = $this->mutations->run(
+            static fn (WorldMutation $mutation): BiomeId => $mutation->setBiomeAt($x, $z, $biome),
+            [$chunkPosition],
+        );
+
+        return $result->value;
+    }
+
     public function skyLight(BlockPos $position): int
     {
         $chunk = $this->chunkForBlock($position);
@@ -90,11 +129,41 @@ final class World implements BlockSource
         return $chunk->skyLight($position->localX(), $position->y, $position->localZ());
     }
 
+    public function setSkyLight(BlockPos $position, int $level): int
+    {
+        $result = $this->mutations->run(
+            static fn (WorldMutation $mutation): int => $mutation->setSkyLight($position, $level),
+            [$position->chunk()],
+        );
+
+        return $result->value;
+    }
+
     public function blockLight(BlockPos $position): int
     {
         $chunk = $this->chunkForBlock($position);
 
         return $chunk->blockLight($position->localX(), $position->y, $position->localZ());
+    }
+
+    public function setBlockLight(BlockPos $position, int $level): int
+    {
+        $result = $this->mutations->run(
+            static fn (WorldMutation $mutation): int => $mutation->setBlockLight($position, $level),
+            [$position->chunk()],
+        );
+
+        return $result->value;
+    }
+
+    public function setBlockExtraData(BlockPos $position, int $data): int
+    {
+        $result = $this->mutations->run(
+            static fn (WorldMutation $mutation): int => $mutation->setBlockExtraData($position, $data),
+            [$position->chunk()],
+        );
+
+        return $result->value;
     }
 
     public function spawn(): BlockPos

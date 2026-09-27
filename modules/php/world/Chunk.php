@@ -19,6 +19,7 @@ final class Chunk
     private bool $generated = false;
     private bool $populated = false;
     private bool $lightPopulated = false;
+    private int $revision = 0;
 
     public function __construct(
         private readonly ChunkPos $position,
@@ -37,6 +38,26 @@ final class Chunk
     public function position(): ChunkPos
     {
         return $this->position;
+    }
+
+    public function revision(): int
+    {
+        return $this->revision;
+    }
+
+    /** @internal Mutation commit primitive. */
+    public function commitRevision(int $expected, int $next): void
+    {
+        if ($this->revision !== $expected) {
+            throw new \LogicException(
+                "chunk revision changed: expected {$expected}, current {$this->revision}",
+            );
+        }
+        if ($next !== $expected + 1) {
+            throw new \LogicException('chunk mutation revision must advance exactly once');
+        }
+
+        $this->revision = $next;
     }
 
     public function block(int $x, int $y, int $z): BlockState
