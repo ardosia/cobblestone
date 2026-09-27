@@ -8,13 +8,18 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\Chunk;
+use Cobblestone\World\ChunkSnapshot;
 use ValueError;
 
 /** @internal */
 final class ChunkPatch
 {
+    private const SNAPSHOT_READ_THRESHOLD = 8;
+
     private readonly int $baseRevision;
     private readonly int $baseLightRevision;
+    private ?ChunkSnapshot $snapshot = null;
+    private int $authoritativeReads = 0;
 
     /** @var array<int, int> scalar BlockStateId tokens */
     private array $blocks = [];
@@ -57,7 +62,7 @@ final class ChunkPatch
     {
         $key = self::blockKey($x, $y, $z);
 
-        return $this->blocks[$key] ?? $this->chunk->blockStateId($x, $y, $z);
+        return $this->blocks[$key] ?? $this->blockStateIdAtKey($key);
     }
 
     public function block(int $x, int $y, int $z): BlockState
@@ -85,7 +90,7 @@ final class ChunkPatch
     {
         $key = self::columnKey($x, $z);
 
-        return $this->biomes[$key] ?? $this->chunk->biome($x, $z);
+        return $this->biomes[$key] ?? $this->biomeAtKey($key);
     }
 
     public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
@@ -100,7 +105,7 @@ final class ChunkPatch
     {
         $key = self::blockKey($x, $y, $z);
 
-        return $this->extraData[$key] ?? $this->chunk->blockExtraData($x, $y, $z);
+        return $this->extraData[$key] ?? $this->extraDataAtKey($key);
     }
 
     public function setBlockExtraData(int $x, int $y, int $z, int $data): int
@@ -119,7 +124,7 @@ final class ChunkPatch
     {
         $key = self::blockKey($x, $y, $z);
 
-        return $this->skyLight[$key] ?? $this->chunk->skyLight($x, $y, $z);
+        return $this->skyLight[$key] ?? $this->skyLightAtKey($key);
     }
 
     public function setSkyLight(int $x, int $y, int $z, int $level): int
@@ -135,7 +140,7 @@ final class ChunkPatch
     {
         $key = self::blockKey($x, $y, $z);
 
-        return $this->blockLight[$key] ?? $this->chunk->blockLight($x, $y, $z);
+        return $this->blockLight[$key] ?? $this->blockLightAtKey($key);
     }
 
     public function setBlockLight(int $x, int $y, int $z, int $level): int
@@ -212,6 +217,11 @@ final class ChunkPatch
     private function blockStateIdAtKey(int $key): int
     {
         [$x, $y, $z] = self::decodeBlockKey($key);
+        $snapshot = $this->snapshotForRead();
+        if ($snapshot !== null) {
+            return $snapshot->blockStateId($x, $y, $z)
+                ?? throw new MutationConflict('snapshot block coordinates became invalid');
+        }
 
         return $this->chunk->blockStateId($x, $y, $z);
     }
@@ -219,6 +229,13 @@ final class ChunkPatch
     private function biomeAtKey(int $key): BiomeId
     {
         [$x, $z] = self::decodeColumnKey($key);
+        $snapshot = $this->snapshotForRead();
+        if ($snapshot !== null) {
+            $biome = $snapshot->biomeId($x, $z)
+                ?? throw new MutationConflict('snapshot biome coordinates became invalid');
+
+            return new BiomeId($biome);
+        }
 
         return $this->chunk->biome($x, $z);
     }
@@ -226,6 +243,11 @@ final class ChunkPatch
     private function extraDataAtKey(int $key): int
     {
         [$x, $y, $z] = self::decodeBlockKey($key);
+        $snapshot = $this->snapshotForRead();
+        if ($snapshot !== null) {
+            return $snapshot->blockExtraDataAt($x, $y, $z)
+                ?? throw new MutationConflict('snapshot extra-data coordinates became invalid');
+        }
 
         return $this->chunk->blockExtraData($x, $y, $z);
     }
@@ -233,6 +255,11 @@ final class ChunkPatch
     private function skyLightAtKey(int $key): int
     {
         [$x, $y, $z] = self::decodeBlockKey($key);
+        $snapshot = $this->snapshotForRead();
+        if ($snapshot !== null) {
+            return $snapshot->skyLightLevel($x, $y, $z)
+                ?? throw new MutationConflict('snapshot sky-light coordinates became invalid');
+        }
 
         return $this->chunk->skyLight($x, $y, $z);
     }
@@ -240,8 +267,38 @@ final class ChunkPatch
     private function blockLightAtKey(int $key): int
     {
         [$x, $y, $z] = self::decodeBlockKey($key);
+        $snapshot = $this->snapshotForRead();
+        if ($snapshot !== null) {
+            return $snapshot->blockLightLevel($x, $y, $z)
+                ?? throw new MutationConflict('snapshot block-light coordinates became invalid');
+        }
 
         return $this->chunk->blockLight($x, $y, $z);
+    }
+
+    private function snapshotForRead(): ?ChunkSnapshot
+    {
+        if ($this->snapshot !== null) {
+            return $this->snapshot;
+        }
+        if ($this->chunk->nativeStore() === null) {
+            return null;
+        }
+
+        ++$this->authoritativeReads;
+        if ($this->authoritativeReads < self::SNAPSHOT_READ_THRESHOLD) {
+            return null;
+        }
+
+        $snapshot = $this->chunk->snapshot();
+        if (
+            $snapshot->revision !== $this->baseRevision
+            || $snapshot->lightRevision !== $this->baseLightRevision
+        ) {
+            throw new MutationConflict('chunk changed while mutation snapshot was being captured');
+        }
+
+        return $this->snapshot = $snapshot;
     }
 
     public static function blockKey(int $x, int $y, int $z): int

@@ -23,7 +23,7 @@ final readonly class ChunkDataSnapshot
         }
     }
 
-    public function block(int $x, int $y, int $z): ?BlockState
+    public function blockStateId(int $x, int $y, int $z): ?int
     {
         if (
             !WorldBounds::containsLocal($x)
@@ -37,7 +37,14 @@ final readonly class ChunkDataSnapshot
         $byte = ord($this->blockData[$index >> 1]);
         $data = ($index & 1) === 0 ? $byte & 0x0f : ($byte >> 4) & 0x0f;
 
-        return new BlockState(ord($this->blockIds[$index]), $data);
+        return (ord($this->blockIds[$index]) << 4) | $data;
+    }
+
+    public function block(int $x, int $y, int $z): ?BlockState
+    {
+        $stateId = $this->blockStateId($x, $y, $z);
+
+        return $stateId === null ? null : BlockState::fromId($stateId);
     }
 
     public function biome(int $x, int $z): ?BiomeId

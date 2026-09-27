@@ -86,12 +86,11 @@ final readonly class LightPropagator
             ? 0
             : max(0, $this->maxNeighborLight($access, $update->layer, $position) - $attenuation);
         $next = max($source, $propagated);
-        if ($next === $old->value) {
+        if ($next === $old) {
             return;
         }
 
-        $nextLevel = new LightLevel($next);
-        if (!$access->setStoredLight($update->layer, $position, $nextLevel)) {
+        if (!$access->setStoredLight($update->layer, $position, $next)) {
             throw new LightPropagationException('stored light became unavailable');
         }
 
@@ -124,7 +123,7 @@ final readonly class LightPropagator
                 throw new LightPropagationException('neighbor stored light is unavailable');
             }
 
-            if ($actual->value !== $expected) {
+            if ($actual !== $expected) {
                 $submit(LightUpdate::point($update->layer, $neighbor));
             }
         }
@@ -163,7 +162,7 @@ final readonly class LightPropagator
             if ($level === null) {
                 throw new LightPropagationException('neighbor stored light is unavailable');
             }
-            $maximum = max($maximum, $level->value);
+            $maximum = max($maximum, $level);
         }
 
         return $maximum;

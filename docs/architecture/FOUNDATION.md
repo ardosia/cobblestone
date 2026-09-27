@@ -22,12 +22,12 @@ Immutable/native shared values such as packet buffers, snapshots, chunk snapshot
 
 Initial module families are:
 
-- `cobblestone-core`: runtime identity, generational handles, bounded workers, completion/future plumbing, Fiber wake integration, cancellation, immutable buffers, telemetry, panic/error boundaries, and any deliberately versioned sibling-module ABI.
+- `cobblestone-core`: runtime identity, generational handles, bounded workers, completion/future plumbing, Fiber wake integration, cancellation, immutable buffers, telemetry, panic/error boundaries, region routing, and the current region-sharded native `WorldStore`.
 - `cobblestone-network`: protocol-8 RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
 - `cobblestone-codec`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
 - `cobblestone-session`: stable gameplay-session identity and lifecycle above transport/codec; it hides RakNet connection objects and Batch envelopes from the owning runtime while preserving bounded backpressure and malformed-input behavior.
-- `cobblestone-world`: native world/chunk structures only where profiling/evidence justifies them, favoring snapshots and bulk operations.
-- `cobblestone-storage`: introduced only when storage-native mechanisms justify a separate module.
+- A separate `cobblestone-world` crate is deferred until the native world mechanism needs an independently versioned boundary; splitting the already-working store merely for taxonomy is not a goal.
+- `cobblestone-storage`: introduced only when persistence mechanisms justify a separate module.
 
 Sibling modules must not reach into each other's private Rust structs or depend on unstable struct layouts.
 
@@ -184,17 +184,21 @@ The session layer is still internal wire/session infrastructure. A dedicated `Se
 
 The first ordinary PHP server surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive only `PluginContext` with those facilities. `Server` translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, applies a finite native-event budget per tick, and disconnects sessions whose raw packets have no installed server handler. Scheduled callbacks and `TickSleep` Fibers are indexed by stable due-time binary min-heaps so a tick visits due work rather than the entire live set. Fiber waits on native completions remain a compact active-wait set and are polled only during the owner-runtime scheduler tick; the current diagnostic worker ABI exposes per-task `ready`/`take` operations and no batch ready-set. The fixed-target real-client bootstrap is now orchestrated by an internal PHP state machine while Login validation, packet encoding, compression, and compatibility-only synthetic probe exports remain native wire mechanisms.
 
-## C008 — PHP world API and Flat generation
+## World substrate and Flat generation
 
-The first C008 slice establishes the PHP-owned fixed-target world surface before replacing the synthetic client chunk probe. `Cobblestone\\World\\World` is the semantic root. `BlockSource` and `ChunkSource` preserve useful fixed-target access seams observed in the client binary without exposing native ownership or transport objects. `MainChunkSource` is initially an in-memory resident source. The base world package also owns the generator/mutation/light/region contracts and value types that appear in the aggregate or world-substrate API, while concrete Flat generation, fixed-target light propagation, staged mutation, and region mapping remain replaceable satellite packages composed by the server. The world surface now tracks Ardosia terrain/light revisions, staged edits, immutable light snapshots, low-level light updates, and resident-cell identity. Rust lock guards are deliberately collapsed to direct owner-runtime PHP access rather than leaking lock ceremony into gameplay APIs.
+`Cobblestone\\World\\World` is the owner-runtime semantic root. `BlockSource` and `ChunkSource` preserve useful fixed-target access seams without exposing native handles, locks, regions, or transport objects to ordinary gameplay code. `MainChunkSource` is the resident PHP index and generator boundary; the base world package owns the shared generator/mutation/light/region contracts, while Flat generation, fixed-target light propagation, staged mutation, and region mapping remain replaceable satellite packages composed by the server.
 
-The chunk model is exact to the currently evidenced structural target: 16×16 horizontal chunks, eight 16-block vertical sections, Y 0..127, legacy block id+data state, per-column biome identity, heightmap, separate sky/block light, and block extra data. Negative world coordinates map to chunks using Euclidean/floor division.
+The chunk model is fixed to the evidenced 0.15.10 structure: 16×16 horizontal chunks, eight 16-block vertical sections, Y 0..127, legacy block id+data state, per-column biome identity, heightmap, separate sky/block light, and sparse 16-bit block extra data. Negative world coordinates use Euclidean/floor chunk mapping. Hot paths use scalar legacy state ids; `BlockState` remains an ergonomic wrapper, not the storage currency.
 
-Generator ids retain the fixed StartGame vocabulary (old=0, infinite=1, flat=2), but only Flat is implemented. Its default preset is the historical version-2 `2;7,2x3,2;1;` layout (bedrock, two dirt, grass, biome 1). Decoration, storage, broad block behavior, and non-flat generation remain outside this slice.
+When the native extension is available, `WorldFactory` creates one region-sharded native `WorldStore` and generated `Chunk` objects become owner-runtime PHP facades over that store. Native owns the packed terrain/light planes, biome and height data, sparse extra data, terrain/light revisions, immutable snapshots, and atomic patch application. The PHP-backed representation remains a behavioral fallback for environments without the extension and is kept parity-tested against the native path.
 
-The world package is PHP semantics. A native `cobblestone-world` crate is not introduced merely because Ardosia has one; native world representation remains contingent on ownership/performance evidence. Protocol-84 chunk encoding and replacing the temporary synthetic spawn probe are the next world integration slice.
+The PHP/native boundary is deliberately coarse. Flat generation uses bulk layer/light fills. Immutable `ChunkSnapshot` projections carry complete semantic chunk state in one read. Staged world mutations commit one revision-checked patch per changed chunk and automatically switch large native-backed read sets to one snapshot instead of continuing per-cell FFI reads. Fixed-target light propagation remains PHP gameplay semantics, but reads one immutable snapshot per touched chunk, stages scalar light levels locally, validates the exact terrain/light revisions it read, and commits one native light patch per changed chunk.
 
-See `docs/provenance/WORLD015.md` for the evidence boundary.
+Protocol-84 initial chunk streaming no longer round-trips chunk planes through PHP: the extension reads immutable native snapshots directly, caches encoded FullChunkData by terrain/light revision, builds the compressed Batch, and submits it through the session host. This keeps chunk selection and gameplay semantics in PHP while keeping native representation and wire-heavy work below the Zend boundary.
+
+Generator ids retain the fixed StartGame vocabulary (old=0, infinite=1, flat=2), but only Flat is implemented. Its default preset is the historical version-2 `2;7,2x3,2;1;` layout (bedrock, two dirt, grass, biome 1). Decoration, persistence, broad block behavior, and non-flat generation remain separate work.
+
+See `docs/provenance/WORLD015.md` for the fixed-target evidence boundary.
 
 ## Runtime hardening, mutations, and execution regions
 

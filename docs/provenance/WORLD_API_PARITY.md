@@ -16,25 +16,25 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `BlockPos`, `ChunkPos` | same concepts plus `BlockPos::sectionY/localY` | semantic parity |
 | `SectionY` | `SectionY` | semantic parity |
 | `Section` | `ChunkSection` | semantic parity; Cobblestone also stores protocol-era nibble/light planes |
-| `ChunkData` | terrain/biome portion of `Chunk` | semantic parity; Cobblestone retains height/extra-data/lifecycle fields required by the fixed target |
+| `ChunkData` | native `WorldStore` chunk data behind the PHP `Chunk` facade | semantic parity; Cobblestone also retains height/extra-data/light planes required by the fixed target |
 | `ChunkRevision` | `ChunkRevision` + `Chunk::terrainRevision()` | semantic parity |
 | `ChunkTerrain` | `ChunkTerrain` facade over one resident `Chunk` | semantic parity |
 | `TerrainPatch` | `TerrainPatch` | semantic parity |
 | `PreparedTerrainPatch` | `PreparedTerrainPatch` | semantic parity |
 | `TerrainEdit` / `TerrainEditResult` | same names/concepts | semantic parity |
-| `LightLevel` | `LightLevel` | semantic parity |
+| `LightLevel` | `LightLevel` at ergonomic/snapshot edges; scalar `int` levels on propagation hot paths | semantic parity with a deliberate allocation-free hot-path adaptation |
 | `LightRevision` | `LightRevision` + independent chunk light revision | semantic parity |
 | `ChunkLight` | `ChunkLight` facade over chunk light channels | semantic parity |
 | `LightEdit` / `LightEditResult` | same names/concepts | semantic parity |
 | `LightSnapshot` | `LightSnapshot` | semantic parity |
 | `LightLayer` | `LightLayer` | semantic parity |
 | `LightUpdate` | `LightUpdate` | semantic parity |
-| `LightAccess` | `LightAccess` | semantic parity |
+| `LightAccess` | scalar state/light `LightAccess` over revision-pinned chunk snapshots | semantic behavior parity; PHP hot path avoids per-cell native calls/value allocations |
 | `apply_light_update` | `world-light/LightPropagator::apply()` | algorithm/order parity with the pinned Ardosia implementation |
 | binary-derived block light properties | `world-light/BlockLightCatalog` | mapped from Ardosia dense semantic identities to fixed-target legacy IDs using the pinned 0.15.10 BlockIds vocabulary |
 | `ResidentChunkCell` / `ResidentChunkHandle` | owner-runtime `ResidentChunkCell` / `ResidentChunkHandle` | semantic resident identity + snapshot parity |
 | terrain/light lock guards | direct owner-runtime access | deliberate runtime adaptation; no PHP lock ceremony |
-| `ChunkSnapshot` | `ChunkSnapshot` + `terrain()` / `light()` views | semantic parity plus fixed-target protocol projection fields |
+| `ChunkSnapshot` | scalar-first `ChunkSnapshot` + ergonomic `terrain()` / `light()` views | semantic parity plus fixed-target protocol projection fields |
 
 ## Fixed-target light mapping
 
@@ -57,4 +57,4 @@ Cobblestone retains height map, sparse extra block data, generated/populated/lig
 
 ## Validation boundary
 
-Parity is not considered verified until the persisted Cobblestone revision passes canonical local `composer verify`, including world parity/light smokes. GitHub Actions remain intentionally disabled by repository instruction.
+Parity is not considered verified until the relevant Cobblestone revision passes canonical local `composer verify`, including native-world, world parity, mutation, and light smokes.

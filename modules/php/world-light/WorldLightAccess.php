@@ -7,6 +7,7 @@ namespace Cobblestone\World\Light;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\ChunkSnapshot;
 use Cobblestone\World\LightAccess;
 use Cobblestone\World\LightLayer;
 use Cobblestone\World\LightLevel;
@@ -22,8 +23,11 @@ use Cobblestone\World\WorldBounds;
  */
 final class WorldLightAccess implements LightAccess
 {
-    /** @var array<string, array{layer: LightLayer, position: BlockPos, level: LightLevel}> */
+    /** @var array<string, array{layer: LightLayer, position: BlockPos, level: int}> */
     private array $staged = [];
+
+    /** @var array<string, ChunkSnapshot> */
+    private array $snapshots = [];
 
     public function __construct(
         private readonly World $world,
@@ -54,15 +58,14 @@ final class WorldLightAccess implements LightAccess
             return null;
         }
 
-        $chunk = $this->world->chunks()->get($position->chunk());
-        if ($chunk === null) {
-            return null;
-        }
-
-        return $chunk->blockStateId($position->localX(), $position->y, $position->localZ());
+        return $this->snapshot($position->chunk())?->blockStateId(
+            $position->localX(),
+            $position->y,
+            $position->localZ(),
+        );
     }
 
-    public function storedLight(LightLayer $layer, BlockPos $position): ?LightLevel
+    public function storedLight(LightLayer $layer, BlockPos $position): ?int
     {
         if (!$position->isInsideWorld()) {
             return null;
@@ -79,13 +82,17 @@ final class WorldLightAccess implements LightAccess
     public function setStoredLight(
         LightLayer $layer,
         BlockPos $position,
-        LightLevel $level,
+        int $level,
     ): bool {
+        if ($level < LightLevel::MIN_VALUE || $level > LightLevel::MAX_VALUE) {
+            throw new \ValueError('fixed-target light level must be in range 0..15');
+        }
+
         $current = $this->storedLight($layer, $position);
         if ($current === null) {
             return false;
         }
-        if ($current->value === $level->value) {
+        if ($current === $level) {
             return true;
         }
 
@@ -104,13 +111,16 @@ final class WorldLightAccess implements LightAccess
             return null;
         }
 
-        $chunk = $this->world->chunks()->get($position->chunk());
-        if ($chunk === null) {
+        $snapshot = $this->snapshot($position->chunk());
+        if ($snapshot === null) {
             return null;
         }
 
         for ($y = $position->y + 1; $y <= WorldBounds::MAX_Y; ++$y) {
-            $stateId = $chunk->blockStateId($position->localX(), $y, $position->localZ());
+            $stateId = $snapshot->blockStateId($position->localX(), $y, $position->localZ());
+            if ($stateId === null) {
+                return null;
+            }
             $properties = $this->catalog->propertiesForStateId($stateId);
             if ($properties === null) {
                 return null;
@@ -130,14 +140,14 @@ final class WorldLightAccess implements LightAccess
             return [];
         }
 
-        /** @var array<string, array{chunk: Chunk, base: int, entries: list<array{layer: LightLayer, position: BlockPos, level: LightLevel}>}> $groups */
+        /** @var array<string, array{chunk: Chunk, snapshot: ChunkSnapshot, entries: list<array{layer: LightLayer, position: BlockPos, level: int}>}> $groups */
         $groups = [];
         foreach ($this->staged as $entry) {
             $authoritative = $this->authoritativeLight($entry['layer'], $entry['position']);
             if ($authoritative === null) {
                 throw new LightPropagationException('light target chunk became unavailable before commit');
             }
-            if ($authoritative->value === $entry['level']->value) {
+            if ($authoritative === $entry['level']) {
                 continue;
             }
 
@@ -145,13 +155,14 @@ final class WorldLightAccess implements LightAccess
             $key = $position->key();
             if (!isset($groups[$key])) {
                 $chunk = $this->world->chunks()->get($position);
-                if ($chunk === null) {
+                $snapshot = $this->snapshot($position);
+                if ($chunk === null || $snapshot === null) {
                     throw new LightPropagationException('light target chunk became unavailable before commit');
                 }
 
                 $groups[$key] = [
                     'chunk' => $chunk,
-                    'base' => $chunk->lightRevision()->value,
+                    'snapshot' => $snapshot,
                     'entries' => [],
                 ];
             }
@@ -165,10 +176,15 @@ final class WorldLightAccess implements LightAccess
         }
 
         foreach ($groups as $group) {
-            if ($group['base'] === PHP_INT_MAX) {
+            $chunk = $group['chunk'];
+            $snapshot = $group['snapshot'];
+            if ($snapshot->lightRevision === PHP_INT_MAX) {
                 throw new LightPropagationException('chunk light revision space exhausted');
             }
-            if ($group['chunk']->lightRevision()->value !== $group['base']) {
+            if ($chunk->revision() !== $snapshot->revision) {
+                throw new LightPropagationException('chunk terrain changed while propagation was staged');
+            }
+            if ($chunk->lightRevision()->value !== $snapshot->lightRevision) {
                 throw new LightPropagationException('chunk light changed while propagation was staged');
             }
         }
@@ -176,6 +192,7 @@ final class WorldLightAccess implements LightAccess
         $changed = [];
         foreach ($groups as $group) {
             $chunk = $group['chunk'];
+            $snapshot = $group['snapshot'];
             if ($chunk->nativeStore() !== null) {
                 $skyLight = [];
                 $blockLight = [];
@@ -185,20 +202,19 @@ final class WorldLightAccess implements LightAccess
                         | ($position->localZ() << 4)
                         | $position->localX();
                     if ($entry['layer'] === LightLayer::Sky) {
-                        $skyLight[$key] = $entry['level']->value;
+                        $skyLight[$key] = $entry['level'];
                     } else {
-                        $blockLight[$key] = $entry['level']->value;
+                        $blockLight[$key] = $entry['level'];
                     }
                 }
                 ksort($skyLight);
                 ksort($blockLight);
 
-                $terrainRevision = $chunk->revision();
                 $chunk->applyNativePatch(
-                    $terrainRevision,
-                    $terrainRevision,
-                    $group['base'],
-                    $group['base'] + 1,
+                    $snapshot->revision,
+                    $snapshot->revision,
+                    $snapshot->lightRevision,
+                    $snapshot->lightRevision + 1,
                     [],
                     [],
                     [],
@@ -213,19 +229,22 @@ final class WorldLightAccess implements LightAccess
                             $position->localX(),
                             $position->y,
                             $position->localZ(),
-                            $entry['level']->value,
+                            $entry['level'],
                         );
                     } else {
                         $chunk->setBlockLight(
                             $position->localX(),
                             $position->y,
                             $position->localZ(),
-                            $entry['level']->value,
+                            $entry['level'],
                         );
                     }
                 }
 
-                $chunk->commitLightRevision($group['base'], $group['base'] + 1);
+                $chunk->commitLightRevision(
+                    $snapshot->lightRevision,
+                    $snapshot->lightRevision + 1,
+                );
             }
             $changed[] = $chunk->position();
         }
@@ -238,21 +257,34 @@ final class WorldLightAccess implements LightAccess
     private function authoritativeLight(
         LightLayer $layer,
         BlockPos $position,
-    ): ?LightLevel {
+    ): ?int {
         if (!$position->isInsideWorld()) {
             return null;
         }
 
-        $chunk = $this->world->chunks()->get($position->chunk());
+        $snapshot = $this->snapshot($position->chunk());
+        if ($snapshot === null) {
+            return null;
+        }
+
+        return $layer === LightLayer::Sky
+            ? $snapshot->skyLightLevel($position->localX(), $position->y, $position->localZ())
+            : $snapshot->blockLightLevel($position->localX(), $position->y, $position->localZ());
+    }
+
+    private function snapshot(ChunkPos $position): ?ChunkSnapshot
+    {
+        $key = $position->key();
+        if (isset($this->snapshots[$key])) {
+            return $this->snapshots[$key];
+        }
+
+        $chunk = $this->world->chunks()->get($position);
         if ($chunk === null) {
             return null;
         }
 
-        $value = $layer === LightLayer::Sky
-            ? $chunk->skyLight($position->localX(), $position->y, $position->localZ())
-            : $chunk->blockLight($position->localX(), $position->y, $position->localZ());
-
-        return new LightLevel($value);
+        return $this->snapshots[$key] = $chunk->snapshot();
     }
 
     private static function key(LightLayer $layer, BlockPos $position): string

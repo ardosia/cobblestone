@@ -72,6 +72,64 @@ final readonly class ChunkSnapshot
         return new ChunkRevision($this->revision);
     }
 
+    public function blockStateId(int $x, int $y, int $z): ?int
+    {
+        if (
+            !WorldBounds::containsLocal($x)
+            || !WorldBounds::containsLocal($z)
+            || !WorldBounds::containsY($y)
+        ) {
+            return null;
+        }
+
+        $index = ($y << 8) | ($z << 4) | $x;
+        $byte = ord($this->blockData[$index >> 1]);
+        $data = ($index & 1) === 0 ? $byte & 0x0f : ($byte >> 4) & 0x0f;
+
+        return (ord($this->blockIds[$index]) << 4) | $data;
+    }
+
+    public function skyLightLevel(int $x, int $y, int $z): ?int
+    {
+        return $this->lightLevel($this->skyLight, $x, $y, $z);
+    }
+
+    public function blockLightLevel(int $x, int $y, int $z): ?int
+    {
+        return $this->lightLevel($this->blockLight, $x, $y, $z);
+    }
+
+    public function biomeId(int $x, int $z): ?int
+    {
+        if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
+            return null;
+        }
+
+        return ord($this->biomes[($z << 4) | $x]);
+    }
+
+    public function heightAt(int $x, int $z): ?int
+    {
+        if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
+            return null;
+        }
+
+        return ord($this->heightMap[($z << 4) | $x]);
+    }
+
+    public function blockExtraDataAt(int $x, int $y, int $z): ?int
+    {
+        if (
+            !WorldBounds::containsLocal($x)
+            || !WorldBounds::containsLocal($z)
+            || !WorldBounds::containsY($y)
+        ) {
+            return null;
+        }
+
+        return $this->extraData[($y << 8) | ($z << 4) | $x] ?? 0;
+    }
+
     public function terrain(): ChunkDataSnapshot
     {
         return new ChunkDataSnapshot($this->blockIds, $this->blockData, $this->biomes);
@@ -84,5 +142,21 @@ final readonly class ChunkSnapshot
             $this->skyLight,
             $this->blockLight,
         );
+    }
+
+    private function lightLevel(string $plane, int $x, int $y, int $z): ?int
+    {
+        if (
+            !WorldBounds::containsLocal($x)
+            || !WorldBounds::containsLocal($z)
+            || !WorldBounds::containsY($y)
+        ) {
+            return null;
+        }
+
+        $index = ($y << 8) | ($z << 4) | $x;
+        $byte = ord($plane[$index >> 1]);
+
+        return ($index & 1) === 0 ? $byte & 0x0f : ($byte >> 4) & 0x0f;
     }
 }

@@ -23,17 +23,31 @@ final readonly class LightSnapshot
         }
     }
 
-    public function sky(int $x, int $y, int $z): ?LightLevel
+    public function skyLevel(int $x, int $y, int $z): ?int
     {
         return $this->level($this->sky, $x, $y, $z);
     }
 
-    public function block(int $x, int $y, int $z): ?LightLevel
+    public function blockLevel(int $x, int $y, int $z): ?int
     {
         return $this->level($this->block, $x, $y, $z);
     }
 
-    private function level(string $plane, int $x, int $y, int $z): ?LightLevel
+    public function sky(int $x, int $y, int $z): ?LightLevel
+    {
+        $level = $this->skyLevel($x, $y, $z);
+
+        return $level === null ? null : new LightLevel($level);
+    }
+
+    public function block(int $x, int $y, int $z): ?LightLevel
+    {
+        $level = $this->blockLevel($x, $y, $z);
+
+        return $level === null ? null : new LightLevel($level);
+    }
+
+    private function level(string $plane, int $x, int $y, int $z): ?int
     {
         if (
             !WorldBounds::containsLocal($x)
@@ -47,6 +61,6 @@ final readonly class LightSnapshot
         $byte = ord($plane[$index >> 1]);
         $value = ($index & 1) === 0 ? $byte & 0x0f : ($byte >> 4) & 0x0f;
 
-        return new LightLevel($value);
+        return $value;
     }
 }

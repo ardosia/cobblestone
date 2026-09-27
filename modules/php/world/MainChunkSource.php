@@ -51,6 +51,10 @@ final class MainChunkSource implements ChunkSource
 
     public function put(Chunk $chunk): void
     {
+        if ($chunk->nativeStore() !== $this->nativeStore) {
+            throw new \LogicException('chunk source/store mismatch');
+        }
+
         $this->chunks[$chunk->position()->key()] = $chunk;
     }
 

@@ -58,13 +58,15 @@ The initial Cobblestone package keeps the preset syntax and structural state but
 
 ## Cobblestone API decisions
 
-The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\World`. `BlockSource` and `ChunkSource` remain explicit interfaces because they form useful ownership/access seams. `MainChunkSource` is currently an in-memory resident source backed by the configured generator.
+The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\World`. `BlockSource` and `ChunkSource` remain explicit interfaces because they form useful semantic ownership/access seams. `MainChunkSource` is the owner-runtime resident index backed by the configured generator.
 
 `GeneratorType` contains the three fixed-target ids because they are part of the StartGame/world vocabulary. Only `FlatGenerator` is implemented. Old/Infinite are not advertised as implemented generators.
 
-`BlockState` is a fixed-target state token (legacy id + data), not block behavior. Block behavior belongs to a later `block` package.
+Legacy block state is represented on hot paths by one scalar `BlockStateId` (`id << 4 | data`). `BlockState` remains an ergonomic/debug wrapper, not native storage currency. Block behavior belongs to a later `block` package.
 
-The follow-up `world-protocol84-stream-v1` slice adds immutable `ChunkSectionSnapshot` / `ChunkSnapshot` bulk projections. PHP remains authoritative for chunk selection, block/data state, biome identity, heightmap, sky/block light, sparse extra data, and revision. PHP's section-concatenated Y/Z/X planes already match protocol-84 `ORDER_LAYERED`; Rust validates those planes, builds the remaining FullChunkData wire fields, compresses the Batch, and submits it through the session host. The old synthetic probe remains exported only for ABI compatibility and is no longer on the production join path.
+The production server now selects a region-sharded native `WorldStore` whenever the extension is loaded. Rust owns the physical chunk planes, biomes, heightmap, sparse extra data, terrain/light revisions, immutable snapshots, and atomic revision-checked patches; PHP remains authoritative for world/gameplay semantics, chunk residency decisions, generator policy, mutation callbacks, and light-propagation rules. The PHP representation is retained as a parity-tested fallback rather than the production storage target.
+
+Immutable `ChunkSectionSnapshot` / `ChunkSnapshot` projections are the bulk read boundary. Large staged mutations switch to a snapshot after a small number of native point reads, while commit remains one patch per changed chunk. Lighting uses one immutable snapshot per touched chunk, scalar staged light levels, exact terrain/light revision validation, and one patch per changed chunk. Protocol-84 initial streaming reads native snapshots directly inside the extension, caches FullChunkData by terrain/light revision, compresses the Batch, and submits it through the session host. The old synthetic probe remains exported only for ABI compatibility and is no longer on the production join path.
 
 ## World API parity expansion
 

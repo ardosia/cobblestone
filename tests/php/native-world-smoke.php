@@ -7,6 +7,7 @@ require __DIR__ . '/bootstrap.php';
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
+use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Light\LightEngine;
 use Cobblestone\World\LightLayer;
@@ -29,6 +30,16 @@ $world = WorldFactory::flat('Native World Smoke', 4242);
 $store = $world->nativeStore();
 nativeWorldExpect($store !== null, 'WorldFactory did not select the native world store');
 nativeWorldExpect($store->handle() !== 0, 'native world handle was zero');
+
+try {
+    $world->chunks()->put(new Chunk(new ChunkPos(99, 99)));
+    throw new RuntimeException('native chunk source accepted a chunk from a different store');
+} catch (LogicException $error) {
+    nativeWorldExpect(
+        str_contains($error->getMessage(), 'source/store mismatch'),
+        'native chunk source rejected mismatched storage for the wrong reason',
+    );
+}
 
 for ($chunkX = -1; $chunkX <= 1; ++$chunkX) {
     for ($chunkZ = -1; $chunkZ <= 1; ++$chunkZ) {
@@ -71,6 +82,18 @@ nativeWorldExpect(
 );
 $afterWrite = $chunk->snapshot();
 nativeWorldExpect(ord($afterWrite->blockIds[$index]) === 50, 'native snapshot missed committed torch');
+nativeWorldExpect(
+    $afterWrite->blockStateId(8, 20, 8) === $torchState,
+    'scalar native snapshot state mismatch',
+);
+nativeWorldExpect(
+    $afterWrite->terrain()->blockStateId(8, 20, 8) === $torchState,
+    'scalar terrain snapshot state mismatch',
+);
+nativeWorldExpect(
+    $afterWrite->blockLightLevel(8, 20, 8) === 0,
+    'scalar native snapshot block-light mismatch',
+);
 
 $engine = LightEngine::fixedTarget();
 $lightResult = $engine->apply(
@@ -104,6 +127,26 @@ nativeWorldExpect(
     'terrain-only compound mutation changed native light revision',
 );
 
+$bulk = $world->mutate(
+    static function (WorldMutation $mutation): void {
+        for ($x = 0; $x < 12; ++$x) {
+            $position = new BlockPos($x, 21, 10);
+            nativeWorldExpect(
+                $mutation->setBlockStateId($position, BlockStateId::fromLegacy(5)) === BlockStateId::fromLegacy(0),
+                'bulk native mutation previous state mismatch',
+            );
+        }
+    },
+);
+nativeWorldExpect($bulk->changed(), 'bulk native mutation reported no change');
+nativeWorldExpect($chunk->revision() === 3, 'bulk native mutation did not advance terrain revision once');
+for ($x = 0; $x < 12; ++$x) {
+    nativeWorldExpect(
+        $world->blockStateId(new BlockPos($x, 21, 10)) === BlockStateId::fromLegacy(5),
+        'bulk native mutation state mismatch',
+    );
+}
+
 $edit = $chunk->terrain()->edit();
 nativeWorldExpect(
     $edit->setBlockStateId(10, 20, 8, BlockStateId::fromLegacy(4)) === BlockStateId::fromLegacy(0),
@@ -111,7 +154,7 @@ nativeWorldExpect(
 );
 $editResult = $edit->commit();
 nativeWorldExpect($editResult->changed, 'native terrain edit reported no change');
-nativeWorldExpect($chunk->revision() === 3, 'native terrain edit did not advance revision once');
+nativeWorldExpect($chunk->revision() === 4, 'native terrain edit did not advance revision once');
 nativeWorldExpect(
     $chunk->blockStateId(10, 20, 8) === BlockStateId::fromLegacy(4),
     'native terrain edit state did not commit',

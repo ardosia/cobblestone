@@ -11,6 +11,8 @@ use Cobblestone\World\BlockStateId;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Light\BlockLightCatalog;
 use Cobblestone\World\Light\LightEngine;
+use Cobblestone\World\Light\LightPropagationException;
+use Cobblestone\World\Light\WorldLightAccess;
 use Cobblestone\World\LightLayer;
 use Cobblestone\World\LightUpdate;
 use Cobblestone\World\SectionY;
@@ -81,5 +83,23 @@ lightExpect($before->block(8, 20, 8)?->value === 0, 'immutable light snapshot ch
 $after = $chunk->lightSnapshot();
 lightExpect($after->revision->value === 1, 'post-propagation light snapshot revision mismatch');
 lightExpect($after->block(8, 20, 8)?->value === 14, 'post-propagation snapshot source mismatch');
+lightExpect($after->blockLevel(8, 20, 8) === 14, 'scalar light snapshot source mismatch');
+
+$stale = new WorldLightAccess($world, $catalog);
+$stalePosition = new BlockPos(7, 20, 8);
+lightExpect(
+    $stale->setStoredLight(LightLayer::Block, $stalePosition, 0),
+    'failed to stage stale light write',
+);
+$world->setBlockStateId(new BlockPos(7, 21, 8), BlockStateId::fromLegacy(1));
+try {
+    $stale->commit();
+    throw new RuntimeException('stale light propagation committed against changed terrain');
+} catch (LightPropagationException $error) {
+    lightExpect(
+        str_contains($error->getMessage(), 'terrain changed'),
+        'stale light propagation failed for the wrong reason',
+    );
+}
 
 fwrite(STDOUT, "world-light-smoke: passed\n");
