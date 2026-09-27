@@ -67,7 +67,7 @@ The first gameplay package is `modules/php/world`. It models the fixed 0.15.10 1
 
 `modules/php/log` provides the PSR-3/Monolog logging implementation with a Spring Boot-inspired console layout and no banner. `modules/php/tick` owns monotonic tick pacing and overload warnings. The server runner handles graceful stop requests/signals instead of leaving a raw infinite loop in the executable.
 
-The existing synthetic native chunk probe remains in place until the next integration slice projects real `World` chunks to protocol 84.
+The production join path now bulk-projects immutable PHP `World` chunk snapshots into the Rust protocol-84 layered chunk encoder and sends a bounded initial radius around the real Flat spawn. The former synthetic spawn-probe export remains registered only for native ABI compatibility; production server composition does not call it.
 
 ## Developer workflow
 
@@ -104,4 +104,4 @@ Automatic GitHub Actions runs are temporarily disabled while the current reposit
 
 Durable project state lives under `.agent/`; architecture is documented in `docs/architecture/FOUNDATION.md`.
 
-C001-C007 are complete. The PHP package workspace and initial Flat world API were locally verified on PHP 8.5.11 ZTS at revision `9f4786380afe307d8b4c6eb610b6f449a7e6a72f`. The logging/tick/shutdown/mutation/region foundation is locally verified on PHP 8.5.11 ZTS at revision `ff5411bdff963b976d6a2232b62c288249d7fe94`. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. Real PHP `World` chunk projection into protocol 84 remains the next world integration slice.
+C001-C007 are complete. The PHP package workspace and initial Flat world API were locally verified on PHP 8.5.11 ZTS at revision `9f4786380afe307d8b4c6eb610b6f449a7e6a72f`. The logging/tick/shutdown/mutation/region foundation is locally verified on PHP 8.5.11 ZTS at revision `ff5411bdff963b976d6a2232b62c288249d7fe94`. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. `world-protocol84-stream-v1` implements real PHP Flat chunk projection and native protocol-84 encoding, but remains verification-pending until local `composer verify` and a real-client terrain check are recorded.

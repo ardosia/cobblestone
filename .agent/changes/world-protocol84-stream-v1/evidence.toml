@@ -1,0 +1,35 @@
+schema = 1
+change = "world-protocol84-stream-v1"
+
+[[evidence]]
+id = "protocol84-layered-source"
+kind = "fixed-target-source"
+status = "passed"
+claim = "Protocol-84 ORDER_LAYERED FullChunkData uses big-endian x/z/order/length framing, X/Z/Y block and nibble planes, height bytes, big-endian biome-id/color words, and little-endian sparse extra data."
+source = "KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e: src/pocketmine/protocol/FullChunkDataPacket.php, legacy/old-src/level/format/leveldb/Chunk.php, legacy/old-src/level/format/leveldb/LevelDB.php, legacy/old-src/level/generator/biome/Biome.php"
+result = "Pinned matching-source evidence directly establishes packet framing, X/Z/Y terrain indexing, layered plane concatenation, sparse extra-data endianness, and Plains id 1 terrain RGB 0x92bc59."
+trust = "pinned-matching-source"
+confidence = "observed"
+limitations = "Source evidence does not establish that the Cobblestone implementation compiles or that a real client renders the terrain."
+
+[[evidence]]
+id = "local-validation"
+kind = "validation"
+status = "not_run"
+claim = "The persisted world-protocol84-stream implementation passes the repository local verification suite."
+source = "pending user composer setup + composer verify"
+result = "not run yet"
+trust = "pending"
+confidence = "unknown"
+limitations = "GitHub Actions remain intentionally disabled and are not a substitute for the requested local validation."
+
+[[evidence]]
+id = "real-client-terrain"
+kind = "acceptance"
+status = "not_run"
+claim = "A real Minecraft Windows 10 Edition Beta / MCPE 0.15.10 client visibly receives the PHP-generated default Flat terrain."
+source = "pending user composer serve real-client test"
+result = "not run yet"
+trust = "pending"
+confidence = "unknown"
+limitations = "Do not mark the change done until the user reports the real-client result."

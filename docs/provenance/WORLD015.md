@@ -64,4 +64,4 @@ The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\Wo
 
 `BlockState` is a fixed-target state token (legacy id + data), not block behavior. Block behavior belongs to a later `block` package.
 
-This slice does not replace the native synthetic protocol-84 chunk probe. Network projection/encoding from real `Chunk` state is a separate follow-up acceptance step.
+The follow-up `world-protocol84-stream-v1` slice adds immutable `ChunkSectionSnapshot` / `ChunkSnapshot` bulk projections. PHP remains authoritative for chunk selection, block/data state, biome identity, heightmap, sky/block light, sparse extra data, and revision. Rust validates and transposes those semantic planes into exact protocol-84 layered FullChunkData, Batch compression, and session submission. The old synthetic probe remains exported only for ABI compatibility and is no longer on the production join path.

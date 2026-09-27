@@ -1,0 +1,31 @@
+schema = 1
+id = "world-protocol84-stream-v1"
+kind = "world-protocol-integration"
+size = "S2"
+status = "implemented"
+workflow = "feature"
+control_revision = "f4e926e81ad91d13d02a006f4a18a00f66ae0bab"
+base_revision = "084344a3f4e50d09546ab31eb7e428d7ce32fa96"
+acceptance = [
+  "add immutable bulk PHP chunk snapshots without exposing mutable ChunkSection internals",
+  "preserve PHP authority for chunk selection, block/data, biome identity, height, light, extra data, and revision semantics",
+  "transpose PHP semantic Y/Z/X chunk planes into exact protocol-84 ORDER_LAYERED X/Z/Y FullChunkData in cobblestone-codec",
+  "bridge PHP-owned chunk snapshots to native encoding in one bounded bulk projection rather than per-block PHP/native calls",
+  "compose the real Flat World into StartGame/bootstrap and bounded initial chunk selection around the actual world spawn",
+  "preserve requested radius separately from a server effective initial radius capped at three",
+  "remove the synthetic all-air spawn probe from the production join path while preserving its existing native ABI export",
+  "record chunk encode time, compressed Batch bytes, and chunks sent for the initial join",
+  "pass local composer setup and composer verify on the persisted implementation revision",
+  "confirm with a real Minecraft 0.15.10 client that bedrock plus two dirt layers plus grass is visible before marking done"
+]
+
+[convergence]
+requirements = "aligned"
+specs = "not_applicable"
+implementation = "aligned"
+tests = "pending"
+documentation = "aligned"
+decisions = "aligned"
+tasks = "pending"
+evidence = "pending"
+repository = "aligned"

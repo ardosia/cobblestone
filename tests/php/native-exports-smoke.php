@@ -23,6 +23,9 @@ $required = [
     'cobblestone_session_send',
     'cobblestone_session_protocol84_accept_login',
     'cobblestone_session_protocol84_spawn_probe',
+    'cobblestone_session_protocol84_accept_login_world',
+    'cobblestone_session_protocol84_request_chunk_radius',
+    'cobblestone_session_protocol84_send_initial_chunks',
     'cobblestone_session_disconnect',
     'cobblestone_session_stop',
 ];

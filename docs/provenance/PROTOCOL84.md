@@ -17,3 +17,33 @@ Wire facts are cross-checked against `KhronosDevs/PocketMine-MP@15272732371b4e77
 Cobblestone does not copy that implementation. The pinned revision is used to establish protocol numbers, framing, endianness, compression shape, and packet field order, then the Rust codec is independently implemented and validated.
 
 Modern Bedrock protocol behavior is not accepted as a substitute for this fixed-target evidence.
+
+## FullChunkData layered terrain
+
+The real-world stream additionally cross-checks the pinned source's `FullChunkDataPacket`,
+LevelDB `Chunk`, and LevelDB provider chunk-request serializer.
+
+For `ORDER_LAYERED = 1`, packet `0x34` carries big-endian chunk X and Z, a one-byte
+order, a big-endian payload length, and then the historical layered payload:
+
+- 32768 block IDs in X/Z/Y order, where the index is `(x << 11) | (z << 7) | y`;
+- 16384 packed block-data nibbles in the same X/Z/Y order;
+- 16384 packed sky-light nibbles in the same X/Z/Y order;
+- 16384 packed block-light nibbles in the same X/Z/Y order;
+- 256 height-map bytes in Z/X column order;
+- 256 big-endian biome words, with the biome ID in the high byte and 24-bit terrain RGB in the low bytes;
+- a little-endian 32-bit sparse extra-data count followed by little-endian 32-bit keys and 16-bit values;
+- optional tile NBT bytes after sparse extra data.
+
+The pinned old biome implementation computes Plains (id 1) terrain RGB `0x92bc59` from
+its 0.15.10 temperature/rainfall model, yielding wire word `0x0192bc59`.
+
+Cobblestone's PHP `ChunkSnapshot` deliberately remains semantic state in Y/Z/X section order.
+The private PHP/native bulk projection is not a gameplay packet. `cobblestone-codec` validates
+the semantic planes, transposes block/light data to historical X/Z/Y order, builds FullChunkData,
+and owns Batch compression and wire endianness.
+
+The initial production stream keeps the client-requested radius distinct from a server-selected
+effective radius capped at three for this slice. Radius three is at most 49 chunks and remains
+inside the fixed 4 MiB decompressed Batch budget. The former synthetic all-air spawn-probe export
+is retained only for ABI compatibility and is not called by production server composition.

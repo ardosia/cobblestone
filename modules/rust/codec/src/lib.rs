@@ -7,6 +7,7 @@
 
 mod batch;
 mod binary;
+mod chunk;
 mod error;
 mod frame;
 mod limits;
@@ -14,6 +15,10 @@ mod nbt;
 mod packet;
 
 pub use batch::BatchPacket;
+pub use chunk::{
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, CHUNK_ORDER_LAYERED,
+    FULL_CHUNK_DATA_ID, Protocol84ChunkSnapshot, encode_protocol84_full_chunk_data,
+};
 pub use error::{CodecError, LimitKind};
 pub use frame::{GAME_MARKER, RawPacket, decode_game_frame, encode_game_frame};
 pub use limits::{CodecLimits, LOGIN_MAX_DECOMPRESSED_BYTES};

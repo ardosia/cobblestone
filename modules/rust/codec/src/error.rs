@@ -77,6 +77,31 @@ pub enum CodecError {
         actual: usize,
     },
 
+    /// A fixed-size semantic chunk plane had the wrong byte length.
+    #[error("invalid {field} length: expected {expected} bytes, got {actual}")]
+    InvalidChunkPlaneLength {
+        /// Stable semantic plane name.
+        field: &'static str,
+        /// Exact fixed-target byte length.
+        expected: usize,
+        /// Observed byte length.
+        actual: usize,
+    },
+
+    /// A semantic biome cannot currently be projected to the fixed-target chunk word.
+    #[error("unsupported fixed-target chunk biome id {id}")]
+    UnsupportedChunkBiome {
+        /// Semantic biome id.
+        id: u8,
+    },
+
+    /// A sparse semantic block-extra-data key is outside the 16x16x128 chunk domain.
+    #[error("invalid fixed-target chunk extra-data key 0x{key:08x}")]
+    InvalidChunkExtraDataKey {
+        /// Semantic (z << 12) | (x << 8) | y key.
+        key: u32,
+    },
+
     /// A length-delimited value did not consume the containing input exactly.
     #[error("trailing bytes after decoding: {remaining}")]
     TrailingBytes {
