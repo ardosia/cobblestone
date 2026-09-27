@@ -3,6 +3,63 @@ use cobblestone_codec::{
     FULL_CHUNK_DATA_ID, Protocol84ChunkSnapshot, encode_protocol84_full_chunk_data,
 };
 
+struct FlatChunkFixture {
+    block_ids: Vec<u8>,
+    block_data: Vec<u8>,
+    sky_light: Vec<u8>,
+    block_light: Vec<u8>,
+    biomes: Vec<u8>,
+    height_map: Vec<u8>,
+}
+
+impl FlatChunkFixture {
+    fn default_world() -> Self {
+        let mut block_ids = vec![0_u8; CHUNK_BLOCK_COUNT];
+        for z in 0..16_usize {
+            for x in 0..16_usize {
+                block_ids[(z << 4) | x] = 7;
+                block_ids[(1 << 8) | (z << 4) | x] = 3;
+                block_ids[(2 << 8) | (z << 4) | x] = 3;
+                block_ids[(3 << 8) | (z << 4) | x] = 2;
+            }
+        }
+
+        let block_data = vec![0_u8; CHUNK_NIBBLE_BYTES];
+        let mut sky_light = vec![0_u8; CHUNK_NIBBLE_BYTES];
+        for semantic_index in (4 * 256)..CHUNK_BLOCK_COUNT {
+            set_nibble(&mut sky_light, semantic_index, 15);
+        }
+
+        Self {
+            block_ids,
+            block_data,
+            sky_light,
+            block_light: vec![0_u8; CHUNK_NIBBLE_BYTES],
+            biomes: vec![1_u8; CHUNK_COLUMN_COUNT],
+            height_map: vec![3_u8; CHUNK_COLUMN_COUNT],
+        }
+    }
+
+    fn snapshot<'a>(
+        &'a self,
+        chunk_x: i32,
+        chunk_z: i32,
+        extra_data: &'a [(u32, u16)],
+    ) -> Protocol84ChunkSnapshot<'a> {
+        Protocol84ChunkSnapshot {
+            chunk_x,
+            chunk_z,
+            block_ids: &self.block_ids,
+            block_data: &self.block_data,
+            sky_light: &self.sky_light,
+            block_light: &self.block_light,
+            biomes: &self.biomes,
+            height_map: &self.height_map,
+            extra_data,
+        }
+    }
+}
+
 fn set_nibble(bytes: &mut [u8], index: usize, value: u8) {
     let byte = &mut bytes[index >> 1];
     if index & 1 == 0 {
@@ -21,52 +78,12 @@ fn read_nibble(bytes: &[u8], index: usize) -> u8 {
     }
 }
 
-fn default_flat_planes() -> (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
-    let mut block_ids = vec![0_u8; CHUNK_BLOCK_COUNT];
-    for z in 0..16_usize {
-        for x in 0..16_usize {
-            block_ids[(z << 4) | x] = 7;
-            block_ids[(1 << 8) | (z << 4) | x] = 3;
-            block_ids[(2 << 8) | (z << 4) | x] = 3;
-            block_ids[(3 << 8) | (z << 4) | x] = 2;
-        }
-    }
-
-    let block_data = vec![0_u8; CHUNK_NIBBLE_BYTES];
-    let mut sky_light = vec![0_u8; CHUNK_NIBBLE_BYTES];
-    for semantic_index in (4 * 256)..CHUNK_BLOCK_COUNT {
-        set_nibble(&mut sky_light, semantic_index, 15);
-    }
-    let block_light = vec![0_u8; CHUNK_NIBBLE_BYTES];
-    let biomes = vec![1_u8; CHUNK_COLUMN_COUNT];
-    let height_map = vec![3_u8; CHUNK_COLUMN_COUNT];
-
-    (
-        block_ids,
-        block_data,
-        sky_light,
-        block_light,
-        biomes,
-        height_map,
-    )
-}
-
 #[test]
 fn real_default_flat_chunk_encodes_historical_layered_layout() {
-    let (block_ids, block_data, sky_light, block_light, biomes, height_map) = default_flat_planes();
+    let fixture = FlatChunkFixture::default_world();
 
-    let packet = encode_protocol84_full_chunk_data(Protocol84ChunkSnapshot {
-        chunk_x: 8,
-        chunk_z: -3,
-        block_ids: &block_ids,
-        block_data: &block_data,
-        sky_light: &sky_light,
-        block_light: &block_light,
-        biomes: &biomes,
-        height_map: &height_map,
-        extra_data: &[],
-    })
-    .expect("encode default flat chunk");
+    let packet = encode_protocol84_full_chunk_data(fixture.snapshot(8, -3, &[]))
+        .expect("encode default flat chunk");
 
     assert_eq!(packet.id(), FULL_CHUNK_DATA_ID);
     let body = packet.body().as_slice();
@@ -103,21 +120,11 @@ fn real_default_flat_chunk_encodes_historical_layered_layout() {
 
 #[test]
 fn sparse_extra_data_uses_historical_little_endian_entries() {
-    let (block_ids, block_data, sky_light, block_light, biomes, height_map) = default_flat_planes();
+    let fixture = FlatChunkFixture::default_world();
     let extra = [(0x0000_ff7f_u32, 0xbeef_u16)];
 
-    let packet = encode_protocol84_full_chunk_data(Protocol84ChunkSnapshot {
-        chunk_x: 0,
-        chunk_z: 0,
-        block_ids: &block_ids,
-        block_data: &block_data,
-        sky_light: &sky_light,
-        block_light: &block_light,
-        biomes: &biomes,
-        height_map: &height_map,
-        extra_data: &extra,
-    })
-    .expect("encode sparse extra data");
+    let packet = encode_protocol84_full_chunk_data(fixture.snapshot(0, 0, &extra))
+        .expect("encode sparse extra data");
 
     let payload = &packet.body().as_slice()[13..];
     let extra_offset =
@@ -132,7 +139,7 @@ fn sparse_extra_data_uses_historical_little_endian_entries() {
 
 #[test]
 fn malformed_planes_and_unsupported_biomes_fail_explicitly() {
-    let (_, block_data, sky_light, block_light, biomes, height_map) = default_flat_planes();
+    let fixture = FlatChunkFixture::default_world();
     let short_blocks = vec![0_u8; CHUNK_BLOCK_COUNT - 1];
 
     assert_eq!(
@@ -140,11 +147,11 @@ fn malformed_planes_and_unsupported_biomes_fail_explicitly() {
             chunk_x: 0,
             chunk_z: 0,
             block_ids: &short_blocks,
-            block_data: &block_data,
-            sky_light: &sky_light,
-            block_light: &block_light,
-            biomes: &biomes,
-            height_map: &height_map,
+            block_data: &fixture.block_data,
+            sky_light: &fixture.sky_light,
+            block_light: &fixture.block_light,
+            biomes: &fixture.biomes,
+            height_map: &fixture.height_map,
             extra_data: &[],
         }),
         Err(CodecError::InvalidChunkPlaneLength {
@@ -154,21 +161,10 @@ fn malformed_planes_and_unsupported_biomes_fail_explicitly() {
         })
     );
 
-    let (block_ids, block_data, sky_light, block_light, mut biomes, height_map) =
-        default_flat_planes();
-    biomes[0] = 255;
+    let mut fixture = FlatChunkFixture::default_world();
+    fixture.biomes[0] = 255;
     assert_eq!(
-        encode_protocol84_full_chunk_data(Protocol84ChunkSnapshot {
-            chunk_x: 0,
-            chunk_z: 0,
-            block_ids: &block_ids,
-            block_data: &block_data,
-            sky_light: &sky_light,
-            block_light: &block_light,
-            biomes: &biomes,
-            height_map: &height_map,
-            extra_data: &[],
-        }),
+        encode_protocol84_full_chunk_data(fixture.snapshot(0, 0, &[])),
         Err(CodecError::UnsupportedChunkBiome { id: 255 })
     );
 }
