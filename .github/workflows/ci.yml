@@ -44,7 +44,10 @@ jobs:
         shell: bash
         run: |
           composer setup
-          composer check
+          composer validate --strict --no-check-publish
+          for manifest in modules/php/*/composer.json; do
+            composer validate --strict --no-check-publish "$manifest"
+          done
       - name: Verify Unix PHP development tools
         if: runner.os == 'Linux'
         shell: bash
