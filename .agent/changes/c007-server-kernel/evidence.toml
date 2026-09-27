@@ -66,3 +66,14 @@ result = "ai-ci-summary 108518957924, validate windows 108518140035, validate ub
 trust = "exact-revision-validation"
 confidence = "observed"
 limitations = "This validates the owner bridge before the following PHP kernel events/commands/plugins/scheduler implementation; that implementation requires its own exact-revision validation."
+
+[[evidence]]
+id = "php-kernel-services-validation"
+kind = "validation"
+status = "passed"
+claim = "The PHP kernel services passed local and hosted validation on revision 437f1bd813b084cc3ecf4c09ec02beb4620b049e."
+source = "GitHub checks and user-provided Fedora run"
+result = "All five required hosted checks succeeded; local canonical validation and kernel-smoke succeeded."
+trust = "exact-revision-validation"
+confidence = "observed"
+limitations = "Does not validate the later production-kernel real-client integration."

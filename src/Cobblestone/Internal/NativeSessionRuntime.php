@@ -128,6 +128,29 @@ final class NativeSessionRuntime
         cobblestone_session_send($sessionId, $packetId, $body, $delivery);
     }
 
+    /**
+     * Validates protocol-84 Login and queues the fixed-target initial bootstrap.
+     *
+     * @internal
+     */
+    public function acceptProtocol84Login(int $sessionId, string $body): void
+    {
+        $this->assertRunning();
+        cobblestone_session_protocol84_accept_login($sessionId, $body);
+    }
+
+    /**
+     * Handles RequestChunkRadius and queues the bounded synthetic spawn probe.
+     *
+     * @internal
+     */
+    public function spawnProtocol84Probe(int $sessionId, string $body): int
+    {
+        $this->assertRunning();
+
+        return cobblestone_session_protocol84_spawn_probe($sessionId, $body);
+    }
+
     public function disconnect(int $sessionId): void
     {
         $this->assertRunning();

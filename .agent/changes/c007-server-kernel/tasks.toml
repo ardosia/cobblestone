@@ -27,12 +27,18 @@ acceptance = "Expose the single owning PHP 8.5 ZTS runtime kernel so gameplay/se
 
 [[tasks]]
 id = "events-commands-plugins"
-status = "implemented"
+status = "verified"
 depends_on = ["php-runtime"]
 acceptance = "Add minimal lifecycle/events, command dispatch, plugin loading, scheduler, and Fiber completion integration without exposing runtime/thread primitives."
 
 [[tasks]]
+id = "kernel-real-client"
+status = "implemented"
+depends_on = ["events-commands-plugins"]
+acceptance = "Drive the fixed protocol-84 Login -> RequestChunkRadius -> PLAYER_SPAWN flow through the production PHP ServerKernel, keeping wire encoding native and post-spawn raw gameplay packets internal."
+
+[[tasks]]
 id = "verify"
 status = "planned"
-depends_on = ["events-commands-plugins"]
+depends_on = ["kernel-real-client"]
 acceptance = "Run canonical Linux/Windows validation, PHP-ZTS integration, and fixed real-client acceptance on the exact persisted revision before closure."

@@ -9,6 +9,8 @@ use Cobblestone\Internal\NativeSessionConnected;
 use Cobblestone\Internal\NativeSessionDisconnected;
 use Cobblestone\Internal\NativeSessionPacket;
 use Cobblestone\Internal\NativeSessionRuntime;
+use Cobblestone\Internal\Protocol84Bootstrap;
+use Cobblestone\Internal\Protocol84BootstrapResult;
 use Cobblestone\Plugin\PluginContext;
 use Cobblestone\Plugin\PluginManager;
 use LogicException;
@@ -40,6 +42,24 @@ final readonly class SessionDisconnected
     }
 }
 
+final readonly class SessionLoginAccepted
+{
+    public function __construct(
+        public int $sessionId,
+    ) {
+    }
+}
+
+final readonly class SessionSpawned
+{
+    public function __construct(
+        public int $sessionId,
+        public int $requestedRadius,
+        public int $probeRadius,
+    ) {
+    }
+}
+
 /**
  * Single-owner PHP server kernel for the C007 foundation.
  *
@@ -51,6 +71,7 @@ final class ServerKernel
     private readonly CommandRegistry $commands;
     private readonly Scheduler $scheduler;
     private readonly PluginManager $plugins;
+    private readonly Protocol84Bootstrap $bootstrap;
     private bool $running = true;
 
     /**
@@ -66,6 +87,7 @@ final class ServerKernel
         $this->plugins = new PluginManager(
             new PluginContext($this->events, $this->commands, $this->scheduler),
         );
+        $this->bootstrap = new Protocol84Bootstrap($this->sessions);
         $this->events->dispatch(new ServerStarted());
     }
 
@@ -120,19 +142,44 @@ final class ServerKernel
             }
 
             if ($event instanceof NativeSessionConnected) {
+                $this->bootstrap->connected($event->sessionId);
                 $this->events->dispatch(new SessionConnected($event->sessionId, $event->peer));
                 continue;
             }
             if ($event instanceof NativeSessionDisconnected) {
+                $this->bootstrap->disconnected($event->sessionId);
                 $this->events->dispatch(new SessionDisconnected($event->sessionId, $event->reason));
                 continue;
             }
             if ($event instanceof NativeSessionPacket) {
-                if ($this->packetHandler === null) {
-                    $this->sessions->disconnect($event->sessionId);
+                try {
+                    $result = $this->bootstrap->handle($event);
+                } catch (Throwable) {
+                    try {
+                        $this->sessions->disconnect($event->sessionId);
+                    } catch (Throwable) {
+                    }
                     continue;
                 }
-                ($this->packetHandler)($event);
+
+                if ($result->kind === Protocol84BootstrapResult::LOGIN_ACCEPTED) {
+                    $this->events->dispatch(new SessionLoginAccepted($event->sessionId));
+                    continue;
+                }
+                if ($result->kind === Protocol84BootstrapResult::SPAWNED) {
+                    $this->events->dispatch(
+                        new SessionSpawned(
+                            $event->sessionId,
+                            $result->requestedRadius ?? 0,
+                            2,
+                        ),
+                    );
+                    continue;
+                }
+
+                if ($this->packetHandler !== null) {
+                    ($this->packetHandler)($event);
+                }
             }
         }
     }

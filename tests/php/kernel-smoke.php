@@ -7,6 +7,7 @@ use Cobblestone\Kernel\ServerKernel;
 use Cobblestone\Tests\KernelSmokePlugin;
 
 require_once dirname(__DIR__, 2) . '/src/Cobblestone/Internal/NativeSessionRuntime.php';
+require_once dirname(__DIR__, 2) . '/src/Cobblestone/Internal/Protocol84Bootstrap.php';
 require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/EventBus.php';
 require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/CommandRegistry.php';
 require_once dirname(__DIR__, 2) . '/src/Cobblestone/Kernel/Scheduler.php';
