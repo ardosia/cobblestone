@@ -148,14 +148,22 @@ function runWithExtension(string $script, array $arguments = []): void
 function testPhp(): void
 {
     run([PHP_BINARY, ROOT . '/tests/php/zts-probe.php']);
-    run([PHP_BINARY, ROOT . '/tests/php/world-smoke.php']);
+
+    foreach ([
+        'log-smoke.php',
+        'tick-smoke.php',
+        'world-smoke.php',
+        'world-mutation-smoke.php',
+    ] as $test) {
+        run([PHP_BINARY, ROOT . '/tests/php/' . $test]);
+    }
 
     foreach ([
         'native-exports-smoke.php',
         'extension-smoke.php',
         'fiber-smoke.php',
         'session-runtime-smoke.php',
-        'kernel-smoke.php',
+        'server-smoke.php',
     ] as $test) {
         runWithExtension(ROOT . '/tests/php/' . $test);
     }

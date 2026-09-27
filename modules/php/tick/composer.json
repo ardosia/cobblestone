@@ -1,0 +1,15 @@
+{
+  "name": "ardosia/cobblestone-tick",
+  "description": "Cobblestone monotonic server tick loop and overload detection.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\Tick\\": ""
+    }
+  }
+}

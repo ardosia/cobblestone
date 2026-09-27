@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Cobblestone\Tests;
 
-use Cobblestone\Server\Event\ServerStopping;
 use Cobblestone\Plugin\Plugin;
 use Cobblestone\Plugin\PluginContext;
+use Cobblestone\Server\Event\ServerStopping;
 
-final class KernelSmokePlugin implements Plugin
+final class ServerSmokePlugin implements Plugin
 {
     /** @var array<string, mixed> */
     public static array $state = [];
@@ -16,6 +16,7 @@ final class KernelSmokePlugin implements Plugin
     public function enable(PluginContext $context): void
     {
         self::$state['enabled'] = true;
+        $context->logger->info('Server smoke plugin enabled');
 
         $context->commands->register(
             'smoke:echo',

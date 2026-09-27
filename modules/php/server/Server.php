@@ -7,11 +7,11 @@ namespace Cobblestone\Server;
 use Closure;
 use Cobblestone\Command\CommandRegistry;
 use Cobblestone\Event\EventBus;
+use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\Runtime;
-use Cobblestone\Plugin\PluginContext;
 use Cobblestone\Plugin\PluginManager;
 use Cobblestone\Server\Event\ServerStarted;
 use Cobblestone\Server\Event\ServerStopping;
@@ -23,6 +23,7 @@ use Cobblestone\Session\JoinFlow;
 use Cobblestone\Session\JoinResult;
 use Cobblestone\Task\Scheduler;
 use LogicException;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 final class Server
@@ -32,21 +33,33 @@ final class Server
     private readonly Scheduler $scheduler;
     private readonly PluginManager $plugins;
     private readonly JoinFlow $join;
-    private bool $running = true;
+    private readonly LoggerInterface $logger;
+
+    private ServerState $state = ServerState::Starting;
+    private ?string $stopReason = null;
 
     /** @param Closure(Packet): void|null $packetHandler */
     private function __construct(
         private readonly Runtime $sessions,
+        private readonly LoggerFactory $logs,
         private ?Closure $packetHandler,
+        private readonly string $serverName,
     ) {
+        $this->logger = $logs->logger('Cobblestone.Server', ['server' => $serverName]);
         $this->events = new EventBus();
         $this->commands = new CommandRegistry();
         $this->scheduler = new Scheduler();
         $this->plugins = new PluginManager(
-            new PluginContext($this->events, $this->commands, $this->scheduler),
+            $this->events,
+            $this->commands,
+            $this->scheduler,
+            $this->logs,
         );
         $this->join = new JoinFlow($this->sessions);
+
+        $this->state = ServerState::Running;
         $this->events->dispatch(new ServerStarted());
+        $this->logger->info('Server lifecycle started');
     }
 
     /** @param Closure(Packet): void|null $packetHandler */
@@ -55,14 +68,43 @@ final class Server
         int $maxConnections,
         string $serverName,
         ?Closure $packetHandler = null,
+        ?LoggerFactory $logs = null,
     ): self {
-        return new self(Runtime::start($bind, $maxConnections, $serverName), $packetHandler);
+        $logs ??= LoggerFactory::console(getenv('COBBLESTONE_LOG_LEVEL') ?: 'INFO');
+        $sessions = Runtime::start($bind, $maxConnections, $serverName);
+
+        try {
+            return new self($sessions, $logs, $packetHandler, $serverName);
+        } catch (Throwable $error) {
+            try {
+                $sessions->stop();
+            } catch (Throwable) {
+            }
+            throw $error;
+        }
     }
 
     public function events(): EventBus { return $this->events; }
     public function commands(): CommandRegistry { return $this->commands; }
     public function scheduler(): Scheduler { return $this->scheduler; }
     public function plugins(): PluginManager { return $this->plugins; }
+    public function logger(): LoggerInterface { return $this->logger; }
+    public function state(): ServerState { return $this->state; }
+
+    public function isStopRequested(): bool
+    {
+        return $this->stopReason !== null || $this->state !== ServerState::Running;
+    }
+
+    public function requestStop(string $reason = 'requested'): void
+    {
+        if ($this->state !== ServerState::Running || $this->stopReason !== null) {
+            return;
+        }
+
+        $this->stopReason = $reason;
+        $this->logger->info('Shutdown requested', ['reason' => $reason]);
+    }
 
     public function tick(int $nativeEventBudget = 256): void
     {
@@ -81,11 +123,19 @@ final class Server
 
             if ($event instanceof Connected) {
                 $this->join->connected($event->sessionId);
+                $this->logger->info(
+                    'Session connected',
+                    ['session' => $event->sessionId, 'peer' => $event->peer],
+                );
                 $this->events->dispatch(new SessionConnected($event->sessionId, $event->peer));
                 continue;
             }
             if ($event instanceof Disconnected) {
                 $this->join->disconnected($event->sessionId);
+                $this->logger->info(
+                    'Session disconnected',
+                    ['session' => $event->sessionId, 'reason' => $event->reason],
+                );
                 $this->events->dispatch(new SessionDisconnected($event->sessionId, $event->reason));
                 continue;
             }
@@ -93,25 +143,45 @@ final class Server
                 try {
                     $result = $this->join->handle($event);
                 } catch (Throwable $error) {
-                    fprintf(
-                        STDERR,
-                        "cobblestone: join-error session=%d type=%s message=%s\n",
-                        $event->sessionId,
-                        get_class($error),
-                        $error->getMessage(),
+                    $this->logger->error(
+                        'Join flow failed',
+                        [
+                            'session' => $event->sessionId,
+                            'packet' => $event->packetId,
+                            'exception' => $error,
+                        ],
                     );
                     try {
                         $this->sessions->disconnect($event->sessionId);
-                    } catch (Throwable) {
+                    } catch (Throwable $disconnectError) {
+                        $this->logger->warning(
+                            'Session disconnect after join failure failed',
+                            [
+                                'session' => $event->sessionId,
+                                'exception' => $disconnectError,
+                            ],
+                        );
                     }
                     continue;
                 }
 
                 if ($result->kind === JoinResult::LOGIN_ACCEPTED) {
+                    $this->logger->info(
+                        'Session login accepted',
+                        ['session' => $event->sessionId, 'protocol' => 84],
+                    );
                     $this->events->dispatch(new SessionLoginAccepted($event->sessionId));
                     continue;
                 }
                 if ($result->kind === JoinResult::SPAWNED) {
+                    $this->logger->info(
+                        'Session spawned',
+                        [
+                            'session' => $event->sessionId,
+                            'requested_radius' => $result->requestedRadius ?? 0,
+                            'probe_radius' => 2,
+                        ],
+                    );
                     $this->events->dispatch(
                         new SessionSpawned($event->sessionId, $result->requestedRadius ?? 0, 2),
                     );
@@ -127,32 +197,36 @@ final class Server
 
     public function stop(): void
     {
-        if (!$this->running) {
+        if ($this->state === ServerState::Stopped || $this->state === ServerState::Stopping) {
             return;
         }
 
+        $this->state = ServerState::Stopping;
+        $reason = $this->stopReason ?? 'shutdown';
+        $this->logger->info('Stopping server', ['reason' => $reason]);
+
         $failure = null;
-        try {
-            $this->events->dispatch(new ServerStopping());
-        } catch (Throwable $error) {
-            $failure = $error;
+
+        foreach ([
+            'stopping-event' => fn () => $this->events->dispatch(new ServerStopping()),
+            'plugins' => fn () => $this->plugins->shutdown(),
+            'scheduler' => fn () => $this->scheduler->shutdown(),
+            'sessions' => fn () => $this->sessions->stop(),
+        ] as $phase => $shutdown) {
+            try {
+                $shutdown();
+            } catch (Throwable $error) {
+                $failure ??= $error;
+                $this->logger->error(
+                    'Shutdown phase failed',
+                    ['phase' => $phase, 'exception' => $error],
+                );
+            }
         }
 
-        try {
-            $this->sessions->stop();
-        } catch (Throwable $error) {
-            $failure ??= $error;
-        }
+        $this->state = ServerState::Stopped;
+        $this->logger->info('Server stopped', ['reason' => $reason]);
 
-        $this->scheduler->shutdown();
-
-        try {
-            $this->plugins->shutdown();
-        } catch (Throwable $error) {
-            $failure ??= $error;
-        }
-
-        $this->running = false;
         if ($failure !== null) {
             throw $failure;
         }
@@ -160,7 +234,7 @@ final class Server
 
     private function assertRunning(): void
     {
-        if (!$this->running || !$this->sessions->isRunning()) {
+        if ($this->state !== ServerState::Running || !$this->sessions->isRunning()) {
             throw new LogicException('Cobblestone server is not running');
         }
     }

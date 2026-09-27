@@ -3,11 +3,11 @@
 
 declare(strict_types=1);
 
+use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Server\Server;
-use Cobblestone\Session\Event\SessionConnected;
-use Cobblestone\Session\Event\SessionDisconnected;
-use Cobblestone\Session\Event\SessionLoginAccepted;
-use Cobblestone\Session\Event\SessionSpawned;
+use Cobblestone\Server\ServerRunner;
+use Cobblestone\Tick\TickLoop;
+use Cobblestone\Tick\TickLoopConfig;
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
@@ -22,74 +22,57 @@ if (!extension_loaded('cobblestone_core_php')) {
     exit(1);
 }
 
+try {
+    $logs = LoggerFactory::console(getenv('COBBLESTONE_LOG_LEVEL') ?: 'INFO');
+} catch (Throwable $error) {
+    fwrite(STDERR, 'Failed to configure logging: ' . $error->getMessage() . PHP_EOL);
+    exit(1);
+}
+
+$logger = $logs->logger('Cobblestone.Application');
 $bind = getenv('COBBLESTONE_BIND') ?: '0.0.0.0:19132';
 $serverName = getenv('COBBLESTONE_SERVER_NAME') ?: 'Cobblestone';
 $maxConnections = (int) (getenv('COBBLESTONE_MAX_CONNECTIONS') ?: '20');
 $tickRate = (int) (getenv('COBBLESTONE_TICK_RATE') ?: '20');
 
 if ($maxConnections <= 0) {
-    fwrite(STDERR, "COBBLESTONE_MAX_CONNECTIONS must be positive\n");
+    $logger->error('COBBLESTONE_MAX_CONNECTIONS must be positive');
     exit(1);
 }
-if ($tickRate <= 0 || $tickRate > 1000) {
-    fwrite(STDERR, "COBBLESTONE_TICK_RATE must be between 1 and 1000\n");
+if ($tickRate <= 0 || $tickRate > 1_000) {
+    $logger->error('COBBLESTONE_TICK_RATE must be between 1 and 1000');
     exit(1);
 }
 
-$kernel = Server::start($bind, $maxConnections, $serverName);
-
-$kernel->events()->listen(
-    SessionConnected::class,
-    static fn (object $event) => $event instanceof SessionConnected
-        ? printf("cobblestone: connected session=%d peer=%s\n", $event->sessionId, $event->peer)
-        : null,
-);
-$kernel->events()->listen(
-    SessionLoginAccepted::class,
-    static fn (object $event) => $event instanceof SessionLoginAccepted
-        ? printf("cobblestone: login-accepted session=%d protocol=84\n", $event->sessionId)
-        : null,
-);
-$kernel->events()->listen(
-    SessionSpawned::class,
-    static fn (object $event) => $event instanceof SessionSpawned
-        ? printf(
-            "cobblestone: spawned session=%d requested_radius=%d probe_radius=%d\n",
-            $event->sessionId,
-            $event->requestedRadius,
-            $event->probeRadius,
-        )
-        : null,
-);
-$kernel->events()->listen(
-    SessionDisconnected::class,
-    static fn (object $event) => $event instanceof SessionDisconnected
-        ? printf(
-            "cobblestone: disconnected session=%d reason=%s\n",
-            $event->sessionId,
-            $event->reason,
-        )
-        : null,
-);
-
-printf(
-    "cobblestone: listening=%s name=%s protocol=84 raknet=8 tick_rate=%d\n",
+$server = Server::start(
     $bind,
+    $maxConnections,
     $serverName,
-    $tickRate,
+    logs: $logs,
+);
+$ticks = new TickLoop(
+    new TickLoopConfig(tickRate: $tickRate),
+    $logs->logger('Cobblestone.Tick'),
+);
+$runner = new ServerRunner(
+    $server,
+    $ticks,
+    $logs->logger('Cobblestone.ServerRunner'),
 );
 
-$tickBudgetNanos = intdiv(1_000_000_000, $tickRate);
+$logger->info(
+    'Started Cobblestone',
+    [
+        'bind' => $bind,
+        'name' => $serverName,
+        'protocol' => 84,
+        'raknet' => 8,
+        'tick_rate' => $tickRate,
+    ],
+);
 
 try {
-    while (true) {
-        $started = hrtime(true);
-        $kernel->tick(256);
-        $remaining = $tickBudgetNanos - (hrtime(true) - $started);
-        if ($remaining > 0) {
-            usleep((int) ($remaining / 1_000));
-        }
-    }
-} finally {
-    $kernel->stop();
+    $runner->run();
+} catch (Throwable) {
+    exit(1);
 }
