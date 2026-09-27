@@ -129,8 +129,13 @@ nativeWorldExpect(
 
 $bulk = $world->mutate(
     static function (WorldMutation $mutation): void {
-        for ($x = 0; $x < 12; ++$x) {
-            $position = new BlockPos($x, 21, 10);
+        for ($index = 0; $index < 800; ++$index) {
+            $column = $index & 0xff;
+            $position = new BlockPos(
+                $column & 0x0f,
+                21 + intdiv($index, 256),
+                ($column >> 4) & 0x0f,
+            );
             nativeWorldExpect(
                 $mutation->setBlockStateId($position, BlockStateId::fromLegacy(5)) === BlockStateId::fromLegacy(0),
                 'bulk native mutation previous state mismatch',
@@ -140,9 +145,14 @@ $bulk = $world->mutate(
 );
 nativeWorldExpect($bulk->changed(), 'bulk native mutation reported no change');
 nativeWorldExpect($chunk->revision() === 3, 'bulk native mutation did not advance terrain revision once');
-for ($x = 0; $x < 12; ++$x) {
+foreach ([0, 255, 256, 767, 799] as $index) {
+    $column = $index & 0xff;
     nativeWorldExpect(
-        $world->blockStateId(new BlockPos($x, 21, 10)) === BlockStateId::fromLegacy(5),
+        $world->blockStateId(new BlockPos(
+            $column & 0x0f,
+            21 + intdiv($index, 256),
+            ($column >> 4) & 0x0f,
+        )) === BlockStateId::fromLegacy(5),
         'bulk native mutation state mismatch',
     );
 }

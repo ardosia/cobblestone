@@ -7,8 +7,8 @@ namespace Cobblestone\World;
 /**
  * Chunk-local light API matching Ardosia's semantic ChunkLight surface.
  *
- * Storage remains embedded in Cobblestone's protocol-friendly Chunk sections; this facade keeps
- * the semantic API separate from that representation.
+ * The facade is representation-independent: production chunks are native-backed while the PHP
+ * section representation remains the parity-tested fallback.
  */
 final readonly class ChunkLight
 {

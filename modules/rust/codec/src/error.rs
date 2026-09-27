@@ -156,6 +156,17 @@ pub enum CodecError {
         actual: u8,
     },
 
+    /// A fixed-target numeric packet field exceeded its protocol domain.
+    #[error("invalid fixed-target value for {field}: {value} > {max}")]
+    InvalidFixedTargetValue {
+        /// Stable field name.
+        field: &'static str,
+        /// Observed value.
+        value: u64,
+        /// Largest accepted value.
+        max: u64,
+    },
+
     /// A fixed-target packet field did not match the protocol-84 constant.
     #[error("invalid fixed byte for {field}: expected 0x{expected:02x}, got 0x{actual:02x}")]
     InvalidFixedByte {

@@ -1,6 +1,6 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::fmt;
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::RegionId;
 
@@ -148,6 +148,76 @@ pub struct ChunkPatch {
     pub block_light: Vec<(u16, u8)>,
 }
 
+pub const WORLD_CHANGE_LOG_CAPACITY: usize = 8192;
+pub const MAX_POINT_BLOCK_CHANGES: usize = 256;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum WorldChangeKind {
+    Blocks(Vec<(u16, u16)>),
+    FullChunk,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct WorldChange {
+    sequence: u64,
+    position: ChunkCoord,
+    kind: WorldChangeKind,
+}
+
+impl WorldChange {
+    pub const fn sequence(&self) -> u64 {
+        self.sequence
+    }
+
+    pub const fn position(&self) -> ChunkCoord {
+        self.position
+    }
+
+    pub const fn kind(&self) -> &WorldChangeKind {
+        &self.kind
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct WorldChangeLogSnapshot {
+    oldest_sequence: u64,
+    latest_sequence: u64,
+    changes: Vec<WorldChange>,
+}
+
+impl WorldChangeLogSnapshot {
+    pub const fn oldest_sequence(&self) -> u64 {
+        self.oldest_sequence
+    }
+
+    pub const fn latest_sequence(&self) -> u64 {
+        self.latest_sequence
+    }
+
+    pub fn changes(&self) -> &[WorldChange] {
+        &self.changes
+    }
+
+    pub fn cursor_is_stale(&self, cursor: u64) -> bool {
+        cursor.saturating_add(1) < self.oldest_sequence
+    }
+}
+
+#[derive(Debug)]
+struct WorldChangeLog {
+    next_sequence: u64,
+    changes: VecDeque<WorldChange>,
+}
+
+impl Default for WorldChangeLog {
+    fn default() -> Self {
+        Self {
+            next_sequence: 1,
+            changes: VecDeque::with_capacity(WORLD_CHANGE_LOG_CAPACITY),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WorldStoreError {
     ChunkMissing { x: i32, z: i32 },
@@ -223,11 +293,43 @@ impl std::error::Error for WorldStoreError {}
 #[derive(Debug, Default)]
 pub struct WorldStore {
     regions: RwLock<HashMap<RegionId, Arc<RegionShard>>>,
+    changes: Mutex<WorldChangeLog>,
 }
 
 impl WorldStore {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn current_change_sequence(&self) -> u64 {
+        lock_changes(&self.changes).next_sequence.saturating_sub(1)
+    }
+
+    pub fn change_log_snapshot(&self) -> WorldChangeLogSnapshot {
+        let changes = lock_changes(&self.changes);
+        let latest_sequence = changes.next_sequence.saturating_sub(1);
+        let oldest_sequence = changes
+            .changes
+            .front()
+            .map(WorldChange::sequence)
+            .unwrap_or_else(|| latest_sequence.saturating_add(1));
+
+        WorldChangeLogSnapshot {
+            oldest_sequence,
+            latest_sequence,
+            changes: changes.changes.iter().cloned().collect(),
+        }
+    }
+
+    pub fn prune_changes_through(&self, sequence: u64) {
+        let mut changes = lock_changes(&self.changes);
+        while changes
+            .changes
+            .front()
+            .is_some_and(|change| change.sequence <= sequence)
+        {
+            changes.changes.pop_front();
+        }
     }
 
     pub fn ensure_chunk(&self, position: ChunkCoord, biome: u8) -> bool {
@@ -567,6 +669,17 @@ impl WorldStore {
         let terrain_changed =
             !(patch.blocks.is_empty() && patch.biomes.is_empty() && patch.extra_data.is_empty());
         let light_changed = !(patch.sky_light.is_empty() && patch.block_light.is_empty());
+        let change_kind = if !terrain_changed && !light_changed {
+            None
+        } else if !light_changed
+            && patch.biomes.is_empty()
+            && patch.extra_data.is_empty()
+            && patch.blocks.len() <= MAX_POINT_BLOCK_CHANGES
+        {
+            Some(WorldChangeKind::Blocks(patch.blocks.clone()))
+        } else {
+            Some(WorldChangeKind::FullChunk)
+        };
 
         self.with_chunk_mut(position, |chunk| {
             if chunk.terrain_revision != patch.expected_terrain_revision {
@@ -648,7 +761,12 @@ impl WorldStore {
             chunk.terrain_revision = patch.next_terrain_revision;
             chunk.light_revision = patch.next_light_revision;
             Ok(())
-        })
+        })?;
+
+        if let Some(kind) = change_kind {
+            self.record_change(position, kind);
+        }
+        Ok(())
     }
 
     pub fn snapshot(&self, position: ChunkCoord) -> Result<ChunkSnapshot, WorldStoreError> {
@@ -660,6 +778,24 @@ impl WorldStore {
                 data: Arc::clone(&chunk.data),
             })
         })
+    }
+
+    fn record_change(&self, position: ChunkCoord, kind: WorldChangeKind) {
+        let mut changes = lock_changes(&self.changes);
+        let sequence = changes.next_sequence;
+        changes.next_sequence = changes
+            .next_sequence
+            .checked_add(1)
+            .expect("world change sequence exhausted");
+
+        if changes.changes.len() == WORLD_CHANGE_LOG_CAPACITY {
+            changes.changes.pop_front();
+        }
+        changes.changes.push_back(WorldChange {
+            sequence,
+            position,
+            kind,
+        });
     }
 
     fn region_for(position: ChunkCoord) -> RegionId {
@@ -843,6 +979,13 @@ fn recalculate_column_height(data: &mut ChunkData, column: usize) {
     data.height_map[column] = 0;
 }
 
+fn lock_changes(lock: &Mutex<WorldChangeLog>) -> MutexGuard<'_, WorldChangeLog> {
+    match lock.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
 fn read_lock<T>(lock: &RwLock<T>) -> RwLockReadGuard<'_, T> {
     match lock.read() {
         Ok(guard) => guard,
@@ -859,7 +1002,7 @@ fn write_lock<T>(lock: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ChunkCoord, ChunkPatch, WorldStore};
+    use super::{ChunkCoord, ChunkPatch, WorldChangeKind, WorldStore};
 
     #[test]
     fn snapshots_are_immutable_across_later_writes() {
@@ -898,5 +1041,58 @@ mod tests {
 
         assert_eq!(store.terrain_revision(pos).unwrap(), 1);
         assert_eq!(store.light_revision(pos).unwrap(), 1);
+    }
+
+    #[test]
+    fn change_log_keeps_point_blocks_and_escalates_light_to_full_chunk() {
+        let store = WorldStore::new();
+        let pos = ChunkCoord::new(2, -3);
+        store.ensure_chunk(pos, 1);
+        let initial = store.current_change_sequence();
+
+        store
+            .apply_patch(
+                pos,
+                ChunkPatch {
+                    expected_terrain_revision: 0,
+                    next_terrain_revision: 1,
+                    expected_light_revision: 0,
+                    next_light_revision: 0,
+                    blocks: vec![(0x0201, 0x32)],
+                    ..ChunkPatch::default()
+                },
+            )
+            .unwrap();
+        store
+            .apply_patch(
+                pos,
+                ChunkPatch {
+                    expected_terrain_revision: 1,
+                    next_terrain_revision: 1,
+                    expected_light_revision: 0,
+                    next_light_revision: 1,
+                    block_light: vec![(0x0201, 7)],
+                    ..ChunkPatch::default()
+                },
+            )
+            .unwrap();
+
+        let log = store.change_log_snapshot();
+        assert_eq!(initial, 0);
+        assert_eq!(log.latest_sequence(), 2);
+        assert_eq!(log.changes().len(), 2);
+        assert!(matches!(
+            log.changes()[0].kind(),
+            WorldChangeKind::Blocks(blocks) if blocks == &vec![(0x0201, 0x32)]
+        ));
+        assert!(matches!(
+            log.changes()[1].kind(),
+            WorldChangeKind::FullChunk
+        ));
+
+        store.prune_changes_through(1);
+        let pruned = store.change_log_snapshot();
+        assert_eq!(pruned.changes().len(), 1);
+        assert_eq!(pruned.oldest_sequence(), 2);
     }
 }

@@ -14,12 +14,11 @@ use ValueError;
 /** @internal */
 final class ChunkPatch
 {
-    private const SNAPSHOT_READ_THRESHOLD = 8;
+    private const SNAPSHOT_PREPARE_THRESHOLD = 768;
 
     private readonly int $baseRevision;
     private readonly int $baseLightRevision;
     private ?ChunkSnapshot $snapshot = null;
-    private int $authoritativeReads = 0;
 
     /** @var array<int, int> scalar BlockStateId tokens */
     private array $blocks = [];
@@ -154,6 +153,8 @@ final class ChunkPatch
 
     public function prepare(): PreparedChunkPatch
     {
+        $this->primeSnapshotForPrepare();
+
         if ($this->chunk->revision() !== $this->baseRevision) {
             throw new MutationConflict('chunk terrain changed while mutation was being prepared');
         }
@@ -278,16 +279,22 @@ final class ChunkPatch
 
     private function snapshotForRead(): ?ChunkSnapshot
     {
-        if ($this->snapshot !== null) {
-            return $this->snapshot;
-        }
-        if ($this->chunk->nativeStore() === null) {
-            return null;
+        return $this->snapshot;
+    }
+
+    private function primeSnapshotForPrepare(): void
+    {
+        if ($this->snapshot !== null || $this->chunk->nativeStore() === null) {
+            return;
         }
 
-        ++$this->authoritativeReads;
-        if ($this->authoritativeReads < self::SNAPSHOT_READ_THRESHOLD) {
-            return null;
+        $comparisons = count($this->blocks)
+            + count($this->biomes)
+            + count($this->extraData)
+            + count($this->skyLight)
+            + count($this->blockLight);
+        if ($comparisons < self::SNAPSHOT_PREPARE_THRESHOLD) {
+            return;
         }
 
         $snapshot = $this->chunk->snapshot();
@@ -298,7 +305,7 @@ final class ChunkPatch
             throw new MutationConflict('chunk changed while mutation snapshot was being captured');
         }
 
-        return $this->snapshot = $snapshot;
+        $this->snapshot = $snapshot;
     }
 
     public static function blockKey(int $x, int $y, int $z): int

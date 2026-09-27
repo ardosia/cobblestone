@@ -13,6 +13,7 @@ mod frame;
 mod limits;
 mod nbt;
 mod packet;
+mod update;
 
 pub use batch::BatchPacket;
 pub use chunk::{
@@ -28,4 +29,9 @@ pub use packet::{
     PROTOCOL_VERSION, PlayStatusPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket,
     StartGamePacket, decode_bootstrap_frame, decode_bootstrap_packet, encode_bootstrap_frame,
     encode_bootstrap_packet, packet_id,
+};
+pub use update::{
+    UPDATE_BLOCK_FLAG_ALL_PRIORITY, UPDATE_BLOCK_FLAG_NEIGHBORS, UPDATE_BLOCK_FLAG_NETWORK,
+    UPDATE_BLOCK_FLAG_NOGRAPHIC, UPDATE_BLOCK_FLAG_PRIORITY, UPDATE_BLOCK_ID,
+    encode_protocol84_update_block,
 };

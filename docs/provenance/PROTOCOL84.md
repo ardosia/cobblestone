@@ -38,14 +38,38 @@ order, a big-endian payload length, and then the historical layered payload:
 The pinned old biome implementation computes Plains (id 1) terrain RGB `0x92bc59` from
 its 0.15.10 temperature/rainfall model, yielding wire word `0x0192bc59`.
 
-Cobblestone's PHP `ChunkSnapshot` deliberately remains semantic state in Y/Z/X section order.
-That is already the order required by protocol-84 `ORDER_LAYERED = 1`; the native codec validates
-and appends those planes directly. The distinct LevelDB X/Z/Y-style column storage belongs to
-`ORDER_COLUMNS = 0` and must not be transposed into a packet still labelled layered.
-The private PHP/native bulk projection is not a gameplay packet; Rust continues to own
-FullChunkData framing, biome-word construction, sparse extra-data endianness, and Batch compression.
+Cobblestone's semantic `ChunkSnapshot` remains Y/Z/X ordered. The native production path reads
+immutable `WorldStore` snapshots directly and owns state-plane conversion, FullChunkData framing,
+biome-word construction, sparse extra-data endianness, revision-keyed packet caching, and Batch
+compression. A private PHP/native snapshot projection remains only as the non-native fallback. The
+distinct LevelDB X/Z/Y-style column storage belongs to `ORDER_COLUMNS = 0` and must not be
+transposed into a packet still labelled layered.
 
 The initial production stream keeps the client-requested radius distinct from a server-selected
 effective radius capped at three for this slice. Radius three is at most 49 chunks and remains
 inside the fixed 4 MiB decompressed Batch budget. The former synthetic all-air spawn-probe export
 is retained only for ABI compatibility and is not called by production server composition.
+
+## UpdateBlock live synchronization
+
+The pinned source oracle defines UpdateBlock as packet `0x13`. Its protocol-84 body is:
+
+- big-endian signed 32-bit X;
+- big-endian signed 32-bit Z;
+- one-byte Y;
+- one-byte legacy block ID; and
+- one byte whose high nibble is update flags and low nibble is legacy block data.
+
+The matching source defines `FLAG_NEIGHBORS = 0x01`, `FLAG_NETWORK = 0x02`,
+`FLAG_NOGRAPHIC = 0x04`, and `FLAG_PRIORITY = 0x08`. Its authoritative block-state broadcast
+uses `FLAG_ALL_PRIORITY = FLAG_NEIGHBORS | FLAG_NETWORK | FLAG_PRIORITY = 0x0b`.
+
+The supplied Windows 10 executable independently contains RTTI vocabulary for
+`UpdateBlockPacket`, `RemoveBlockPacket`, and `FullChunkDataPacket`. Those class names are
+used only as an independent vocabulary cross-check; the pinned source establishes the wire layout.
+
+Cobblestone's live world synchronization records successful native world patches in a bounded
+sequenced journal. Small block-state-only changes are coalesced and encoded as UpdateBlock packets
+entirely in Rust. Light, biome, extra-data, and large terrain changes fall back to the latest
+FullChunkData snapshot. See `docs/architecture/WORLD_SYNC.md` for the delivery/backpressure and
+measurement-derived batching policy.

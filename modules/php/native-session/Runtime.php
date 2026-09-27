@@ -37,6 +37,7 @@ final class Runtime
             'cobblestone_session_protocol84_request_chunk_radius',
             'cobblestone_session_protocol84_send_initial_chunks',
             'cobblestone_session_protocol84_send_native_chunks',
+            'cobblestone_session_protocol84_flush_world_changes',
             'cobblestone_session_disconnect',
             'cobblestone_session_stop',
         ] as $function) {
@@ -157,6 +158,14 @@ final class Runtime
             $centerChunkX,
             $centerChunkZ,
         );
+    }
+
+    /** @internal Returns the number of viewer batches queued this tick. */
+    public function flushWorldChanges(int $worldHandle): int
+    {
+        $this->assertRunning();
+
+        return cobblestone_session_protocol84_flush_world_changes($worldHandle);
     }
 
     public function disconnect(int $sessionId): void

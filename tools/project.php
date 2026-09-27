@@ -166,6 +166,7 @@ function testPhp(): void
         'native-exports-smoke.php',
         'extension-smoke.php',
         'native-world-smoke.php',
+        'world-sync-smoke.php',
         'fiber-smoke.php',
         'session-runtime-smoke.php',
         'server-smoke.php',

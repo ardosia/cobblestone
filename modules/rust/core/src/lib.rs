@@ -19,6 +19,7 @@ pub use worker::{
 };
 pub use world::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_EDGE, CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkImport,
-    ChunkPatch, ChunkSnapshot, MAX_LEGACY_STATE_ID, REGION_CHUNK_EDGE, WORLD_HEIGHT, WorldStore,
-    WorldStoreError,
+    ChunkPatch, ChunkSnapshot, MAX_LEGACY_STATE_ID, MAX_POINT_BLOCK_CHANGES, REGION_CHUNK_EDGE,
+    WORLD_CHANGE_LOG_CAPACITY, WORLD_HEIGHT, WorldChange, WorldChangeKind, WorldChangeLogSnapshot,
+    WorldStore, WorldStoreError,
 };

@@ -39,6 +39,7 @@ fn fixed_packet_ids_match_protocol84_oracle() {
     assert_eq!(packet_id::TEXT, 0x07);
     assert_eq!(packet_id::SET_TIME, 0x08);
     assert_eq!(packet_id::START_GAME, 0x09);
+    assert_eq!(packet_id::UPDATE_BLOCK, 0x13);
 }
 
 #[test]

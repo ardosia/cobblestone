@@ -194,11 +194,11 @@ When the native extension is available, `WorldFactory` creates one region-sharde
 
 The PHP/native boundary is deliberately coarse. Flat generation uses bulk layer/light fills. Immutable `ChunkSnapshot` projections carry complete semantic chunk state in one read. Staged world mutations commit one revision-checked patch per changed chunk and automatically switch large native-backed read sets to one snapshot instead of continuing per-cell FFI reads. Fixed-target light propagation remains PHP gameplay semantics, but reads one immutable snapshot per touched chunk, stages scalar light levels locally, validates the exact terrain/light revisions it read, and commits one native light patch per changed chunk.
 
-Protocol-84 initial chunk streaming no longer round-trips chunk planes through PHP: the extension reads immutable native snapshots directly, caches encoded FullChunkData by terrain/light revision, builds the compressed Batch, and submits it through the session host. This keeps chunk selection and gameplay semantics in PHP while keeping native representation and wire-heavy work below the Zend boundary.
+Protocol-84 initial chunk streaming no longer round-trips chunk planes through PHP: the extension reads immutable native snapshots directly, caches encoded FullChunkData by terrain/light revision, builds the compressed Batch, and submits it through the session host. Live world changes follow the same boundary. Successful native patches append to a bounded sequenced change journal; one owner-runtime flush call per server tick filters/coalesces changes for spawned viewers, uses UpdateBlock for bounded block-state-only edits, falls back to FullChunkData for changes that need a complete semantic projection, and preserves viewer cursors across native queue backpressure. PHP never serializes a changed-block list for network delivery.
 
-Generator ids retain the fixed StartGame vocabulary (old=0, infinite=1, flat=2), but only Flat is implemented. Its default preset is the historical version-2 `2;7,2x3,2;1;` layout (bedrock, two dirt, grass, biome 1). Decoration, persistence, broad block behavior, and non-flat generation remain separate work.
+Generator ids retain the fixed StartGame vocabulary (old=0, infinite=1, flat=2), but only Flat is implemented. Its default preset is the historical version-2 `2;7,2x3,2;1;` layout (bedrock, two dirt, grass, biome 1). Decoration, durable persistence, broad block behavior, and non-flat generation remain separate work. The custom persistence format is designed now but implementation waits for explicit resident/pinned chunk lifecycle and unload contracts.
 
-See `docs/provenance/WORLD015.md` for the fixed-target evidence boundary.
+See `docs/provenance/WORLD015.md` for the fixed-target evidence boundary, `docs/architecture/WORLD_SYNC.md` for live synchronization, and `docs/architecture/WORLD_STORAGE.md` for the persistence format contract.
 
 ## Runtime hardening, mutations, and execution regions
 

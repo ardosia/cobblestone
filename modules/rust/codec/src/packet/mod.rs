@@ -33,6 +33,8 @@ pub mod packet_id {
     pub const SET_TIME: u8 = 0x08;
     /// Initial world/session state.
     pub const START_GAME: u8 = 0x09;
+    /// Authoritative block-state update.
+    pub const UPDATE_BLOCK: u8 = 0x13;
     /// World spawn position.
     pub const SET_SPAWN_POSITION: u8 = 0x26;
     /// Adventure/player permission flags.

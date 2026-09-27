@@ -225,6 +225,11 @@ final class Server
                 }
             }
         }
+
+        $nativeStore = $this->world->nativeStore();
+        if ($nativeStore !== null) {
+            $this->sessions->flushWorldChanges($nativeStore->handle());
+        }
     }
 
     public function stop(): void

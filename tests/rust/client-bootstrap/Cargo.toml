@@ -12,6 +12,7 @@ bytes.workspace = true
 cobblestone-codec = { path = "../../../modules/rust/codec" }
 cobblestone-core = { path = "../../../modules/rust/core" }
 cobblestone-network = { path = "../../../modules/rust/network" }
+raknet-rust.workspace = true
 tokio.workspace = true
 
 [lints.rust]
