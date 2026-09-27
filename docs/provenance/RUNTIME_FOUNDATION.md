@@ -22,7 +22,6 @@ Reviewed surfaces:
 - `crates/world/src/edit.rs` — staged terrain patches, base revisions, prepare/commit, no-op detection;
 - `crates/world/src/coord.rs` — fixed-target chunk/coordinate semantics;
 - `crates/game/src/world_root.rs` — authoritative world residency boundary;
-- `.agent/changes/t013-block-behavior-dispatch/design.md` — synchronous nested effects and discard/replay for newly discovered cross-chunk work.
 
 Cobblestone ports the semantic transaction properties to PHP. It does not copy Ardosia's Rust world state, lock graph, leases, or gameplay implementation.
 

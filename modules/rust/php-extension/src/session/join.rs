@@ -287,7 +287,6 @@ pub fn cobblestone_session_protocol84_request_chunk_radius(body: Binary<u8>) -> 
     })
 }
 
-
 fn initial_chunk_count(effective_radius: i32) -> PhpResult<usize> {
     if !(1..=MAX_INITIAL_CHUNK_RADIUS).contains(&effective_radius) {
         return Err(php_error(format!(
@@ -299,8 +298,7 @@ fn initial_chunk_count(effective_radius: i32) -> PhpResult<usize> {
         .checked_mul(2)
         .and_then(|value| value.checked_add(1))
         .ok_or_else(|| php_error("initial chunk radius overflow"))?;
-    usize::try_from(side * side)
-        .map_err(|_| php_error("initial chunk count exceeds platform size"))
+    usize::try_from(side * side).map_err(|_| php_error("initial chunk count exceeds platform size"))
 }
 
 fn queue_initial_chunk_batch(
@@ -361,7 +359,6 @@ pub fn cobblestone_session_protocol84_send_initial_chunks(
         queue_initial_chunk_batch(owner, session_id, effective_radius, chunks)
     })
 }
-
 
 /// Reads immutable native world snapshots directly, reuses revision-keyed protocol-84 chunk
 /// packets, and queues ChunkRadiusUpdated + one compressed Batch + PLAYER_SPAWN.

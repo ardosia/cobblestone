@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use cobblestone_codec::{
-    Protocol84ChunkSnapshot, RawPacket, encode_protocol84_full_chunk_data,
-};
+use cobblestone_codec::{Protocol84ChunkSnapshot, RawPacket, encode_protocol84_full_chunk_data};
 use cobblestone_core::{
-    Arena, ChunkCoord, ChunkPatch as NativeChunkPatch, Handle, RuntimeId, WorldStore,
-    CHUNK_NIBBLE_BYTES,
+    Arena, CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkPatch as NativeChunkPatch, Handle, RuntimeId,
+    WorldStore,
 };
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
@@ -100,7 +98,6 @@ fn php_revision(value: u64) -> PhpResult<i64> {
     i64::try_from(value).map_err(|_| php_error("native world revision exceeds PHP integer range"))
 }
 
-
 struct PatchReader<'a> {
     bytes: &'a [u8],
     offset: usize,
@@ -170,18 +167,12 @@ fn parse_patch(bytes: &[u8]) -> PhpResult<NativeChunkPatch> {
 
     let mut blocks = Vec::new();
     for _ in 0..block_count {
-        blocks.push((
-            reader.u16("block index")?,
-            reader.u16("block state")?,
-        ));
+        blocks.push((reader.u16("block index")?, reader.u16("block state")?));
     }
 
     let mut biomes = Vec::new();
     for _ in 0..biome_count {
-        biomes.push((
-            reader.u8("biome index")?,
-            reader.u8("biome value")?,
-        ));
+        biomes.push((reader.u8("biome index")?, reader.u8("biome value")?));
     }
 
     let mut extra_data = Vec::new();
@@ -239,10 +230,7 @@ pub(crate) fn resolve_world(handle_value: i64) -> PhpResult<Arc<WorldStore>> {
     Ok(Arc::clone(&resolve_world_state(handle_value)?.store))
 }
 
-pub(crate) fn protocol84_chunk(
-    handle_value: i64,
-    position: ChunkCoord,
-) -> PhpResult<RawPacket> {
+pub(crate) fn protocol84_chunk(handle_value: i64, position: ChunkCoord) -> PhpResult<RawPacket> {
     let state = resolve_world_state(handle_value)?;
     let snapshot = state
         .store
@@ -301,8 +289,7 @@ pub(crate) fn protocol84_chunk(
         .store
         .light_revision(position)
         .map_err(|error| php_error(error.to_string()))?;
-    if current_terrain == snapshot.terrain_revision()
-        && current_light == snapshot.light_revision()
+    if current_terrain == snapshot.terrain_revision() && current_light == snapshot.light_revision()
     {
         let mut cache = match state.protocol84_cache.lock() {
             Ok(guard) => guard,
@@ -529,7 +516,11 @@ pub fn cobblestone_world_biome(
         let store = resolve_world(handle_value)?;
         Ok(i64::from(
             store
-                .biome(position(chunk_x, chunk_z)?, local(x, "local x")?, local(z, "local z")?)
+                .biome(
+                    position(chunk_x, chunk_z)?,
+                    local(x, "local x")?,
+                    local(z, "local z")?,
+                )
                 .map_err(|error| php_error(error.to_string()))?,
         ))
     })
@@ -706,7 +697,11 @@ pub fn cobblestone_world_height_map(
         let store = resolve_world(handle_value)?;
         Ok(i64::from(
             store
-                .height_map(position(chunk_x, chunk_z)?, local(x, "local x")?, local(z, "local z")?)
+                .height_map(
+                    position(chunk_x, chunk_z)?,
+                    local(x, "local x")?,
+                    local(z, "local z")?,
+                )
                 .map_err(|error| php_error(error.to_string()))?,
         ))
     })
@@ -776,8 +771,6 @@ pub fn cobblestone_world_set_block_extra_data(
     })
 }
 
-
-
 #[php_function]
 pub fn cobblestone_world_apply_patch(
     handle_value: i64,
@@ -810,8 +803,7 @@ pub fn cobblestone_world_snapshot(
         let extra_count = u32::try_from(snapshot.extra_data().len())
             .map_err(|_| php_error("native chunk extra-data entry count exceeds u32"))?;
         let mut projection = Vec::with_capacity(
-            16
-                + snapshot.states().len()
+            16 + snapshot.states().len()
                 + CHUNK_NIBBLE_BYTES
                 + snapshot.sky_light().len()
                 + snapshot.block_light().len()

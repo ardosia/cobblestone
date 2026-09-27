@@ -15,6 +15,7 @@ pub use region::{RegionDirectory, RegionId, RegionRoute, RegionRouteError};
 pub use runtime::RuntimeId;
 pub use worker::{
     CancellationToken, Completion, ShutdownReport, TaskHandle, TaskId, TrySubmitError, WorkerPool,
+    WorkerPoolBuildError,
 };
 pub use world::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_EDGE, CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkImport,

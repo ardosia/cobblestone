@@ -101,17 +101,3 @@ jobs:
         shell: bash
         run: composer test:php
 
-  ai-ci-summary:
-    name: ai-ci-summary
-    if: ${{ always() }}
-    needs: [validate, php-zts]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Summarize required checks
-        shell: bash
-        env:
-          VALIDATE_RESULT: ${{ needs.validate.result }}
-          PHP_ZTS_RESULT: ${{ needs.php-zts.result }}
-        run: |
-          test "$VALIDATE_RESULT" = "success"
-          test "$PHP_ZTS_RESULT" = "success"

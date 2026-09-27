@@ -210,7 +210,7 @@ Execution regions are internal ownership/scheduling territories, not fixed-targe
 
 The production gameplay path remains single-owner PHP today. This foundation deliberately does not claim that multi-runtime region scheduling is active yet.
 
-See `docs/provenance/RUNTIME_FOUNDATION.md` and `.agent/changes/runtime-foundation-v1/design.md`.
+See `docs/provenance/RUNTIME_FOUNDATION.md`.
 
 ## GC posture
 

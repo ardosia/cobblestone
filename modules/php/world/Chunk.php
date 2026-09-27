@@ -54,7 +54,7 @@ final class Chunk
 
     public function terrainRevision(): ChunkRevision
     {
-        return new ChunkRevision($this->revision);
+        return new ChunkRevision($this->revision());
     }
 
     public function terrain(): ChunkTerrain

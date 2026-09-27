@@ -170,24 +170,45 @@ impl fmt::Display for WorldStoreError {
         match self {
             Self::ChunkMissing { x, z } => write!(f, "native chunk {x}:{z} is not resident"),
             Self::InvalidState(state) => write!(f, "legacy state id {state} exceeds 12 bits"),
-            Self::InvalidBlockIndex(index) => write!(f, "chunk block index {index} is out of range"),
-            Self::InvalidColumnIndex(index) => write!(f, "chunk column index {index} is out of range"),
+            Self::InvalidBlockIndex(index) => {
+                write!(f, "chunk block index {index} is out of range")
+            }
+            Self::InvalidColumnIndex(index) => {
+                write!(f, "chunk column index {index} is out of range")
+            }
             Self::InvalidLight(level) => write!(f, "light level {level} is out of range"),
             Self::InvalidLayerRange { start_y, count } => {
-                write!(f, "chunk layer range start={start_y} count={count} is out of range")
+                write!(
+                    f,
+                    "chunk layer range start={start_y} count={count} is out of range"
+                )
             }
-            Self::InvalidImport(field) => write!(f, "native chunk import has invalid {field} length"),
+            Self::InvalidImport(field) => {
+                write!(f, "native chunk import has invalid {field} length")
+            }
             Self::TerrainRevisionConflict { expected, actual } => {
-                write!(f, "chunk terrain revision changed: expected {expected}, actual {actual}")
+                write!(
+                    f,
+                    "chunk terrain revision changed: expected {expected}, actual {actual}"
+                )
             }
             Self::LightRevisionConflict { expected, actual } => {
-                write!(f, "chunk light revision changed: expected {expected}, actual {actual}")
+                write!(
+                    f,
+                    "chunk light revision changed: expected {expected}, actual {actual}"
+                )
             }
-            Self::InvalidTerrainRevisionTransition { expected_next, requested } => write!(
+            Self::InvalidTerrainRevisionTransition {
+                expected_next,
+                requested,
+            } => write!(
                 f,
                 "invalid terrain revision transition: expected next {expected_next}, requested {requested}"
             ),
-            Self::InvalidLightRevisionTransition { expected_next, requested } => write!(
+            Self::InvalidLightRevisionTransition {
+                expected_next,
+                requested,
+            } => write!(
                 f,
                 "invalid light revision transition: expected next {expected_next}, requested {requested}"
             ),
@@ -350,7 +371,10 @@ impl WorldStore {
         let start = usize::from(start_y);
         let count = usize::from(count);
         if count == 0 || start >= WORLD_HEIGHT || start + count > WORLD_HEIGHT {
-            return Err(WorldStoreError::InvalidLayerRange { start_y, count: count as u8 });
+            return Err(WorldStoreError::InvalidLayerRange {
+                start_y,
+                count: count as u8,
+            });
         }
         self.with_chunk_mut(position, |chunk| {
             let data = Arc::make_mut(&mut chunk.data);
@@ -362,12 +386,7 @@ impl WorldStore {
         })
     }
 
-    pub fn biome(
-        &self,
-        position: ChunkCoord,
-        x: u8,
-        z: u8,
-    ) -> Result<u8, WorldStoreError> {
+    pub fn biome(&self, position: ChunkCoord, x: u8, z: u8) -> Result<u8, WorldStoreError> {
         let index = column_index(x, z)?;
         self.with_chunk(position, |chunk| Ok(chunk.data.biomes[index]))
     }
@@ -403,7 +422,9 @@ impl WorldStore {
         z: u8,
     ) -> Result<u8, WorldStoreError> {
         let index = block_index(x, y, z)?;
-        self.with_chunk(position, |chunk| Ok(read_nibble(&chunk.data.sky_light, index)))
+        self.with_chunk(position, |chunk| {
+            Ok(read_nibble(&chunk.data.sky_light, index))
+        })
     }
 
     pub fn set_sky_light(
@@ -432,7 +453,10 @@ impl WorldStore {
     ) -> Result<(), WorldStoreError> {
         validate_light(level)?;
         if usize::from(y) > WORLD_HEIGHT {
-            return Err(WorldStoreError::InvalidLayerRange { start_y: y, count: 0 });
+            return Err(WorldStoreError::InvalidLayerRange {
+                start_y: y,
+                count: 0,
+            });
         }
         self.with_chunk_mut(position, |chunk| {
             let data = Arc::make_mut(&mut chunk.data);
@@ -451,7 +475,9 @@ impl WorldStore {
         z: u8,
     ) -> Result<u8, WorldStoreError> {
         let index = block_index(x, y, z)?;
-        self.with_chunk(position, |chunk| Ok(read_nibble(&chunk.data.block_light, index)))
+        self.with_chunk(position, |chunk| {
+            Ok(read_nibble(&chunk.data.block_light, index))
+        })
     }
 
     pub fn set_block_light(
@@ -472,12 +498,7 @@ impl WorldStore {
         })
     }
 
-    pub fn height_map(
-        &self,
-        position: ChunkCoord,
-        x: u8,
-        z: u8,
-    ) -> Result<u8, WorldStoreError> {
+    pub fn height_map(&self, position: ChunkCoord, x: u8, z: u8) -> Result<u8, WorldStoreError> {
         let index = column_index(x, z)?;
         self.with_chunk(position, |chunk| Ok(chunk.data.height_map[index]))
     }
@@ -497,7 +518,9 @@ impl WorldStore {
         z: u8,
     ) -> Result<u16, WorldStoreError> {
         let key = extra_key(x, y, z)?;
-        self.with_chunk(position, |chunk| Ok(*chunk.data.extra_data.get(&key).unwrap_or(&0)))
+        self.with_chunk(position, |chunk| {
+            Ok(*chunk.data.extra_data.get(&key).unwrap_or(&0))
+        })
     }
 
     pub fn set_block_extra_data(
@@ -652,7 +675,11 @@ impl WorldStore {
             return region;
         }
         let mut regions = write_lock(&self.regions);
-        Arc::clone(regions.entry(id).or_insert_with(|| Arc::new(RegionShard::default())))
+        Arc::clone(
+            regions
+                .entry(id)
+                .or_insert_with(|| Arc::new(RegionShard::default())),
+        )
     }
 
     fn region(&self, position: ChunkCoord) -> Result<Arc<RegionShard>, WorldStoreError> {
@@ -673,12 +700,10 @@ impl WorldStore {
     ) -> Result<T, WorldStoreError> {
         let region = self.region(position)?;
         let chunks = read_lock(&region.chunks);
-        let chunk = chunks
-            .get(&position)
-            .ok_or(WorldStoreError::ChunkMissing {
-                x: position.x,
-                z: position.z,
-            })?;
+        let chunk = chunks.get(&position).ok_or(WorldStoreError::ChunkMissing {
+            x: position.x,
+            z: position.z,
+        })?;
         operation(chunk)
     }
 
@@ -722,7 +747,10 @@ fn validate_import(import: &ChunkImport) -> Result<(), WorldStoreError> {
 }
 
 fn block_index(x: u8, y: u8, z: u8) -> Result<usize, WorldStoreError> {
-    if usize::from(x) >= CHUNK_EDGE || usize::from(z) >= CHUNK_EDGE || usize::from(y) >= WORLD_HEIGHT {
+    if usize::from(x) >= CHUNK_EDGE
+        || usize::from(z) >= CHUNK_EDGE
+        || usize::from(y) >= WORLD_HEIGHT
+    {
         return Err(WorldStoreError::InvalidBlockIndex(
             (u16::from(y) << 8) | (u16::from(z) << 4) | u16::from(x),
         ));
