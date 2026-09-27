@@ -1,6 +1,7 @@
 #![cfg_attr(windows, feature(abi_vectorcall))]
 
 mod session_php;
+mod session_protocol84;
 
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -14,6 +15,7 @@ use ext_php_rs::exception::{PhpException, PhpResult};
 use ext_php_rs::prelude::*;
 
 use session_php::{register_session_functions, shutdown_session_runtime};
+use session_protocol84::register_protocol84_session_functions;
 
 static NEXT_RUNTIME_ID: AtomicU32 = AtomicU32::new(1);
 static PROBES: OnceLock<Mutex<ProbeRegistry>> = OnceLock::new();
@@ -396,5 +398,5 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_core_async_ready))
         .function(wrap_function!(cobblestone_core_async_take));
 
-    register_session_functions(module)
+    register_protocol84_session_functions(register_session_functions(module))
 }

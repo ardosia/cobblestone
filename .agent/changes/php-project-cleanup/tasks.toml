@@ -14,6 +14,12 @@ depends_on = ["composer"]
 acceptance = "Move every nested PHP class/result/event/token into its own PSR-4 file without renaming the existing PHP API."
 
 [[tasks]]
+id = "native-adapter-layout"
+status = "implemented"
+depends_on = []
+acceptance = "Separate generic native session-host PHP bridge code from fixed protocol-84 compatibility/bootstrap machinery without changing exported PHP function names."
+
+[[tasks]]
 id = "test-bootstrap"
 status = "implemented"
 depends_on = ["composer", "source-layout"]
@@ -34,5 +40,5 @@ acceptance = "Document the Composer package boundary and close C007 against its 
 [[tasks]]
 id = "verify"
 status = "planned"
-depends_on = ["source-layout", "test-bootstrap", "ci", "docs-state"]
+depends_on = ["source-layout", "native-adapter-layout", "test-bootstrap", "ci", "docs-state"]
 acceptance = "Run canonical Linux/Windows validation and PHP-ZTS integration on the persisted cleanup revision."
