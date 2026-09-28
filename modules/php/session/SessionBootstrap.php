@@ -14,7 +14,7 @@ use LogicException;
 use ValueError;
 
 /** @internal */
-final class JoinFlow
+final class SessionBootstrap
 {
     private const LOGIN_PACKET = 0x01;
     private const REQUEST_CHUNK_RADIUS_PACKET = 0x3d;

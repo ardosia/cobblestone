@@ -19,7 +19,7 @@ use Cobblestone\Session\Event\SessionConnected;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionLoginAccepted;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\JoinFlow;
+use Cobblestone\Session\SessionBootstrap;
 use Cobblestone\Session\JoinResult;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\World\ChunkLoadPending;
@@ -39,7 +39,7 @@ final class Server
     private readonly CommandRegistry $commands;
     private readonly Scheduler $scheduler;
     private readonly PluginManager $plugins;
-    private readonly JoinFlow $join;
+    private readonly SessionBootstrap $bootstrap;
     private readonly LoggerInterface $logger;
 
     private ServerState $state = ServerState::Starting;
@@ -64,7 +64,7 @@ final class Server
             $this->scheduler,
             $this->logs,
         );
-        $this->join = new JoinFlow($this->sessions, $this->world, $initialChunkRadius);
+        $this->bootstrap = new SessionBootstrap($this->sessions, $this->world, $initialChunkRadius);
 
         $this->state = ServerState::Running;
         $this->events->dispatch(new ServerStarted());
@@ -172,7 +172,7 @@ final class Server
             }
 
             if ($event instanceof Connected) {
-                $this->join->connected($event->sessionId);
+                $this->bootstrap->connected($event->sessionId);
                 $this->logger->info(
                     'Session connected',
                     ['session' => $event->sessionId, 'peer' => $event->peer],
@@ -181,7 +181,7 @@ final class Server
                 continue;
             }
             if ($event instanceof Disconnected) {
-                $this->join->disconnected($event->sessionId);
+                $this->bootstrap->disconnected($event->sessionId);
                 $this->logger->info(
                     'Session disconnected',
                     ['session' => $event->sessionId, 'reason' => $event->reason],
@@ -191,10 +191,10 @@ final class Server
             }
             if ($event instanceof Packet) {
                 try {
-                    $result = $this->join->handle($event);
+                    $result = $this->bootstrap->handle($event);
                 } catch (Throwable $error) {
                     $this->logger->error(
-                        'Join flow failed',
+                        'Session bootstrap failed',
                         [
                             'session' => $event->sessionId,
                             'packet' => $event->packetId,
@@ -205,7 +205,7 @@ final class Server
                         $this->sessions->disconnect($event->sessionId);
                     } catch (Throwable $disconnectError) {
                         $this->logger->warning(
-                            'Session disconnect after join failure failed',
+                            'Session disconnect after bootstrap failure failed',
                             [
                                 'session' => $event->sessionId,
                                 'exception' => $disconnectError,
@@ -253,7 +253,7 @@ final class Server
             }
         }
 
-        foreach ($this->join->tick() as $completion) {
+        foreach ($this->bootstrap->tick() as $completion) {
             $this->dispatchSpawned($completion['sessionId'], $completion['result']);
         }
 

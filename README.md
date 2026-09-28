@@ -53,7 +53,7 @@ ardosia/cobblestone-session
 PHP API identities remain idiomatic PascalCase:
 
 ```php
-use Cobblestone\Session\JoinFlow;
+use Cobblestone\Session\SessionBootstrap;
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
 use Cobblestone\World\World;
