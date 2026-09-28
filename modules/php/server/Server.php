@@ -191,7 +191,7 @@ final class Server
             }
             if ($event instanceof Packet) {
                 try {
-                    $result = $this->bootstrap->handle($event);
+                    $update = $this->bootstrap->handle($event);
                 } catch (Throwable $error) {
                     $this->logger->error(
                         'Session bootstrap failed',
@@ -215,7 +215,7 @@ final class Server
                     continue;
                 }
 
-                if ($result->kind === BootstrapUpdate::LOGIN_ACCEPTED) {
+                if ($update->kind === BootstrapUpdate::LOGIN_ACCEPTED) {
                     $this->logger->info(
                         'Session login accepted',
                         ['session' => $event->sessionId, 'protocol' => 84],
@@ -223,11 +223,11 @@ final class Server
                     $this->events->dispatch(new SessionLoginAccepted($event->sessionId));
                     continue;
                 }
-                if ($result->kind === BootstrapUpdate::CHUNKS_LOADING) {
+                if ($update->kind === BootstrapUpdate::CHUNKS_LOADING) {
                     continue;
                 }
-                if ($result->kind === BootstrapUpdate::SPAWNED) {
-                    $this->dispatchSpawned($event->sessionId, $result);
+                if ($update->kind === BootstrapUpdate::SPAWNED) {
+                    $this->dispatchSpawned($event->sessionId, $update);
                     continue;
                 }
 
@@ -254,7 +254,7 @@ final class Server
         }
 
         foreach ($this->bootstrap->tick() as $completion) {
-            $this->dispatchSpawned($completion['sessionId'], $completion['result']);
+            $this->dispatchSpawned($completion['sessionId'], $completion['update']);
         }
 
         if ($nativeStore !== null) {
@@ -308,27 +308,27 @@ final class Server
         }
     }
 
-    private function dispatchSpawned(int $sessionId, BootstrapUpdate $result): void
+    private function dispatchSpawned(int $sessionId, BootstrapUpdate $update): void
     {
-        $effectiveRadius = $result->effectiveRadius ?? 0;
+        $effectiveRadius = $update->effectiveRadius ?? 0;
         $this->logger->info(
             'Session spawned',
             [
                 'session' => $sessionId,
-                'requested_radius' => $result->requestedRadius ?? 0,
+                'requested_radius' => $update->requestedRadius ?? 0,
                 'initial_radius' => $effectiveRadius,
-                'chunks_sent' => $result->chunksSent,
-                'encoded_bytes' => $result->encodedBytes,
-                'chunk_encode_ms' => round($result->chunkEncodeNanos / 1_000_000, 3),
+                'chunks_sent' => $update->chunksSent,
+                'encoded_bytes' => $update->encodedBytes,
+                'chunk_encode_ms' => round($update->chunkEncodeNanos / 1_000_000, 3),
             ],
         );
         $this->events->dispatch(
             new SessionSpawned(
                 $sessionId,
-                $result->requestedRadius ?? 0,
+                $update->requestedRadius ?? 0,
                 $effectiveRadius,
-                $result->chunksSent,
-                $result->encodedBytes,
+                $update->chunksSent,
+                $update->encodedBytes,
             ),
         );
     }

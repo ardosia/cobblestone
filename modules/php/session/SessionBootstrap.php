@@ -61,7 +61,7 @@ final class SessionBootstrap
     /**
      * Advances persistent chunk loads without blocking the owner runtime.
      *
-     * @return list<array{sessionId: int, result: BootstrapUpdate}>
+     * @return list<array{sessionId: int, update: BootstrapUpdate}>
      */
     public function tick(): array
     {
@@ -80,7 +80,7 @@ final class SessionBootstrap
             unset($this->pendingSpawns[$sessionId]);
             $completed[] = [
                 'sessionId' => $sessionId,
-                'result' => $this->finishSpawn(
+                'update' => $this->finishSpawn(
                     $sessionId,
                     $pending['requested'],
                     $pending['effective'],
