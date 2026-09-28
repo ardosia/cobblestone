@@ -209,23 +209,6 @@ final class NativeWorldStore
         return $statuses;
     }
 
-    /**
-     * Ergonomic cold-path wrapper.
-     *
-     * @param list<ChunkPos> $positions
-     * @return list<NativeChunkLoadStatus>
-     */
-    public function prepareStorageLoads(array $positions): array
-    {
-        $statuses = $this->prepareStorageLoadBatch(self::encodeStorageLoadBatch($positions));
-
-        $result = [];
-        for ($index = 0, $count = strlen($statuses); $index < $count; ++$index) {
-            $result[] = NativeChunkLoadStatus::from(ord($statuses[$index]));
-        }
-
-        return $result;
-    }
 
     public function requestStorageLoad(ChunkPos $position): NativeChunkLoadStatus
     {
