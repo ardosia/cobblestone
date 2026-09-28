@@ -57,6 +57,29 @@ fn state_from_move(packet: MovePlayerPacket) -> Result<PlayerState, &'static str
     validate_position(packet.position())
 }
 
+fn encode_view_delta(delta: Option<&ChunkViewDelta>) -> Result<Binary<u8>, &'static str> {
+    let Some(delta) = delta else {
+        return Ok(Binary::new(Vec::new()));
+    };
+    let entering_count =
+        u32::try_from(delta.entering.len()).map_err(|_| "chunk view delta is too large")?;
+    let mut projection = Vec::with_capacity(20 + delta.entering.len().saturating_mul(8));
+    for coordinate in [
+        delta.from_center.x(),
+        delta.from_center.z(),
+        delta.to_center.x(),
+        delta.to_center.z(),
+    ] {
+        projection.extend_from_slice(&coordinate.to_le_bytes());
+    }
+    projection.extend_from_slice(&entering_count.to_le_bytes());
+    for position in &delta.entering {
+        projection.extend_from_slice(&position.x().to_le_bytes());
+        projection.extend_from_slice(&position.z().to_le_bytes());
+    }
+    Ok(Binary::new(projection))
+}
+
 fn spawn_state(spawn: [i32; 3]) -> Result<PlayerState, &'static str> {
     validate_position([
         spawn[0] as f32 + 0.5,
@@ -109,7 +132,7 @@ pub fn cobblestone_session_protocol84_player_spawned(
 pub fn cobblestone_session_protocol84_track_move_player(
     session_id: i64,
     body: Binary<u8>,
-) -> PhpResult<()> {
+) -> PhpResult<Binary<u8>> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
         let session_id = owner_session_id(session_id)?;
@@ -125,8 +148,9 @@ pub fn cobblestone_session_protocol84_track_move_player(
         }
 
         state.view_delta = plan_view_delta(owner, session_id, state.chunk);
+        let projection = encode_view_delta(state.view_delta.as_ref()).map_err(php_error)?;
         player_states().insert((owner, session_id), state);
-        Ok(())
+        Ok(projection)
     })
 }
 
@@ -184,5 +208,33 @@ mod tests {
         assert!(decode_state([0.0, f32::INFINITY, 0.0]).is_err());
         assert!(decode_state([MAX_PLAYER_COORDINATE + 1.0, 64.0, 0.0]).is_err());
         assert!(decode_state([0.0, 64.0, -MAX_PLAYER_COORDINATE - 1.0]).is_err());
+    }
+
+    #[test]
+    fn view_delta_projection_is_little_endian_and_ordered() {
+        let delta = ChunkViewDelta {
+            from_center: ChunkCoord::new(-1, 2),
+            to_center: ChunkCoord::new(3, -4),
+            entering: vec![ChunkCoord::new(5, 6), ChunkCoord::new(-7, 8)],
+            leaving: Vec::new(),
+        };
+
+        let projection = encode_view_delta(Some(&delta)).expect("encode view delta");
+        let mut expected = Vec::new();
+        for coordinate in [-1_i32, 2, 3, -4] {
+            expected.extend_from_slice(&coordinate.to_le_bytes());
+        }
+        expected.extend_from_slice(&2_u32.to_le_bytes());
+        for coordinate in [5_i32, 6, -7, 8] {
+            expected.extend_from_slice(&coordinate.to_le_bytes());
+        }
+
+        assert_eq!(projection.as_slice(), expected.as_slice());
+        assert!(
+            encode_view_delta(None)
+                .expect("encode empty view delta")
+                .as_slice()
+                .is_empty()
+        );
     }
 }

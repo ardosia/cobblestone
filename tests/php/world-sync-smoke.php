@@ -35,14 +35,28 @@ if (!is_string($bind) || $bind === '') {
 }
 
 $movementHandled = false;
+$server = null;
 $server = Server::start(
     $bind,
     4,
     'Cobblestone World Sync Test',
-    static function (Packet $packet) use (&$movementHandled): void {
-        if ($packet->packetId === 0x10) {
-            $movementHandled = true;
+    static function (Packet $packet) use (&$movementHandled, &$server): void {
+        if ($packet->packetId !== 0x10) {
+            return;
         }
+
+        worldSyncExpect($server instanceof Server, 'world-sync server was unavailable to gameplay handler');
+        $store = $server->world()->nativeStore();
+        worldSyncExpect($store !== null, 'world-sync gameplay handler lost native store');
+        worldSyncExpect(
+            $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
+            'movement preparation released the old streamed center',
+        );
+        worldSyncExpect(
+            $store->chunkPinCount(new ChunkPos(11, 8)) > 0,
+            'movement preparation did not pin an entering chunk',
+        );
+        $movementHandled = true;
     },
 );
 $spawned = false;
@@ -155,6 +169,10 @@ worldSyncExpect($store !== null, 'world-sync native store disappeared during shu
 worldSyncExpect(
     $store->chunkPinCount(new ChunkPos(8, 8)) === 0,
     'session shutdown did not release streamed chunk pins',
+);
+worldSyncExpect(
+    $store->chunkPinCount(new ChunkPos(11, 8)) === 0,
+    'session shutdown did not release prepared entering chunk pins',
 );
 
 fwrite(STDOUT, "world-sync-smoke: passed\n");

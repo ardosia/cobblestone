@@ -140,10 +140,10 @@ final class Runtime
     }
 
     /** @internal */
-    public function trackPlayerMovement(int $sessionId, string $body): void
+    public function trackPlayerMovement(int $sessionId, string $body): string
     {
         $this->assertRunning();
-        cobblestone_session_protocol84_track_move_player($sessionId, $body);
+        return cobblestone_session_protocol84_track_move_player($sessionId, $body);
     }
 
     /** @internal */

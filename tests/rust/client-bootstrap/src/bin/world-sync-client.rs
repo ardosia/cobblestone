@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if send_movement {
                 let movement = RawPacket::new(
                     packet_id::MOVE_PLAYER,
-                    move_player_body([129.0, 64.0, 129.0]),
+                    move_player_body([145.0, 64.0, 129.0]),
                 );
                 let movement_frame = encode_game_frame(&movement, limits)?;
                 client

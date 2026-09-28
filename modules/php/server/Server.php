@@ -185,6 +185,7 @@ final class Server
             }
             if ($event instanceof Disconnected) {
                 $this->bootstrap->disconnected($event->sessionId);
+                $this->gameplay->disconnected($event->sessionId);
                 $this->logger->info(
                     'Session disconnected',
                     ['session' => $event->sessionId, 'reason' => $event->reason],
@@ -271,6 +272,7 @@ final class Server
             $this->dispatchSpawned($completion['sessionId'], $completion['update']);
         }
 
+        $this->gameplay->tick();
         $this->worldMaintenance->flushWorldChanges();
     }
 
@@ -288,6 +290,7 @@ final class Server
 
         foreach ([
             'stopping-event' => fn () => $this->events->dispatch(new ServerStopping()),
+            'gameplay' => fn () => $this->gameplay->stop(),
             'sessions' => fn () => $this->sessions->stop(),
             'plugins' => fn () => $this->plugins->shutdown(),
             'scheduler' => fn () => $this->scheduler->shutdown(),
