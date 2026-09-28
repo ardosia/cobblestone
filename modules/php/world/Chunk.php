@@ -14,8 +14,6 @@ final class Chunk
 
     /** @var array<int, ChunkSection> */
     private array $sections = [];
-    private string $heightMap = '';
-
     private readonly ?ChunkFallbackState $fallbackState;
 
     public function __construct(
@@ -39,7 +37,6 @@ final class Chunk
             $this->sections[$index] = ChunkSection::air();
         }
 
-        $this->heightMap = str_repeat("\x00", WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
     }
 
     public function position(): ChunkPos
@@ -177,8 +174,8 @@ final class Chunk
             $top = $endY - 1;
             $columns = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE;
             for ($column = 0; $column < $columns; ++$column) {
-                if ($top >= ord($this->heightMap[$column])) {
-                    $this->heightMap[$column] = chr($top);
+                if ($top >= $this->fallbackState()->heightAt($column)) {
+                    $this->fallbackState()->setHeight($column, $top);
                 }
             }
             return;
@@ -313,7 +310,7 @@ final class Chunk
             return $this->nativeStore->heightMap($this->position, $x, $z);
         }
 
-        return ord($this->heightMap[$index]);
+        return $this->fallbackState()->heightAt($index);
     }
 
     public function recalculateHeightMap(): void
@@ -325,7 +322,10 @@ final class Chunk
 
         for ($z = 0; $z < WorldBounds::CHUNK_EDGE; ++$z) {
             for ($x = 0; $x < WorldBounds::CHUNK_EDGE; ++$x) {
-                $this->heightMap[self::columnIndex($x, $z)] = chr($this->highestBlockAt($x, $z));
+                $this->fallbackState()->setHeight(
+                    self::columnIndex($x, $z),
+                    $this->highestBlockAt($x, $z),
+                );
             }
         }
     }
@@ -395,7 +395,7 @@ final class Chunk
             $skyLight,
             $blockLight,
             $this->fallbackState()->biomes(),
-            $this->heightMap,
+            $this->fallbackState()->heightMap(),
             $this->fallbackState()->extraData(),
             $this->fallbackState()->lightRevision(),
         );
@@ -596,17 +596,17 @@ final class Chunk
         bool $nextAir,
     ): void {
         $column = self::columnIndex($x, $z);
-        $current = ord($this->heightMap[$column]);
+        $current = $this->fallbackState()->heightAt($column);
 
         if (!$nextAir) {
             if ($y >= $current) {
-                $this->heightMap[$column] = chr($y);
+                $this->fallbackState()->setHeight($column, $y);
             }
             return;
         }
 
         if (!$previousAir && $y >= $current) {
-            $this->heightMap[$column] = chr($this->highestBlockAt($x, $z));
+            $this->fallbackState()->setHeight($column, $this->highestBlockAt($x, $z));
         }
     }
 
