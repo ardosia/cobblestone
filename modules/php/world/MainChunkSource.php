@@ -17,11 +17,18 @@ final class MainChunkSource implements ChunkSource
     /** @var array<string, true> */
     private array $loading = [];
 
+    /** @var array<string, true> */
+    private array $evictionQueued = [];
+
+    /** @var \SplQueue<string> */
+    private readonly \SplQueue $evictionQueue;
+
     public function __construct(
         private readonly Generator $generator,
         private readonly int $seed,
         private readonly ?NativeWorldStore $nativeStore = null,
     ) {
+        $this->evictionQueue = new \SplQueue();
     }
 
     public function get(ChunkPos $position): ?Chunk
@@ -109,6 +116,11 @@ final class MainChunkSource implements ChunkSource
 
         $this->chunks[$key] = $chunk;
         $this->cells[$key] ??= new ResidentChunkCell($chunk);
+
+        if ($existing === null && !isset($this->evictionQueued[$key])) {
+            $this->evictionQueued[$key] = true;
+            $this->evictionQueue->enqueue($key);
+        }
     }
 
     public function remove(ChunkPos $position): ?Chunk
@@ -152,6 +164,35 @@ final class MainChunkSource implements ChunkSource
         }
 
         return $status;
+    }
+
+    public function evictCleanUnpinned(int $budget): int
+    {
+        if ($budget <= 0 || $budget > 4096) {
+            throw new \ValueError('chunk eviction budget must be in range 1..4096');
+        }
+
+        $removed = 0;
+        for ($inspected = 0; $inspected < $budget && !$this->evictionQueue->isEmpty(); ++$inspected) {
+            $key = $this->evictionQueue->dequeue();
+            unset($this->evictionQueued[$key]);
+
+            $chunk = $this->chunks[$key] ?? null;
+            if ($chunk === null) {
+                continue;
+            }
+
+            $status = $this->unload($chunk->position());
+            if ($status === ChunkUnloadStatus::Pinned || $status === ChunkUnloadStatus::Dirty) {
+                $this->evictionQueued[$key] = true;
+                $this->evictionQueue->enqueue($key);
+                continue;
+            }
+
+            ++$removed;
+        }
+
+        return $removed;
     }
 
     public function count(): int

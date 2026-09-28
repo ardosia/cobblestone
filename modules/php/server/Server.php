@@ -33,6 +33,8 @@ use Throwable;
 
 final class Server
 {
+    private const CHUNK_EVICTION_BUDGET = 64;
+
     private readonly EventBus $events;
     private readonly CommandRegistry $commands;
     private readonly Scheduler $scheduler;
@@ -246,6 +248,9 @@ final class Server
 
         if ($nativeStore !== null) {
             $this->sessions->flushWorldChanges($nativeStore->handle());
+            if ($nativeStore->hasStorage()) {
+                $this->world->chunks()->evictCleanUnpinned(self::CHUNK_EVICTION_BUDGET);
+            }
         }
     }
 

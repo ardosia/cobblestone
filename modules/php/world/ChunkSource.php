@@ -22,6 +22,13 @@ interface ChunkSource
 
     public function unload(ChunkPos $position): ChunkUnloadStatus;
 
+    /**
+     * Inspects at most $budget resident entries and evicts only clean, unpinned chunks.
+     *
+     * @return int Number of resident facades removed.
+     */
+    public function evictCleanUnpinned(int $budget): int;
+
     public function resident(ChunkPos $position, bool $generate = false): ?ResidentChunkHandle;
 
     public function count(): int;

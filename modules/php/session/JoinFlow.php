@@ -221,28 +221,34 @@ final class JoinFlow
             throw new LogicException('persistent chunk preparation returned the wrong status width');
         }
 
-        $pending = false;
+        $resolved = [];
         foreach ($positions as $index => $position) {
             $status = NativeChunkLoadStatus::from(ord($statuses[$index]));
-            if ($status === NativeChunkLoadStatus::Resident) {
+            if (
+                $status !== NativeChunkLoadStatus::Resident
+                && $status !== NativeChunkLoadStatus::Missing
+            ) {
+                return false;
+            }
+            $resolved[] = $status;
+        }
+
+        foreach ($positions as $index => $position) {
+            if ($resolved[$index] === NativeChunkLoadStatus::Resident) {
                 if ($this->world->chunk($position, false) === null) {
                     $this->world->adoptNativeChunk($position);
                 }
                 continue;
             }
-            if ($status === NativeChunkLoadStatus::Missing) {
-                if ($this->world->chunk($position, true) === null) {
-                    throw new LogicException(
-                        "world failed to generate durably missing initial chunk {$position->x}:{$position->z}",
-                    );
-                }
-                continue;
-            }
 
-            $pending = true;
+            if ($this->world->chunk($position, true) === null) {
+                throw new LogicException(
+                    "world failed to generate durably missing initial chunk {$position->x}:{$position->z}",
+                );
+            }
         }
 
-        return !$pending;
+        return true;
     }
 
     private function finishSpawn(

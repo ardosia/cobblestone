@@ -7,6 +7,7 @@ require __DIR__ . '/bootstrap.php';
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
+use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
@@ -69,6 +70,7 @@ $seedStore = $seedWorld->nativeStore();
 persistentJoinExpect($seedStore !== null, 'persistent join requires native world storage');
 
 $center = $seedWorld->spawn()->chunk();
+$evictAfterDisconnectPosition = new ChunkPos($center->x - 2, $center->z - 2);
 $fiberPersistedPosition = new ChunkPos($center->x + 4, $center->z);
 $fiberMissingPosition = new ChunkPos($center->x + 5, $center->z);
 $positions = [
@@ -159,16 +161,34 @@ $server = Server::start(
     world: $world,
 );
 $spawned = false;
+$disconnected = false;
 $mutated = false;
 $stopFlushDirty = false;
 $server->events()->listen(
+    SessionDisconnected::class,
+    static function (SessionDisconnected $event) use (&$disconnected): void {
+        $disconnected = true;
+    },
+);
+$server->events()->listen(
     SessionSpawned::class,
-    static function (SessionSpawned $event) use ($server, $center, &$spawned, &$mutated): void {
+    static function (SessionSpawned $event) use (
+        $server,
+        $store,
+        $center,
+        $evictAfterDisconnectPosition,
+        &$spawned,
+        &$mutated,
+    ): void {
         $spawned = true;
         persistentJoinExpect($event->chunksSent === 25, 'persistent join sent wrong initial chunk count');
         persistentJoinExpect(
             $server->world()->chunks()->count() === 25,
             'persistent join did not adopt loaded chunks into PHP residency',
+        );
+        persistentJoinExpect(
+            $store->chunkPinCount($evictAfterDisconnectPosition) === 1,
+            'spawned session did not pin its initial chunk view',
         );
 
         $chunk = $server->world()->chunk($center, false);
@@ -257,6 +277,22 @@ try {
         "persistent-join client did not observe UpdateBlock\nstdout={$stdout}\nstderr={$stderr}",
     );
 
+    for ($attempt = 0; $attempt < 1000; ++$attempt) {
+        if (
+            $disconnected
+            && $server->world()->chunk($evictAfterDisconnectPosition, false) === null
+        ) {
+            break;
+        }
+        $server->tick(1);
+        usleep(1_000);
+    }
+    persistentJoinExpect($disconnected, 'persistent session disconnect was not observed');
+    persistentJoinExpect(
+        $server->world()->chunk($evictAfterDisconnectPosition, false) === null,
+        'clean initial-view chunk was not evicted after the session released its pin',
+    );
+
     $loadedHandle = null;
     $server->scheduler()->spawn(
         static function () use ($server, $fiberPersistedPosition, &$loadedHandle): void {
@@ -323,8 +359,20 @@ try {
         'Fiber gameplay acquisition did not release the generated chunk pin',
     );
 
+    $centerHandle = null;
+    $server->scheduler()->spawn(
+        static function () use ($server, $center, &$centerHandle): void {
+            $centerHandle = $server->awaitResidentChunk($center);
+        },
+    );
+    for ($attempt = 0; $attempt < 1000 && $centerHandle === null; ++$attempt) {
+        $server->tick(1);
+        usleep(1_000);
+    }
+    persistentJoinExpect($centerHandle !== null, 'center chunk could not be reacquired after eviction');
     $server->world()->setBlockStateId(new BlockPos(129, 5, 129), BlockStateId::fromLegacy(3));
     persistentJoinExpect($store->chunkDirty($center), 'server-stop flush probe did not start dirty');
+    $centerHandle->release();
     $stopFlushDirty = true;
 } finally {
     foreach ([1, 2] as $pipe) {
