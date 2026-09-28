@@ -6,6 +6,7 @@ declare(strict_types=1);
 use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerRunner;
+use Cobblestone\Server\WorldFactory;
 use Cobblestone\Tick\TickLoop;
 use Cobblestone\Tick\TickLoopConfig;
 
@@ -34,6 +35,15 @@ $bind = getenv('COBBLESTONE_BIND') ?: '0.0.0.0:19132';
 $serverName = getenv('COBBLESTONE_SERVER_NAME') ?: 'Cobblestone';
 $maxConnections = (int) (getenv('COBBLESTONE_MAX_CONNECTIONS') ?: '20');
 $tickRate = (int) (getenv('COBBLESTONE_TICK_RATE') ?: '20');
+$worldDir = getenv('COBBLESTONE_WORLD_DIR');
+$worldDir = is_string($worldDir) && $worldDir !== ''
+    ? $worldDir
+    : dirname(__DIR__) . '/worlds/world';
+$worldName = getenv('COBBLESTONE_WORLD_NAME') ?: 'Cobblestone';
+$worldSeedText = getenv('COBBLESTONE_WORLD_SEED') ?: '-1';
+$flatPreset = getenv('COBBLESTONE_FLAT_PRESET') ?: '2;7,2x3,2;1;';
+$saveWorkers = (int) (getenv('COBBLESTONE_SAVE_WORKERS') ?: '2');
+$loadWorkers = (int) (getenv('COBBLESTONE_LOAD_WORKERS') ?: '2');
 
 if ($maxConnections <= 0) {
     $logger->error('COBBLESTONE_MAX_CONNECTIONS must be positive');
@@ -43,13 +53,34 @@ if ($tickRate <= 0 || $tickRate > 1_000) {
     $logger->error('COBBLESTONE_TICK_RATE must be between 1 and 1000');
     exit(1);
 }
+if (!preg_match('/^-?\d+$/', $worldSeedText)) {
+    $logger->error('COBBLESTONE_WORLD_SEED must be a signed integer');
+    exit(1);
+}
+if ($saveWorkers <= 0 || $saveWorkers > 32) {
+    $logger->error('COBBLESTONE_SAVE_WORKERS must be between 1 and 32');
+    exit(1);
+}
+if ($loadWorkers <= 0 || $loadWorkers > 32) {
+    $logger->error('COBBLESTONE_LOAD_WORKERS must be between 1 and 32');
+    exit(1);
+}
 
 try {
+    $world = WorldFactory::persistentFlat(
+        $worldDir,
+        $worldName,
+        (int) $worldSeedText,
+        $flatPreset,
+        saveWorkers: $saveWorkers,
+        loadWorkers: $loadWorkers,
+    );
     $server = Server::start(
         $bind,
         $maxConnections,
         $serverName,
         logs: $logs,
+        world: $world,
     );
 } catch (Throwable $error) {
     $logger->critical('Failed to start Cobblestone', ['exception' => $error]);
@@ -73,6 +104,8 @@ $logger->info(
         'protocol' => 84,
         'raknet' => 8,
         'tick_rate' => $tickRate,
+        'world' => $server->world()->name(),
+        'world_dir' => $worldDir,
     ],
 );
 

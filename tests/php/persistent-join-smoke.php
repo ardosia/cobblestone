@@ -56,23 +56,17 @@ $storageRoot = sys_get_temp_dir()
     . bin2hex(random_bytes(4));
 $seed = 424242;
 $preset = '2;7,2x3,2;1;';
-$uuid = str_repeat('J', 16);
 
-$seedWorld = WorldFactory::flat('Persistent Join', $seed);
-$seedStore = $seedWorld->nativeStore();
-persistentJoinExpect($seedStore !== null, 'persistent join requires native world storage');
-$seedStore->attachStorage(
+$seedWorld = WorldFactory::persistentFlat(
     $storageRoot,
     'Persistent Join',
     $seed,
-    2,
-    1,
     $preset,
-    $seedWorld->spawn(),
     saveWorkers: 2,
     loadWorkers: 2,
-    createUuid: $uuid,
 );
+$seedStore = $seedWorld->nativeStore();
+persistentJoinExpect($seedStore !== null, 'persistent join requires native world storage');
 
 $center = $seedWorld->spawn()->chunk();
 $positions = persistentJoinPositions($center, 2);
@@ -117,22 +111,26 @@ try {
 }
 unset($seedWorld, $seedStore);
 
-$world = WorldFactory::flat('Persistent Join', $seed);
-$store = $world->nativeStore();
-persistentJoinExpect($store !== null, 'reopened persistent join world lacks native store');
-$metadata = $store->attachStorage(
+$world = WorldFactory::persistentFlat(
     $storageRoot,
-    'ignored',
-    -1,
-    0,
-    99,
-    'ignored',
-    new BlockPos(0, 0, 0),
+    'Ignored Creation Name',
+    -999,
+    '2;1;1;',
     saveWorkers: 2,
     loadWorkers: 2,
 );
-persistentJoinExpect(!$metadata->created, 'persistent join storage was recreated');
-persistentJoinExpect($metadata->uuid === $uuid, 'persistent join reopened wrong world UUID');
+$store = $world->nativeStore();
+persistentJoinExpect($store !== null, 'reopened persistent join world lacks native store');
+persistentJoinExpect($world->name() === 'Persistent Join', 'stored world name did not override creation default');
+persistentJoinExpect($world->seed() === $seed, 'stored world seed did not override creation default');
+persistentJoinExpect(
+    ($world->generator()->settings()['preset'] ?? null) === $preset,
+    'stored Flat preset did not override creation default',
+);
+persistentJoinExpect(
+    $world->spawn()->x === 128 && $world->spawn()->y === 4 && $world->spawn()->z === 128,
+    'stored world spawn did not override conflicting creation preset',
+);
 
 $probe = stream_socket_server(
     'udp://127.0.0.1:0',

@@ -1,4 +1,5 @@
 target/
 vendor/
+worlds/
 .DS_Store
 Thumbs.db
