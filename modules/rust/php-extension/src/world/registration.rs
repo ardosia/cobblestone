@@ -21,10 +21,6 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_chunk_dirty))
         .function(wrap_function!(cobblestone_world_mark_persisted))
         .function(wrap_function!(cobblestone_world_try_evict_chunk))
-        .function(wrap_function!(cobblestone_world_terrain_revision))
-        .function(wrap_function!(cobblestone_world_light_revision))
-        .function(wrap_function!(cobblestone_world_commit_terrain_revision))
-        .function(wrap_function!(cobblestone_world_commit_light_revision))
         .function(wrap_function!(cobblestone_world_block_state))
         .function(wrap_function!(cobblestone_world_set_block_state))
         .function(wrap_function!(cobblestone_world_fill_layers))
@@ -42,5 +38,6 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_set_block_extra_data));
 
     let module = super::patch::register(module);
+    let module = super::revision::register(module);
     super::snapshot::register(module)
 }

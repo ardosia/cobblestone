@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 mod patch;
 mod registration;
+mod revision;
 mod snapshot;
 
 use std::path::PathBuf;
@@ -143,12 +144,8 @@ fn extra_data(value: i64) -> PhpResult<u16> {
     u16::try_from(value).map_err(|_| php_error("block extra data must be in range 0..65535"))
 }
 
-fn revision(value: i64, field: &'static str) -> PhpResult<u64> {
+pub(super) fn revision(value: i64, field: &'static str) -> PhpResult<u64> {
     u64::try_from(value).map_err(|_| php_error(format!("{field} must be nonnegative")))
-}
-
-fn php_revision(value: u64) -> PhpResult<i64> {
-    i64::try_from(value).map_err(|_| php_error("native world revision exceeds PHP integer range"))
 }
 
 fn resolve_world_state(handle_value: i64) -> PhpResult<Arc<NativeWorldState>> {
@@ -1226,78 +1223,6 @@ pub fn cobblestone_world_try_evict_chunk(
             ChunkEviction::Dirty => 2,
             ChunkEviction::Evicted => 3,
         })
-    })
-}
-
-#[php_function]
-pub fn cobblestone_world_terrain_revision(
-    handle_value: i64,
-    chunk_x: i64,
-    chunk_z: i64,
-) -> PhpResult<i64> {
-    php_boundary(|| {
-        let store = resolve_world(handle_value)?;
-        php_revision(
-            store
-                .terrain_revision(position(chunk_x, chunk_z)?)
-                .map_err(|error| php_error(error.to_string()))?,
-        )
-    })
-}
-
-#[php_function]
-pub fn cobblestone_world_light_revision(
-    handle_value: i64,
-    chunk_x: i64,
-    chunk_z: i64,
-) -> PhpResult<i64> {
-    php_boundary(|| {
-        let store = resolve_world(handle_value)?;
-        php_revision(
-            store
-                .light_revision(position(chunk_x, chunk_z)?)
-                .map_err(|error| php_error(error.to_string()))?,
-        )
-    })
-}
-
-#[php_function]
-pub fn cobblestone_world_commit_terrain_revision(
-    handle_value: i64,
-    chunk_x: i64,
-    chunk_z: i64,
-    expected: i64,
-    next: i64,
-) -> PhpResult<()> {
-    php_boundary(|| {
-        let store = resolve_world(handle_value)?;
-        store
-            .commit_terrain_revision(
-                position(chunk_x, chunk_z)?,
-                revision(expected, "expected terrain revision")?,
-                revision(next, "next terrain revision")?,
-            )
-            .map_err(|error| php_error(error.to_string()))
-    })
-}
-
-#[php_function]
-pub fn cobblestone_world_commit_light_revision(
-    handle_value: i64,
-    chunk_x: i64,
-    chunk_z: i64,
-    expected: i64,
-    next: i64,
-) -> PhpResult<()> {
-    php_boundary(|| {
-        let store = resolve_world(handle_value)?;
-        store
-            .commit_light_revision(
-                position(chunk_x, chunk_z)?,
-                revision(expected, "expected light revision")?,
-                revision(next, "next light revision")?,
-            )
-            .map_err(|error| php_error(error.to_string()))
     })
 }
 
