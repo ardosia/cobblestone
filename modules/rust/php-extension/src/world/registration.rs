@@ -39,8 +39,8 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_height_map))
         .function(wrap_function!(cobblestone_world_recalculate_height_map))
         .function(wrap_function!(cobblestone_world_block_extra_data))
-        .function(wrap_function!(cobblestone_world_set_block_extra_data))
-        .function(wrap_function!(cobblestone_world_apply_patch));
+        .function(wrap_function!(cobblestone_world_set_block_extra_data));
 
+    let module = super::patch::register(module);
     super::snapshot::register(module)
 }
