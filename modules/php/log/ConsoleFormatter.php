@@ -11,7 +11,7 @@ use Monolog\LogRecord;
 use Stringable;
 use Throwable;
 
-final class SpringBootFormatter implements FormatterInterface
+final class ConsoleFormatter implements FormatterInterface
 {
     public function __construct(
         private readonly string $applicationName = 'Cobblestone',

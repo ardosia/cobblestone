@@ -5,7 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Log\ContextLogger;
-use Cobblestone\Log\SpringBootFormatter;
+use Cobblestone\Log\ConsoleFormatter;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
@@ -16,7 +16,7 @@ if ($stream === false) {
 }
 
 $handler = new StreamHandler($stream, Level::Debug);
-$handler->setFormatter(new SpringBootFormatter());
+$handler->setFormatter(new ConsoleFormatter());
 $root = new Logger('Cobblestone', [$handler]);
 $logger = new ContextLogger(
     $root,

@@ -24,7 +24,7 @@ final class LoggerFactory
     ): self {
         $level = self::normalizeLevel($minimumLevel ?? 'INFO');
         $handler = new StreamHandler('php://stdout', Level::fromName($level), true);
-        $handler->setFormatter(new SpringBootFormatter($applicationName));
+        $handler->setFormatter(new ConsoleFormatter($applicationName));
 
         $logger = new Logger($applicationName, [$handler]);
         $logger->setTimezone(new DateTimeZone(date_default_timezone_get()));
