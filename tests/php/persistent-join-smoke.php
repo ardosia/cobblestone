@@ -69,7 +69,12 @@ $seedStore = $seedWorld->nativeStore();
 persistentJoinExpect($seedStore !== null, 'persistent join requires native world storage');
 
 $center = $seedWorld->spawn()->chunk();
-$positions = persistentJoinPositions($center, 2);
+$fiberPersistedPosition = new ChunkPos($center->x + 4, $center->z);
+$fiberMissingPosition = new ChunkPos($center->x + 5, $center->z);
+$positions = [
+    ...persistentJoinPositions($center, 2),
+    $fiberPersistedPosition,
+];
 $projection = NativeWorldStore::encodeStorageLoadBatch($positions);
 
 try {
@@ -250,6 +255,72 @@ try {
     persistentJoinExpect(
         str_contains($stdout, 'world-sync-client: update=verified'),
         "persistent-join client did not observe UpdateBlock\nstdout={$stdout}\nstderr={$stderr}",
+    );
+
+    $loadedHandle = null;
+    $server->scheduler()->spawn(
+        static function () use ($server, $fiberPersistedPosition, &$loadedHandle): void {
+            $loadedHandle = $server->awaitResidentChunk($fiberPersistedPosition);
+        },
+    );
+    persistentJoinExpect(
+        $loadedHandle === null,
+        'persisted gameplay chunk acquisition did not suspend while storage was unresolved',
+    );
+    for ($attempt = 0; $attempt < 1000 && $loadedHandle === null; ++$attempt) {
+        $server->tick(1);
+        usleep(1_000);
+    }
+    persistentJoinExpect($loadedHandle !== null, 'persisted gameplay chunk acquisition never resumed');
+    persistentJoinExpect(
+        $loadedHandle->position()->key() === $fiberPersistedPosition->key(),
+        'persisted gameplay chunk acquisition resumed with the wrong chunk',
+    );
+    persistentJoinExpect(
+        $store->chunkPinCount($fiberPersistedPosition) === 1,
+        'Fiber gameplay acquisition did not pin the loaded chunk',
+    );
+    persistentJoinExpect(
+        !$store->chunkDirty($fiberPersistedPosition),
+        'Fiber gameplay acquisition rewrote a persisted chunk instead of adopting it',
+    );
+    $loadedHandle->release();
+    persistentJoinExpect(
+        $store->chunkPinCount($fiberPersistedPosition) === 0,
+        'Fiber gameplay acquisition did not release the loaded chunk pin',
+    );
+
+    $generatedHandle = null;
+    $server->scheduler()->spawn(
+        static function () use ($server, $fiberMissingPosition, &$generatedHandle): void {
+            $generatedHandle = $server->awaitResidentChunk($fiberMissingPosition);
+        },
+    );
+    persistentJoinExpect(
+        $generatedHandle === null,
+        'missing gameplay chunk acquisition did not suspend before durable miss resolution',
+    );
+    for ($attempt = 0; $attempt < 1000 && $generatedHandle === null; ++$attempt) {
+        $server->tick(1);
+        usleep(1_000);
+    }
+    persistentJoinExpect($generatedHandle !== null, 'missing gameplay chunk acquisition never resumed');
+    persistentJoinExpect(
+        $generatedHandle->position()->key() === $fiberMissingPosition->key(),
+        'missing gameplay chunk acquisition generated the wrong chunk',
+    );
+    persistentJoinExpect(
+        $store->chunkDirty($fiberMissingPosition),
+        'durably missing gameplay chunk did not enter residency dirty after generation',
+    );
+    persistentJoinExpect(
+        $store->chunkPinCount($fiberMissingPosition) === 1,
+        'Fiber gameplay acquisition did not pin the generated chunk',
+    );
+    $generatedHandle->release();
+    persistentJoinExpect(
+        $store->chunkPinCount($fiberMissingPosition) === 0,
+        'Fiber gameplay acquisition did not release the generated chunk pin',
     );
 
     $server->world()->setBlockStateId(new BlockPos(129, 5, 129), BlockStateId::fromLegacy(3));

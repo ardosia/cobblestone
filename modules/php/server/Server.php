@@ -22,7 +22,10 @@ use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\Session\JoinFlow;
 use Cobblestone\Session\JoinResult;
 use Cobblestone\Task\Scheduler;
+use Cobblestone\World\ChunkLoadPending;
+use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Generator\FlatGenerator;
+use Cobblestone\World\ResidentChunkHandle;
 use Cobblestone\World\World;
 use LogicException;
 use Psr\Log\LoggerInterface;
@@ -112,6 +115,29 @@ final class Server
     public function logger(): LoggerInterface { return $this->logger; }
     public function state(): ServerState { return $this->state; }
     public function world(): World { return $this->world; }
+
+    /**
+     * Suspends the current scheduler-managed Fiber until this chunk is resident.
+     *
+     * Persistent storage is allowed to generate only after the native load path reports a durable
+     * miss. Already-resident and non-persistent chunks complete synchronously. The caller owns the
+     * returned residency pin and must release it when the gameplay operation is finished.
+     */
+    public function awaitResidentChunk(ChunkPos $position): ResidentChunkHandle
+    {
+        $this->assertRunning();
+
+        while (true) {
+            try {
+                return $this->world->residentChunk($position, true)
+                    ?? throw new LogicException(
+                        "chunk {$position->x}:{$position->z} did not become resident",
+                    );
+            } catch (ChunkLoadPending) {
+                Scheduler::sleep(1);
+            }
+        }
+    }
 
     public function isStopRequested(): bool
     {
