@@ -106,52 +106,26 @@ final class NativeWorldStore
         int $compactionMinDeadPercent = 0,
         ?string $createUuid = null,
     ): NativeWorldMetadata {
-        if ($root === '') {
-            throw new \ValueError('native world storage root cannot be empty');
-        }
-        if ($saveWorkers <= 0 || $saveWorkers > 32) {
-            throw new \ValueError('native world save worker count must be in range 1..32');
-        }
-        if ($loadWorkers <= 0 || $loadWorkers > 32) {
-            throw new \ValueError('native world load worker count must be in range 1..32');
-        }
-        if ($compactionMinDeadBytes < 0) {
-            throw new \ValueError('native world compaction minimum dead bytes must be nonnegative');
-        }
-        if ($compactionMinDeadPercent < 0 || $compactionMinDeadPercent > 100) {
-            throw new \ValueError('native world compaction minimum dead percent must be in range 0..100');
-        }
-
-        $createUuid ??= random_bytes(16);
-        if (strlen($createUuid) !== 16) {
-            throw new \ValueError('native world creation UUID must contain exactly 16 bytes');
-        }
-
-        $values = cobblestone_world_storage_attach(
+        $metadata = NativeWorldStorage::attach(
             $this->requireHandle(),
             $root,
-            [
-                $createUuid,
-                $createName,
-                $createSeed,
-                $createGeneratorId,
-                $createGeneratorSettingsVersion,
-                $createGeneratorSettings,
-                $createSpawn->x,
-                $createSpawn->y,
-                $createSpawn->z,
-                $createTime,
-                $createTimeRunning,
-            ],
+            $createName,
+            $createSeed,
+            $createGeneratorId,
+            $createGeneratorSettingsVersion,
+            $createGeneratorSettings,
+            $createSpawn,
+            $createTime,
+            $createTimeRunning,
             $saveWorkers,
             $loadWorkers,
             $compactionMinDeadBytes,
             $compactionMinDeadPercent,
+            $createUuid,
         );
-
         $this->storageAttached = true;
 
-        return NativeWorldMetadata::fromNative($values);
+        return $metadata;
     }
 
     public function hasStorage(): bool
@@ -176,28 +150,13 @@ final class NativeWorldStore
      */
     public function prepareStorageLoadBatch(string $projection): string
     {
-        $count = NativeWorldStorageProjection::loadBatchCount($projection);
-        $statuses = cobblestone_world_storage_prepare_loads(
-            $this->requireHandle(),
-            $projection,
-        );
-        if (strlen($statuses) !== $count) {
-            throw new \UnexpectedValueException('native world storage load batch status width mismatch');
-        }
-
-        return $statuses;
+        return NativeWorldStorage::prepareLoadBatch($this->requireHandle(), $projection);
     }
 
 
     public function requestStorageLoad(ChunkPos $position): NativeChunkLoadStatus
     {
-        return NativeChunkLoadStatus::from(
-            cobblestone_world_storage_request_load(
-                $this->requireHandle(),
-                $position->x,
-                $position->z,
-            ),
-        );
+        return NativeWorldStorage::requestLoad($this->requireHandle(), $position);
     }
 
     /**
@@ -220,13 +179,7 @@ final class NativeWorldStore
      */
     public function storageTick(int $budget = 64): array
     {
-        if ($budget <= 0 || $budget > 4096) {
-            throw new \ValueError('native world storage tick budget must be in range 1..4096');
-        }
-
-        return NativeWorldStorageProjection::decodeTick(
-            cobblestone_world_storage_tick($this->requireHandle(), $budget),
-        );
+        return NativeWorldStorage::tick($this->requireHandle(), $budget);
     }
 
     /**
@@ -245,9 +198,7 @@ final class NativeWorldStore
      */
     public function storageStats(): array
     {
-        return NativeWorldStorageProjection::decodeStats(
-            cobblestone_world_storage_stats($this->requireHandle()),
-        );
+        return NativeWorldStorage::stats($this->requireHandle());
     }
 
     public function flushStorage(): void
@@ -256,7 +207,7 @@ final class NativeWorldStore
             return;
         }
 
-        cobblestone_world_storage_flush($this->requireHandle());
+        NativeWorldStorage::flush($this->requireHandle());
     }
 
     public function ensureChunk(ChunkPos $position, BiomeId $biome): bool
