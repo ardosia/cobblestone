@@ -132,35 +132,23 @@ final class TerrainPatch
 
     private static function blockKey(int $x, int $y, int $z): ?int
     {
-        if (
-            !WorldBounds::containsLocal($x)
-            || !WorldBounds::containsLocal($z)
-            || !WorldBounds::containsY($y)
-        ) {
-            return null;
-        }
-
-        return ($y << 8) | ($z << 4) | $x;
+        return ChunkCoordinateKey::blockOrNull($x, $y, $z);
     }
 
     /** @internal @return array{int, int, int} */
     public static function decodeBlockKey(int $key): array
     {
-        return [$key & 0x0f, ($key >> 8) & 0x7f, ($key >> 4) & 0x0f];
+        return ChunkCoordinateKey::decodeBlock($key);
     }
 
     private static function columnKey(int $x, int $z): ?int
     {
-        if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
-            return null;
-        }
-
-        return ($z << 4) | $x;
+        return ChunkCoordinateKey::columnOrNull($x, $z);
     }
 
     /** @internal @return array{int, int} */
     public static function decodeColumnKey(int $key): array
     {
-        return [$key & 0x0f, ($key >> 4) & 0x0f];
+        return ChunkCoordinateKey::decodeColumn($key);
     }
 }

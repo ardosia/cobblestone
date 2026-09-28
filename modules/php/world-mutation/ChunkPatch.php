@@ -8,6 +8,7 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\Chunk;
+use Cobblestone\World\ChunkCoordinateKey;
 use Cobblestone\World\ChunkSnapshot;
 use ValueError;
 
@@ -305,13 +306,13 @@ final class ChunkPatch
 
     public static function blockKey(int $x, int $y, int $z): int
     {
-        return ($y << 8) | ($z << 4) | $x;
+        return ChunkCoordinateKey::block($x, $y, $z);
     }
 
     /** @return array{int, int, int} */
     public static function decodeBlockKey(int $key): array
     {
-        return [$key & 0x0f, ($key >> 8) & 0x7f, ($key >> 4) & 0x0f];
+        return ChunkCoordinateKey::decodeBlock($key);
     }
 
     private static function assertLight(int $level): void
@@ -323,12 +324,12 @@ final class ChunkPatch
 
     private static function columnKey(int $x, int $z): int
     {
-        return ($z << 4) | $x;
+        return ChunkCoordinateKey::column($x, $z);
     }
 
     /** @return array{int, int} */
     public static function decodeColumnKey(int $key): array
     {
-        return [$key & 0x0f, ($key >> 4) & 0x0f];
+        return ChunkCoordinateKey::decodeColumn($key);
     }
 }

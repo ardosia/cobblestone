@@ -154,20 +154,12 @@ final class LightEdit
 
     private static function key(int $x, int $y, int $z): ?int
     {
-        if (
-            !WorldBounds::containsLocal($x)
-            || !WorldBounds::containsLocal($z)
-            || !WorldBounds::containsY($y)
-        ) {
-            return null;
-        }
-
-        return ($y << 8) | ($z << 4) | $x;
+        return ChunkCoordinateKey::blockOrNull($x, $y, $z);
     }
 
     /** @return array{int, int, int} */
     private static function decode(int $key): array
     {
-        return [$key & 0x0f, ($key >> 8) & 0x7f, ($key >> 4) & 0x0f];
+        return ChunkCoordinateKey::decodeBlock($key);
     }
 }
