@@ -108,15 +108,6 @@ final readonly class ChunkSnapshot
         return ord($this->biomes[($z << 4) | $x]);
     }
 
-    public function heightAt(int $x, int $z): ?int
-    {
-        if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
-            return null;
-        }
-
-        return ord($this->heightMap[($z << 4) | $x]);
-    }
-
     public function blockExtraDataAt(int $x, int $y, int $z): ?int
     {
         if (
