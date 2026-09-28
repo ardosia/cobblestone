@@ -15,6 +15,7 @@ final class ChunkViewPreparation
 {
     /** @var array<string, ResidentChunkHandle> */
     private array $pins = [];
+    private bool $sent = false;
 
     /**
      * @param list<ChunkPos> $entering
@@ -62,6 +63,19 @@ final class ChunkViewPreparation
     public function prepared(): bool
     {
         return count($this->pins) === count($this->entering);
+    }
+
+    public function sent(): bool
+    {
+        return $this->sent;
+    }
+
+    public function markSent(): void
+    {
+        if (!$this->prepared()) {
+            throw new LogicException('cannot mark an incomplete chunk view preparation as sent');
+        }
+        $this->sent = true;
     }
 
     public function release(): void

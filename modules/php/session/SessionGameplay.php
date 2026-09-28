@@ -17,6 +17,9 @@ final class SessionGameplay
     private const VIEW_DELTA_HEADER_BYTES = 20;
     private const VIEW_DELTA_ENTRY_BYTES = 8;
     private const MAX_VIEW_DELTA_ENTRIES = 4096;
+    private const VIEW_SEND_BACKPRESSURED = 0;
+    private const VIEW_SEND_SENT = 1;
+    private const VIEW_SEND_GONE = 2;
 
     /** @var array<int, ChunkViewPreparation> */
     private array $preparations = [];
@@ -54,8 +57,8 @@ final class SessionGameplay
 
     public function tick(): void
     {
-        foreach ($this->preparations as $preparation) {
-            $preparation->prepare($this->world);
+        foreach ($this->preparations as $sessionId => $preparation) {
+            $this->advancePreparation($sessionId, $preparation);
         }
     }
 
@@ -81,6 +84,35 @@ final class SessionGameplay
         $this->clearPreparation($packet->sessionId);
         $this->preparations[$packet->sessionId] = $next;
         $next->prepare($this->world);
+    }
+
+    private function advancePreparation(int $sessionId, ChunkViewPreparation $preparation): void
+    {
+        if ($preparation->sent() || !$preparation->prepare($this->world)) {
+            return;
+        }
+
+        $status = $this->sessions->sendPreparedViewChunks(
+            $sessionId,
+            $preparation->fromCenter->x,
+            $preparation->fromCenter->z,
+            $preparation->toCenter->x,
+            $preparation->toCenter->z,
+        );
+
+        if ($status === self::VIEW_SEND_BACKPRESSURED) {
+            return;
+        }
+        if ($status === self::VIEW_SEND_SENT) {
+            $preparation->markSent();
+            return;
+        }
+        if ($status === self::VIEW_SEND_GONE) {
+            $this->clearPreparation($sessionId);
+            return;
+        }
+
+        throw new UnexpectedValueException('native prepared view send returned an invalid status');
     }
 
     private function clearPreparation(int $sessionId): void

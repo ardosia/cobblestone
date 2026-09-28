@@ -11,7 +11,9 @@ use ext_php_rs::prelude::*;
 use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 use crate::session::bridge::owner_session_id;
-use crate::session::join::{ChunkViewDelta, plan_view_delta};
+use crate::session::join::{
+    ChunkViewDelta, ViewChunkQueueResult, plan_view_delta, queue_view_delta_chunks,
+};
 
 const CHUNK_EDGE: f32 = 16.0;
 const MAX_PLAYER_COORDINATE: f32 = 1_000_000.0;
@@ -154,6 +156,53 @@ pub fn cobblestone_session_protocol84_track_move_player(
     })
 }
 
+/// Queues fully prepared entering chunks without recentering or releasing the old view.
+#[php_function]
+#[php(name = "cobblestone_session_protocol84_send_prepared_view_chunks")]
+pub fn cobblestone_session_protocol84_send_prepared_view_chunks(
+    session_id: i64,
+    from_chunk_x: i64,
+    from_chunk_z: i64,
+    to_chunk_x: i64,
+    to_chunk_z: i64,
+) -> PhpResult<i64> {
+    php_boundary(|| {
+        let owner = current_runtime_id().map_err(php_error)?;
+        let session_id = owner_session_id(session_id)?;
+        let from_center = ChunkCoord::new(
+            i32_field("view transition from chunk x", from_chunk_x)?,
+            i32_field("view transition from chunk z", from_chunk_z)?,
+        );
+        let to_center = ChunkCoord::new(
+            i32_field("view transition to chunk x", to_chunk_x)?,
+            i32_field("view transition to chunk z", to_chunk_z)?,
+        );
+
+        let delta = {
+            let states = player_states();
+            let state = states.get(&(owner, session_id)).ok_or_else(|| {
+                php_error("cannot send entering chunks before spawned player state")
+            })?;
+            state
+                .view_delta
+                .clone()
+                .ok_or_else(|| php_error("player has no pending chunk view delta"))?
+        };
+
+        if delta.from_center != from_center || delta.to_center != to_center {
+            return Err(php_error(
+                "prepared chunk view transition no longer matches the pending player delta",
+            ));
+        }
+
+        Ok(match queue_view_delta_chunks(owner, session_id, &delta)? {
+            ViewChunkQueueResult::Backpressured => 0,
+            ViewChunkQueueResult::Sent => 1,
+            ViewChunkQueueResult::Gone => 2,
+        })
+    })
+}
+
 pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
         .function(wrap_function!(
@@ -161,6 +210,9 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
         ))
         .function(wrap_function!(
             cobblestone_session_protocol84_track_move_player
+        ))
+        .function(wrap_function!(
+            cobblestone_session_protocol84_send_prepared_view_chunks
         ))
 }
 

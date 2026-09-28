@@ -81,6 +81,28 @@ async fn next_payload(client: &mut RaknetClient) -> Result<Bytes, Box<dyn Error>
     Ok(payload)
 }
 
+async fn send_boundary_movement(
+    client: &mut RaknetClient,
+    limits: CodecLimits,
+) -> Result<(), Box<dyn Error>> {
+    let movement = RawPacket::new(
+        packet_id::MOVE_PLAYER,
+        move_player_body([145.0, 64.0, 129.0]),
+    );
+    let movement_frame = encode_game_frame(&movement, limits)?;
+    client
+        .send_with_options(
+            Bytes::copy_from_slice(movement_frame.as_slice()),
+            ClientSendOptions {
+                reliability: Reliability::UnreliableSequenced,
+                ..ClientSendOptions::default()
+            },
+        )
+        .await?;
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let addr: SocketAddr = std::env::args()
@@ -88,6 +110,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .ok_or("missing server address")?
         .parse()?;
     let send_movement = std::env::args().any(|argument| argument == "--move-after-update");
+    let transition_only = std::env::args().any(|argument| argument == "--transition-only");
     let limits = limits();
 
     let mut client = RaknetClient::connect_with_config(
@@ -137,6 +160,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 spawned |= status.status() == 3;
             }
         }
+    }
+
+    if transition_only {
+        send_boundary_movement(&mut client, limits).await?;
+        println!("world-sync-client: transition=movement-sent");
+        client.disconnect(None).await?;
+        return Ok(());
     }
 
     loop {

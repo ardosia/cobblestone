@@ -114,6 +114,50 @@ pub(crate) fn plan_view_delta(
     chunk_view_delta(view.center, view.radius, to_center)
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum ViewChunkQueueResult {
+    Sent,
+    Backpressured,
+    Gone,
+}
+
+pub(crate) fn queue_view_delta_chunks(
+    owner: RuntimeId,
+    session_id: SessionId,
+    delta: &ChunkViewDelta,
+) -> PhpResult<ViewChunkQueueResult> {
+    let (world_handle, center) = {
+        let views = world_views();
+        let view = views
+            .get(&(owner, session_id))
+            .ok_or_else(|| php_error("cannot send entering chunks without an active world view"))?;
+        (view.world_handle, view.center)
+    };
+
+    if center != delta.from_center {
+        return Err(php_error(
+            "pending chunk view delta no longer matches the active world view center",
+        ));
+    }
+    if delta.entering.is_empty() {
+        return Ok(ViewChunkQueueResult::Sent);
+    }
+
+    let mut chunks = Vec::with_capacity(delta.entering.len());
+    for &position in &delta.entering {
+        chunks.push(protocol84_chunk(world_handle, position)?);
+    }
+    let batch = bootstrap_session_packet(BootstrapPacket::Batch(BatchPacket::new(chunks)))?;
+
+    Ok(
+        match try_queue(owner, session_id, batch, SessionDelivery::ReliableOrdered)? {
+            QueueResult::Sent => ViewChunkQueueResult::Sent,
+            QueueResult::Backpressured => ViewChunkQueueResult::Backpressured,
+            QueueResult::Gone => ViewChunkQueueResult::Gone,
+        },
+    )
+}
+
 #[derive(Debug)]
 enum PendingChunkSync {
     Blocks(BTreeMap<u16, u16>),
