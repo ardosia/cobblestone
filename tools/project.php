@@ -174,6 +174,9 @@ function testPhp(): void
         'server-smoke.php',
     ] as $test) {
         runWithExtension(ROOT . '/tests/php/' . $test);
+        if ($test === 'world-sync-smoke.php') {
+            runWithExtension(ROOT . '/tests/php/' . $test, ['--transition-only']);
+        }
     }
 }
 

@@ -183,8 +183,8 @@ try {
     if ($transitionOnly) {
         worldSyncExpect($transitionQueued, 'prepared entering chunks were never queued');
         worldSyncExpect(
-            str_contains($stdout, 'world-sync-client: transition=movement-sent'),
-            "world-sync client did not send boundary movement\nstdout={$stdout}\nstderr={$stderr}",
+            str_contains($stdout, 'world-sync-client: transition=verified entering=5'),
+            "world-sync client did not observe five entering chunks\nstdout={$stdout}\nstderr={$stderr}",
         );
     } else {
         worldSyncExpect($mutated, 'world-sync mutation was not applied');

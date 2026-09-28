@@ -99,7 +99,30 @@ async fn send_boundary_movement(
             },
         )
         .await?;
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    let mut entering = std::collections::BTreeSet::new();
+    while entering.len() < 5 {
+        let payload = next_payload(client)
+            .await
+            .map_err(|error| -> Box<dyn Error> {
+                format!("waiting for entering chunks: {error}").into()
+            })?;
+        for packet in raw_packets(&payload, limits)? {
+            if packet.id() != cobblestone_codec::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
+                continue;
+            }
+            let body = packet.body().as_slice();
+            let chunk_x = i32::from_be_bytes(body[0..4].try_into()?);
+            let chunk_z = i32::from_be_bytes(body[4..8].try_into()?);
+            if chunk_x == 11 && (6..=10).contains(&chunk_z) {
+                entering.insert(chunk_z);
+            }
+        }
+    }
+
+    if entering != std::collections::BTreeSet::from([6, 7, 8, 9, 10]) {
+        return Err(format!("unexpected entering chunk set: {entering:?}").into());
+    }
+
     Ok(())
 }
 
@@ -164,7 +187,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     if transition_only {
         send_boundary_movement(&mut client, limits).await?;
-        println!("world-sync-client: transition=movement-sent");
+        println!("world-sync-client: transition=verified entering=5");
         client.disconnect(None).await?;
         return Ok(());
     }
