@@ -1,5 +1,6 @@
 mod async_load;
 mod async_save;
+mod metadata;
 mod record;
 mod region;
 
@@ -16,6 +17,13 @@ pub use async_save::{
     AsyncSaveBuildError, AsyncSaveConfig, AsyncSaveService, MAX_ASYNC_SAVE_COMPLETION_CAPACITY,
     MAX_ASYNC_SAVE_QUEUE_CAPACITY, MAX_ASYNC_SAVE_WORKERS, SaveCompletion, SaveFailure,
     SaveReceipt, SaveSubmitError, SaveWorkerError,
+};
+pub use metadata::{
+    MAX_GENERATOR_SETTINGS_BYTES, MAX_WORLD_METADATA_PAYLOAD_BYTES, MAX_WORLD_NAME_BYTES,
+    TARGET_GAME_PROTOCOL, TARGET_RAKNET_PROTOCOL, TARGET_VERSION_MAJOR, TARGET_VERSION_MINOR,
+    TARGET_VERSION_PATCH, WORLD_METADATA_ENVELOPE_BYTES, WORLD_METADATA_FILENAME,
+    WORLD_METADATA_PAYLOAD_VERSION, WorldDirectory, WorldMetadata, decode_world_metadata,
+    encode_world_metadata,
 };
 pub use record::{
     ADAPTIVE_COMPRESSION_MIN_SAVINGS, Compression, CompressionPolicy, ExtensionSection,
@@ -38,8 +46,16 @@ pub enum StorageError {
     Io(#[from] io::Error),
     #[error("invalid region header: {0}")]
     InvalidRegionHeader(&'static str),
-    #[error("region belongs to a different world")]
+    #[error("region or world metadata belongs to a different world")]
     WorldMismatch,
+    #[error("world metadata already exists")]
+    WorldMetadataAlreadyExists,
+    #[error("world metadata is invalid: {0}")]
+    InvalidWorldMetadata(&'static str),
+    #[error("world metadata size {size} exceeds limit {limit}")]
+    WorldMetadataTooLarge { size: usize, limit: usize },
+    #[error("world metadata generation space exhausted")]
+    MetadataGenerationExhausted,
     #[error(
         "region coordinate mismatch: expected {expected_x}:{expected_z}, got {actual_x}:{actual_z}"
     )]

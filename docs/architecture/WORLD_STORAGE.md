@@ -1,6 +1,6 @@
 # Cobblestone world storage v1 design
 
-Status: v1 binary region/chunk format plus bounded native async save/load orchestration implemented in `cobblestone-storage`; world metadata, WorldStore/server wiring, and compaction remain pending.
+Status: v1 world metadata, binary region/chunk format, and bounded native async save/load orchestration implemented in `cobblestone-storage`; WorldStore/server wiring and compaction remain pending.
 
 ## Goals
 
@@ -31,18 +31,39 @@ Storage regions are 16×16 chunks. Storage region coordinates are floor-divided 
 
 ## World metadata
 
-`world.cwm` starts with a fixed binary envelope:
+`world.cwm` is now implemented and frozen for storage format v1. It begins with a 32-byte little-endian envelope:
 
-- magic `CBWM`;
-- format version;
-- envelope length;
-- metadata generation;
-- payload length;
-- CRC32C of the payload.
+- bytes 0..3: magic `CBWM`;
+- 4..5: storage format version `u16 = 1`;
+- 6..7: envelope length `u16 = 32`;
+- 8..15: metadata generation `u64`, starting at 1;
+- 16..19: semantic payload length `u32`;
+- 20..23: CRC32C of the semantic payload;
+- 24..27: CRC32C of envelope bytes 0..23; and
+- 28..31: reserved zero bytes.
 
-The version-1 payload stores canonical semantic world metadata: world UUID, name, seed, fixed-target marker (0.15.10 / protocol 84 / RakNet 8), generator ID and opaque versioned generator settings, spawn, time, and time-running state.
+The version-1 semantic payload has a fixed 76-byte prefix followed by UTF-8 world-name bytes and opaque generator-settings bytes:
 
-Metadata updates use write-temp, fdatasync, atomic rename, then parent-directory fsync. No in-place metadata mutation is authoritative.
+- 0..1: payload version `u16 = 1`;
+- 2..4: fixed target version bytes `0, 15, 10`;
+- 5: time-running flag `u8` restricted to 0/1;
+- 6..7: reserved zero bytes;
+- 8..11: game protocol `u32 = 84`;
+- 12..15: RakNet protocol `u32 = 8`;
+- 16..31: raw 16-byte world UUID;
+- 32..39: world seed `i64`;
+- 40..43: generator ID `u32`;
+- 44..45: generator-settings schema version `u16`;
+- 46..47: reserved zero bytes;
+- 48..51 / 52..55 / 56..59: spawn X/Y/Z `i32`;
+- 60..67: world time `i64`;
+- 68..71: UTF-8 world-name length `u32`;
+- 72..75: opaque generator-settings length `u32`; then
+- world-name bytes followed immediately by generator-settings bytes.
+
+Metadata payloads are bounded to 1 MiB, names to 4 KiB, generator settings to 512 KiB, and fixed-target spawn Y to 0..127. Decode rejects checksum failures, nonzero reserved bytes, malformed UTF-8, size mismatches, unsupported versions, or a fixed-target marker other than 0.15.10 / protocol 84 / RakNet 8.
+
+`WorldDirectory` owns the storage root, `world.cwm`, and `regions/` path. First creation publishes a fully synced temporary metadata file through a no-overwrite hard-link step, then fsyncs the parent directory. Metadata replacement increments generation, writes a unique temporary file, `sync_data`s it, atomically renames over `world.cwm`, and fsyncs the parent directory. Replacement cannot change the world UUID. No in-place metadata mutation is authoritative.
 
 ## Region container
 
@@ -239,4 +260,4 @@ Checksums detect corruption; they do not authenticate data.
 
 Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, parent-directory fsync on first region creation, bounded region-sharded async saves, and deduplicated bounded async loads. Tests cover torn-index recovery, exact save receipts, save shutdown draining, durable misses without file creation, and one in-flight disk read per chunk.
 
-The next bounded milestone is world-directory ownership and `world.cwm`, followed by wiring load/import and save-completion watermarks into `WorldStore`/server composition. Compaction follows once real save workloads provide dead-byte measurements.
+The next bounded milestone is wiring durable load/import and save-completion watermarks into `WorldStore`/server composition using `WorldDirectory` as the storage-root authority. Compaction follows once real save workloads provide dead-byte measurements.
