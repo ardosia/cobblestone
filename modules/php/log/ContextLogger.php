@@ -45,9 +45,4 @@ final class ContextLogger extends AbstractLogger
             $this->execution,
         );
     }
-
-    public function withExecution(string $execution): self
-    {
-        return new self($this->logger, $this->name, $this->context, $execution);
-    }
 }
