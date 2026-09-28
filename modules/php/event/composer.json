@@ -1,0 +1,14 @@
+{
+  "name": "ardosia/cobblestone-event",
+  "description": "Cobblestone owner-runtime event dispatch.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "require": {
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\Event\\": ""
+    }
+  }
+}

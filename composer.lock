@@ -7,12 +7,12 @@
     "content-hash": "2bb33d4ac6ec774a9cc21f6355a77432",
     "packages": [
         {
-            "name": "ardosia/cobblestone-kernel",
+            "name": "ardosia/cobblestone-command",
             "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "modules/php/kernel",
-                "reference": "ada2b3c8b8b461212633dba2855091b0e56842bd"
+                "url": "modules/php/command",
+                "reference": "5767f9feee2664c0a0d87aeada63aa51b5b5b611"
             },
             "require": {
                 "php": ">=8.5"
@@ -20,14 +20,38 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Cobblestone\\Command\\": "Command/",
-                    "Cobblestone\\Event\\": "Event/"
+                    "Cobblestone\\Command\\": ""
                 }
             },
             "license": [
                 "MIT OR Apache-2.0"
             ],
-            "description": "Cobblestone owner-runtime event and command primitives.",
+            "description": "Cobblestone command registration and dispatch.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-event",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/event",
+                "reference": "5b61011109519c012359ddbb96a80486f1263d88"
+            },
+            "require": {
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Event\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone owner-runtime event dispatch.",
             "transport-options": {
                 "relative": true
             }
@@ -90,10 +114,11 @@
             "dist": {
                 "type": "path",
                 "url": "modules/php/plugin",
-                "reference": "a3a0a9be7cbb7073697c516ff5c7850976b9c7f8"
+                "reference": "9818333ba2141e437220e7e448a542c61eb230de"
             },
             "require": {
-                "ardosia/cobblestone-kernel": "dev-main",
+                "ardosia/cobblestone-command": "dev-main",
+                "ardosia/cobblestone-event": "dev-main",
                 "ardosia/cobblestone-log": "dev-main",
                 "ardosia/cobblestone-task": "dev-main",
                 "php": ">=8.5",
@@ -119,10 +144,11 @@
             "dist": {
                 "type": "path",
                 "url": "modules/php/server",
-                "reference": "c4584df9823c6b1a778944951a0de2fe579ce90f"
+                "reference": "5fd14bc7ab152cb85ce6675d56bd2bd06fe781dc"
             },
             "require": {
-                "ardosia/cobblestone-kernel": "dev-main",
+                "ardosia/cobblestone-command": "dev-main",
+                "ardosia/cobblestone-event": "dev-main",
                 "ardosia/cobblestone-log": "dev-main",
                 "ardosia/cobblestone-native-session": "dev-main",
                 "ardosia/cobblestone-plugin": "dev-main",
