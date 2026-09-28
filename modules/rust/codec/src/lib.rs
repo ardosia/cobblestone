@@ -11,6 +11,7 @@ mod chunk;
 mod error;
 mod frame;
 mod limits;
+mod movement;
 mod nbt;
 mod packet;
 mod update;
@@ -23,6 +24,7 @@ pub use chunk::{
 pub use error::{CodecError, LimitKind};
 pub use frame::{GAME_MARKER, RawPacket, decode_game_frame, encode_game_frame};
 pub use limits::{CodecLimits, LOGIN_MAX_DECOMPRESSED_BYTES};
+pub use movement::{MovePlayerMode, MovePlayerPacket, decode_protocol84_move_player};
 pub use nbt::{NamedNbt, NbtDocument, NbtLimits, NbtTag, NbtValue};
 pub use packet::{
     AdventureFlags, AdventureSettingsPacket, BootstrapPacket, DisconnectPacket, LoginPacket,
