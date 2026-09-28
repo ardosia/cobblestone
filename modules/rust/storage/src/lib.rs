@@ -1,3 +1,4 @@
+mod async_load;
 mod async_save;
 mod record;
 mod region;
@@ -6,6 +7,11 @@ use std::io;
 
 use thiserror::Error;
 
+pub use async_load::{
+    AsyncLoadBuildError, AsyncLoadConfig, AsyncLoadService, LoadCompletion, LoadFailure,
+    LoadRequestState, LoadSubmitError, LoadWorkerError, MAX_ASYNC_LOAD_COMPLETION_CAPACITY,
+    MAX_ASYNC_LOAD_QUEUE_CAPACITY, MAX_ASYNC_LOAD_WORKERS,
+};
 pub use async_save::{
     AsyncSaveBuildError, AsyncSaveConfig, AsyncSaveService, MAX_ASYNC_SAVE_COMPLETION_CAPACITY,
     MAX_ASYNC_SAVE_QUEUE_CAPACITY, MAX_ASYNC_SAVE_WORKERS, SaveCompletion, SaveFailure,

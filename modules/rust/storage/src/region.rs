@@ -123,6 +123,36 @@ impl RegionFile {
             ));
         }
 
+        Self::from_open_file(file, world_uuid, coord)
+    }
+
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        world_uuid: [u8; 16],
+        coord: RegionCoord,
+    ) -> Result<Option<Self>, StorageError> {
+        let mut options = OpenOptions::new();
+        options.read(true).write(true);
+
+        let file = match options.open(path.as_ref()) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        if file.metadata()?.len() < RECORD_AREA_OFFSET {
+            return Err(StorageError::InvalidRegionHeader(
+                "file is shorter than fixed header/index area",
+            ));
+        }
+
+        Self::from_open_file(file, world_uuid, coord).map(Some)
+    }
+
+    fn from_open_file(
+        mut file: File,
+        world_uuid: [u8; 16],
+        coord: RegionCoord,
+    ) -> Result<Self, StorageError> {
         let header = read_exact_at::<REGION_HEADER_BYTES>(&mut file, 0)?;
         validate_region_header(&header, world_uuid, coord)?;
 

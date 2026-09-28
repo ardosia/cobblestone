@@ -1,6 +1,6 @@
 # Cobblestone world storage v1 design
 
-Status: v1 binary region/chunk format and bounded native async save orchestration implemented in `cobblestone-storage`; world metadata, async load/import orchestration, server/world wiring, and compaction remain pending.
+Status: v1 binary region/chunk format plus bounded native async save/load orchestration implemented in `cobblestone-storage`; world metadata, WorldStore/server wiring, and compaction remain pending.
 
 ## Goals
 
@@ -182,7 +182,21 @@ Release measurement on the development host for 64 default-Flat snapshots spread
 
 These numbers include region record encoding and durable region/index commits on the development machine. They justify region-sharded save workers, but they are not device latency guarantees and do not imply that the production default should always be four workers.
 
-The network change journal is not reused for persistence. Network delivery cursors and durable-save state have different retention and failure semantics.
+The async load side uses the same bounded worker model but deduplicates by exact chunk coordinate before queue submission. The first requester receives `Queued`; later requests for the same in-flight coordinate receive `Joined` and do not schedule another disk read. The coordinate leaves the in-flight set only when its completion is consumed or shutdown drains it.
+
+Load workers deliberately reopen the region for each newly queued chunk load rather than caching a `RegionFile`. Save workers keep mutable cached indexes; an independent cached reader could otherwise retain a stale index after a later durable save. A missing region or empty index slot completes as `Missing` and never creates a region file. Corruption and world/region mismatches surface as failed completions rather than falling through to generation.
+
+Release measurement on the development host for 64 default-Flat chunks spread across 16 storage regions, with the region data already in the OS page cache, measured:
+
+| load workers | total load time | effective per chunk | throughput |
+| ---: | ---: | ---: | ---: |
+| 1 | ~12.55 ms | ~196.0 µs | ~5.1k chunks/s |
+| 2 | ~6.41 ms | ~100.2 µs | ~10.0k chunks/s |
+| 4 | ~3.42 ms | ~53.4 µs | ~18.7k chunks/s |
+
+These figures include region reopen/index selection, indexed-record CRC32C validation, zstd decode, payload validation, and semantic `ChunkImport` reconstruction. They are warm-cache development-host measurements, not storage-device latency guarantees.
+
+The network change journal is not reused for persistence. Network delivery cursors and durable-save/load state have different retention and failure semantics.
 
 ## Load and unload contract
 
@@ -201,7 +215,7 @@ The residency contract is now explicit and native-authoritative:
 
 `MainChunkSource::remove()` remains a compatibility wrapper around safe unload: it returns the former PHP facade only when unload actually succeeds. Runtime code should use `unload()` and inspect the status rather than interpreting a missing return value.
 
-The remaining persistence-specific load work is asynchronous duplicate-load collapse: when disk loading is introduced, the native storage layer should keep one in-flight load future per chunk coordinate and let all requesters join that result rather than scheduling duplicate reads. Generation remains the fallback only after the storage layer reports the chunk absent.
+Persistence-specific duplicate-load collapse is implemented in the native load service: exactly one disk request may be in flight per chunk coordinate, and duplicate requesters join that operation. World integration must treat only a successful durable `Missing` completion as permission to generate; failed/corrupt loads are errors and must never silently become empty/generated chunks.
 
 For unload with persistence, the intended path is snapshot handoff rather than blocking the gameplay runtime on disk: capture the immutable native snapshot, pin/retain that snapshot in the bounded storage job, publish it durably, advance persisted watermarks on completion, and evict only when the live chunk is still clean and unpinned. Shutdown must drain or explicitly fail accepted save jobs before destroying the world store. Exact save/load queue capacities and backpressure thresholds remain implementation-time measured constants.
 
@@ -223,6 +237,6 @@ Checksums detect corruption; they do not authenticate data.
 
 ## Implementation sequencing
 
-Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, parent-directory fsync on first region creation, and the bounded region-sharded async save service. Tests deliberately corrupt the newest index page, verify fallback to the older valid generation, verify exact async save receipts, and verify shutdown drains accepted saves.
+Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, parent-directory fsync on first region creation, bounded region-sharded async saves, and deduplicated bounded async loads. Tests cover torn-index recovery, exact save receipts, save shutdown draining, durable misses without file creation, and one in-flight disk read per chunk.
 
-The next bounded milestone is native async load orchestration: world-directory ownership/`world.cwm`, one in-flight load per chunk, bounded load requests/completions, load/import into `WorldStore`, and generation fallback only after a durable miss. After that, server/world composition can wire successful save completions to persisted watermarks and safe eviction. Compaction follows once real save workloads provide dead-byte measurements.
+The next bounded milestone is world-directory ownership and `world.cwm`, followed by wiring load/import and save-completion watermarks into `WorldStore`/server composition. Compaction follows once real save workloads provide dead-byte measurements.
