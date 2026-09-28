@@ -410,11 +410,7 @@ final class NativeWorldStore
      */
     public function snapshotProjection(ChunkPos $position): string
     {
-        return cobblestone_world_snapshot(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkSnapshotProjection::read($this->requireHandle(), $position);
     }
 
     public function destroy(): void
