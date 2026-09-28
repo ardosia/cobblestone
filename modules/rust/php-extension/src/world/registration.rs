@@ -3,7 +3,7 @@ use ext_php_rs::prelude::*;
 use super::*;
 
 pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
-    module
+    let module = module
         .function(wrap_function!(cobblestone_world_create))
         .function(wrap_function!(cobblestone_world_storage_attach))
         .function(wrap_function!(cobblestone_world_storage_prepare_loads))
@@ -40,6 +40,7 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_recalculate_height_map))
         .function(wrap_function!(cobblestone_world_block_extra_data))
         .function(wrap_function!(cobblestone_world_set_block_extra_data))
-        .function(wrap_function!(cobblestone_world_apply_patch))
-        .function(wrap_function!(cobblestone_world_snapshot))
+        .function(wrap_function!(cobblestone_world_apply_patch));
+
+    super::snapshot::register(module)
 }
