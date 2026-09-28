@@ -52,13 +52,6 @@ final class ResidentChunkHandle
         return $this->cell->position();
     }
 
-    public function cell(): ResidentChunkCell
-    {
-        $this->assertActive();
-
-        return $this->cell;
-    }
-
     public function snapshot(): ChunkSnapshot
     {
         $this->assertActive();
