@@ -34,11 +34,6 @@ final class ChunkSection
         $this->columnHeights = str_repeat(chr($height), WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
     }
 
-    public static function filled(BlockState $state): self
-    {
-        return new self($state->fullId());
-    }
-
     public static function filledStateId(int $stateId): self
     {
         return new self($stateId);
