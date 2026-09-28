@@ -123,16 +123,6 @@ final class MainChunkSource implements ChunkSource
         }
     }
 
-    public function remove(ChunkPos $position): ?Chunk
-    {
-        $chunk = $this->get($position);
-        if ($chunk === null) {
-            return null;
-        }
-
-        return $this->unload($position) === ChunkUnloadStatus::Unloaded ? $chunk : null;
-    }
-
     public function unload(ChunkPos $position): ChunkUnloadStatus
     {
         $key = $position->key();
