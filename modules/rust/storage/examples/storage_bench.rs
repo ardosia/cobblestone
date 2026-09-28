@@ -147,6 +147,17 @@ fn bench_region(label: &str, snapshot: &cobblestone_core::ChunkSnapshot, iterati
         },
     );
 
+    let compact_started = Instant::now();
+    let compacted = region.compact().unwrap();
+    let compact_ns = compact_started.elapsed().as_secs_f64() * 1e9;
+    println!(
+        "storage_bench kind=compaction terrain={label} records={} reclaimed_bytes={} before_bytes={} after_bytes={} ns={compact_ns:.0}",
+        compacted.records,
+        compacted.bytes_reclaimed,
+        compacted.before.file_bytes,
+        compacted.after.file_bytes,
+    );
+
     drop(region);
     std::fs::remove_dir_all(root).unwrap();
 }

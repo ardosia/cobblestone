@@ -268,6 +268,108 @@ fn region_stats_measure_live_and_reclaimable_record_bytes() {
 }
 
 #[test]
+fn region_compaction_rewrites_live_records_and_preserves_dual_index_recovery() {
+    let (_store, position, first, second) = world_and_snapshots();
+    let path = temp_region_path("compact");
+    let root = path
+        .parent()
+        .and_then(|regions| regions.parent())
+        .unwrap()
+        .to_path_buf();
+    let world_uuid = [0x63; 16];
+    let coord = RegionCoord::for_chunk(position);
+
+    let compact_generation;
+    {
+        let mut region = RegionFile::open_or_create(&path, world_uuid, coord).unwrap();
+        region
+            .save_chunk(&first, CompressionPolicy::Adaptive)
+            .unwrap();
+        region
+            .save_chunk(&second, CompressionPolicy::Adaptive)
+            .unwrap();
+        region
+            .save_chunk(&first, CompressionPolicy::Adaptive)
+            .unwrap();
+        region
+            .save_chunk(&second, CompressionPolicy::Adaptive)
+            .unwrap();
+
+        let before = region.stats().unwrap();
+        assert!(before.dead_bytes > 0);
+        let generation_before = region.generation();
+        let compacted = region.compact().unwrap();
+        compact_generation = compacted.generation;
+
+        assert_eq!(compacted.generation, generation_before + 1);
+        assert_eq!(compacted.records, 1);
+        assert_eq!(compacted.bytes_reclaimed, before.dead_bytes);
+        assert_eq!(compacted.before, before);
+        assert_eq!(compacted.after.dead_bytes, 0);
+        assert_eq!(compacted.after.record_bytes, compacted.after.live_bytes);
+        assert_eq!(
+            compacted.after.file_bytes,
+            compacted.before.file_bytes - compacted.bytes_reclaimed,
+        );
+
+        let loaded = region.load_chunk(position).unwrap().unwrap();
+        assert_eq!(loaded.import.terrain_revision, second.terrain_revision());
+        assert_eq!(loaded.import.light_revision, second.light_revision());
+        assert_eq!(loaded.import.states, second.states());
+
+        let no_op = region.compact().unwrap();
+        assert_eq!(no_op.generation, compact_generation);
+        assert_eq!(no_op.bytes_reclaimed, 0);
+        assert_eq!(no_op.before, no_op.after);
+
+        let regions = path.parent().unwrap();
+        assert!(std::fs::read_dir(regions).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .contains(".compact-")
+        }),);
+    }
+
+    {
+        let mut reopened = RegionFile::open_existing(&path, world_uuid, coord)
+            .unwrap()
+            .expect("compacted region");
+        assert_eq!(reopened.generation(), compact_generation);
+        let loaded = reopened.load_chunk(position).unwrap().unwrap();
+        assert_eq!(loaded.import.terrain_revision, second.terrain_revision());
+        assert_eq!(loaded.import.states, second.states());
+    }
+
+    // Compaction publishes a newer page A and a valid previous-generation page B over the same
+    // compacted records. Corrupting the newest page must therefore preserve the latest chunk.
+    {
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        file.seek(SeekFrom::Start(REGION_HEADER_BYTES as u64 + 128))
+            .unwrap();
+        file.write_all(&[0x5c]).unwrap();
+        file.sync_data().unwrap();
+    }
+
+    {
+        let mut recovered = RegionFile::open_existing(&path, world_uuid, coord)
+            .unwrap()
+            .expect("compacted fallback region");
+        assert_eq!(recovered.generation(), compact_generation - 1);
+        let loaded = recovered.load_chunk(position).unwrap().unwrap();
+        assert_eq!(loaded.import.terrain_revision, second.terrain_revision());
+        assert_eq!(loaded.import.states, second.states());
+    }
+
+    remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn torn_newest_index_falls_back_to_previous_valid_generation() {
     let (_store, position, first, second) = world_and_snapshots();
     let path = temp_region_path("fallback");

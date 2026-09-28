@@ -30,8 +30,8 @@ pub use record::{
     StoredChunk, decode_chunk_record, encode_chunk_record, encode_chunk_record_with_policy,
 };
 pub use region::{
-    INDEX_PAGE_BYTES, RECORD_AREA_OFFSET, REGION_HEADER_BYTES, RegionCoord, RegionFile,
-    RegionSaveResult, RegionStats, STORAGE_REGION_EDGE,
+    INDEX_PAGE_BYTES, RECORD_AREA_OFFSET, REGION_HEADER_BYTES, RegionCompactionResult, RegionCoord,
+    RegionFile, RegionSaveResult, RegionStats, STORAGE_REGION_EDGE,
 };
 
 pub const STORAGE_FORMAT_VERSION: u16 = 1;
