@@ -240,6 +240,12 @@ final class Server
             'sessions' => fn () => $this->sessions->stop(),
             'plugins' => fn () => $this->plugins->shutdown(),
             'scheduler' => fn () => $this->scheduler->shutdown(),
+            'world-storage' => function (): void {
+                $nativeStore = $this->world->nativeStore();
+                if ($nativeStore !== null && $nativeStore->hasStorage()) {
+                    $nativeStore->flushStorage();
+                }
+            },
         ] as $phase => $shutdown) {
             try {
                 $shutdown();

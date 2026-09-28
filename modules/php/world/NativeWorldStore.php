@@ -34,6 +34,7 @@ final class NativeWorldStore
             'cobblestone_world_storage_prepare_loads',
             'cobblestone_world_storage_request_load',
             'cobblestone_world_storage_tick',
+            'cobblestone_world_storage_flush',
             'cobblestone_world_destroy',
             'cobblestone_world_ensure_chunk',
             'cobblestone_world_lifecycle_flags',
@@ -259,6 +260,15 @@ final class NativeWorldStore
             'load_in_flight' => (int) $values[5],
             'load_missing' => (int) $values[6],
         ];
+    }
+
+    public function flushStorage(): void
+    {
+        if (!$this->storageAttached) {
+            return;
+        }
+
+        cobblestone_world_storage_flush($this->requireHandle());
     }
 
     public function ensureChunk(ChunkPos $position, BiomeId $biome): bool

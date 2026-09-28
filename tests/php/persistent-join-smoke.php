@@ -155,6 +155,7 @@ $server = Server::start(
 );
 $spawned = false;
 $mutated = false;
+$stopFlushDirty = false;
 $server->events()->listen(
     SessionSpawned::class,
     static function (SessionSpawned $event) use ($server, $center, &$spawned, &$mutated): void {
@@ -250,6 +251,10 @@ try {
         str_contains($stdout, 'world-sync-client: update=verified'),
         "persistent-join client did not observe UpdateBlock\nstdout={$stdout}\nstderr={$stderr}",
     );
+
+    $server->world()->setBlockStateId(new BlockPos(129, 5, 129), BlockStateId::fromLegacy(3));
+    persistentJoinExpect($store->chunkDirty($center), 'server-stop flush probe did not start dirty');
+    $stopFlushDirty = true;
 } finally {
     foreach ([1, 2] as $pipe) {
         if (isset($pipes[$pipe]) && is_resource($pipes[$pipe])) {
@@ -262,6 +267,12 @@ try {
     if ($server->state() === ServerState::Running) {
         $server->requestStop('persistent-join-smoke');
         $server->stop();
+    }
+    if ($stopFlushDirty) {
+        persistentJoinExpect(
+            !$store->chunkDirty($center),
+            'server stop did not durably flush the final dirty world state',
+        );
     }
 
     persistentJoinExpect(

@@ -818,6 +818,21 @@ pub fn cobblestone_world_storage_tick(handle_value: i64, budget: i64) -> PhpResu
 }
 
 #[php_function]
+pub fn cobblestone_world_storage_flush(handle_value: i64) -> PhpResult<()> {
+    php_boundary(|| {
+        let state = resolve_world_state(handle_value)?;
+        let mut persistence = match state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        if let Some(persistence) = persistence.as_mut() {
+            flush_persistence(&state.store, persistence)?;
+        }
+        Ok(())
+    })
+}
+
+#[php_function]
 pub fn cobblestone_world_destroy(handle_value: i64) -> PhpResult<()> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
@@ -1531,6 +1546,7 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_storage_prepare_loads))
         .function(wrap_function!(cobblestone_world_storage_request_load))
         .function(wrap_function!(cobblestone_world_storage_tick))
+        .function(wrap_function!(cobblestone_world_storage_flush))
         .function(wrap_function!(cobblestone_world_destroy))
         .function(wrap_function!(cobblestone_world_ensure_chunk))
         .function(wrap_function!(cobblestone_world_lifecycle_flags))

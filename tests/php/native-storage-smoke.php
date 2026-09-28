@@ -100,28 +100,43 @@ try {
     $regionPath = $root . '/regions/r.0.0.cwr';
     nativeStorageExpect(is_file($regionPath), 'native storage did not create region file');
     clearstatcache(true, $regionPath);
-    $beforeShutdownFlush = filesize($regionPath);
-    nativeStorageExpect($beforeShutdownFlush !== false, 'failed to stat native region before shutdown flush');
+    $beforeExplicitFlush = filesize($regionPath);
+    nativeStorageExpect($beforeExplicitFlush !== false, 'failed to stat native region before explicit flush');
 
-    $shutdownPosition = new ChunkPos(1, 0);
+    $flushPosition = new ChunkPos(1, 0);
     nativeStorageExpect(
-        $store->ensureChunk($shutdownPosition, new BiomeId(1)),
-        'shutdown-flush probe chunk already existed',
+        $store->ensureChunk($flushPosition, new BiomeId(1)),
+        'explicit-flush probe chunk already existed',
     );
-    $store->fillLayers($shutdownPosition, 0, 1, 7 << 4);
-    $store->setLifecycleFlags($shutdownPosition, Chunk::LIFECYCLE_GENERATED);
+    $store->fillLayers($flushPosition, 0, 1, 7 << 4);
+    $store->setLifecycleFlags($flushPosition, Chunk::LIFECYCLE_GENERATED);
+    nativeStorageExpect($store->chunkDirty($flushPosition), 'explicit-flush probe chunk did not start dirty');
+
+    $store->flushStorage();
+    nativeStorageExpect(!$store->chunkDirty($flushPosition), 'explicit storage flush left chunk dirty');
+    clearstatcache(true, $regionPath);
+    $afterExplicitFlush = filesize($regionPath);
+    nativeStorageExpect($afterExplicitFlush !== false, 'failed to stat native region after explicit flush');
     nativeStorageExpect(
-        $store->chunkDirty($shutdownPosition),
-        'shutdown-flush probe chunk did not start dirty',
+        $afterExplicitFlush > $beforeExplicitFlush,
+        'explicit storage flush did not persist unscheduled dirty chunk',
     );
+
+    $destroyPosition = new ChunkPos(2, 0);
+    nativeStorageExpect(
+        $store->ensureChunk($destroyPosition, new BiomeId(1)),
+        'destroy-flush probe chunk already existed',
+    );
+    $store->fillLayers($destroyPosition, 0, 1, 7 << 4);
+    nativeStorageExpect($store->chunkDirty($destroyPosition), 'destroy-flush probe chunk did not start dirty');
 
     $store->destroy();
     clearstatcache(true, $regionPath);
-    $afterShutdownFlush = filesize($regionPath);
-    nativeStorageExpect($afterShutdownFlush !== false, 'failed to stat native region after shutdown flush');
+    $afterDestroyFlush = filesize($regionPath);
+    nativeStorageExpect($afterDestroyFlush !== false, 'failed to stat native region after destroy flush');
     nativeStorageExpect(
-        $afterShutdownFlush > $beforeShutdownFlush,
-        'world destroy did not persist unscheduled dirty chunk',
+        $afterDestroyFlush > $afterExplicitFlush,
+        'world destroy did not preserve its fallback dirty-chunk flush',
     );
 
     $reopened = NativeWorldStore::create();
