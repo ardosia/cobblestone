@@ -30,6 +30,7 @@ final class NativeWorldStore
         foreach ([
             'cobblestone_world_create',
             'cobblestone_world_storage_attach',
+            'cobblestone_world_storage_prepare_loads',
             'cobblestone_world_storage_request_load',
             'cobblestone_world_storage_tick',
             'cobblestone_world_destroy',
@@ -136,6 +137,74 @@ final class NativeWorldStore
         );
 
         return NativeWorldMetadata::fromNative($values);
+    }
+
+    /**
+     * Builds the reusable private PHP/native load projection once for repeated polling.
+     *
+     * @param list<ChunkPos> $positions
+     */
+    public static function encodeStorageLoadBatch(array $positions): string
+    {
+        if (count($positions) > 4096) {
+            throw new \ValueError('native world storage load batch cannot exceed 4096 chunks');
+        }
+
+        $projection = [pack('V', count($positions))];
+        foreach ($positions as $position) {
+            if (!$position instanceof ChunkPos) {
+                throw new \TypeError('native world storage load batch expects ChunkPos values');
+            }
+            $projection[] = pack('V', $position->x & 0xffffffff);
+            $projection[] = pack('V', $position->z & 0xffffffff);
+        }
+
+        return implode('', $projection);
+    }
+
+    /**
+     * Hot path: one FFI crossing for the whole pre-encoded chunk set.
+     *
+     * Returns one raw NativeChunkLoadStatus byte per encoded coordinate.
+     */
+    public function prepareStorageLoadBatch(string $projection): string
+    {
+        if (strlen($projection) < 4) {
+            throw new \ValueError('native world storage load batch is truncated');
+        }
+        $header = unpack('Vcount', substr($projection, 0, 4));
+        $count = (int) ($header['count'] ?? -1);
+        if ($count < 0 || $count > 4096 || strlen($projection) !== 4 + ($count * 8)) {
+            throw new \ValueError('native world storage load batch has invalid length');
+        }
+
+        $statuses = cobblestone_world_storage_prepare_loads(
+            $this->requireHandle(),
+            $projection,
+        );
+        if (strlen($statuses) !== $count) {
+            throw new \UnexpectedValueException('native world storage load batch status width mismatch');
+        }
+
+        return $statuses;
+    }
+
+    /**
+     * Ergonomic cold-path wrapper.
+     *
+     * @param list<ChunkPos> $positions
+     * @return list<NativeChunkLoadStatus>
+     */
+    public function prepareStorageLoads(array $positions): array
+    {
+        $statuses = $this->prepareStorageLoadBatch(self::encodeStorageLoadBatch($positions));
+
+        $result = [];
+        for ($index = 0, $count = strlen($statuses); $index < $count; ++$index) {
+            $result[] = NativeChunkLoadStatus::from(ord($statuses[$index]));
+        }
+
+        return $result;
     }
 
     public function requestStorageLoad(ChunkPos $position): NativeChunkLoadStatus

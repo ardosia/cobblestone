@@ -497,6 +497,53 @@ fn flush_persistence(
     }
 }
 
+fn decode_chunk_positions(input: &[u8]) -> PhpResult<Vec<ChunkCoord>> {
+    const HEADER_BYTES: usize = 4;
+    const ENTRY_BYTES: usize = 8;
+    const MAX_POSITIONS: usize = 4096;
+
+    if input.len() < HEADER_BYTES {
+        return Err(php_error("chunk position batch is truncated"));
+    }
+    let count = u32::from_le_bytes(
+        input[0..4]
+            .try_into()
+            .expect("fixed four-byte chunk batch header"),
+    ) as usize;
+    if count > MAX_POSITIONS {
+        return Err(php_error("chunk position batch exceeds 4096 entries"));
+    }
+    let expected = HEADER_BYTES
+        .checked_add(
+            count
+                .checked_mul(ENTRY_BYTES)
+                .ok_or_else(|| php_error("chunk position batch length overflow"))?,
+        )
+        .ok_or_else(|| php_error("chunk position batch length overflow"))?;
+    if input.len() != expected {
+        return Err(php_error("chunk position batch length mismatch"));
+    }
+
+    let mut positions = Vec::with_capacity(count);
+    let mut offset = HEADER_BYTES;
+    for _ in 0..count {
+        let x = i32::from_le_bytes(
+            input[offset..offset + 4]
+                .try_into()
+                .expect("fixed chunk x slice"),
+        );
+        let z = i32::from_le_bytes(
+            input[offset + 4..offset + 8]
+                .try_into()
+                .expect("fixed chunk z slice"),
+        );
+        positions.push(ChunkCoord::new(x, z));
+        offset += ENTRY_BYTES;
+    }
+
+    Ok(positions)
+}
+
 fn creation_value<'a>(
     values: &'a ZendHashTable,
     index: i64,
@@ -646,6 +693,49 @@ pub fn cobblestone_world_storage_attach(
             load_missing: HashSet::new(),
         });
         Ok(values)
+    })
+}
+
+#[php_function]
+pub fn cobblestone_world_storage_prepare_loads(
+    handle_value: i64,
+    positions: Binary<u8>,
+) -> PhpResult<Binary<u8>> {
+    php_boundary(|| {
+        let positions = decode_chunk_positions(positions.as_slice())?;
+        let state = resolve_world_state(handle_value)?;
+        let mut persistence = match state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let persistence = persistence
+            .as_mut()
+            .ok_or_else(|| php_error("native world storage is not attached"))?;
+
+        poll_load_completions(&state.store, persistence, positions.len().max(1))?;
+
+        let mut statuses = Vec::with_capacity(positions.len());
+        for position in positions {
+            if state.store.contains_chunk(position) {
+                statuses.push(0);
+                continue;
+            }
+            if persistence.load_missing.contains(&position) {
+                statuses.push(3);
+                continue;
+            }
+
+            match persistence
+                .loads
+                .request(position)
+                .map_err(|error| php_error(error.to_string()))?
+            {
+                LoadRequestState::Queued => statuses.push(1),
+                LoadRequestState::Joined => statuses.push(2),
+            }
+        }
+
+        Ok(Binary::new(statuses))
     })
 }
 
@@ -1438,6 +1528,7 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
         .function(wrap_function!(cobblestone_world_create))
         .function(wrap_function!(cobblestone_world_storage_attach))
+        .function(wrap_function!(cobblestone_world_storage_prepare_loads))
         .function(wrap_function!(cobblestone_world_storage_request_load))
         .function(wrap_function!(cobblestone_world_storage_tick))
         .function(wrap_function!(cobblestone_world_destroy))

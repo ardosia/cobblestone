@@ -217,6 +217,8 @@ Release measurement on the development host for 64 default-Flat chunks spread ac
 
 These figures include region reopen/index selection, indexed-record CRC32C validation, zstd decode, payload validation, and semantic `ChunkImport` reconstruction. They are warm-cache development-host measurements, not storage-device latency guarantees.
 
+PHP/native load preparation is also batched. The production polling form pre-encodes the requested chunk coordinates once, reuses that immutable projection across ticks, and receives one raw status byte per coordinate in a single FFI crossing. On the development host, polling a 49-chunk view measured about 20.28 µs using 49 individual native calls versus about 3.99 µs using the reusable batch wrapper, a ~5.1× improvement. Rebuilding the projection and allocating PHP enum objects on every poll erased that win, so the ergonomic list wrapper is explicitly not the repeated hot path.
+
 The network change journal is not reused for persistence. Network delivery cursors and durable-save/load state have different retention and failure semantics.
 
 ## Load and unload contract

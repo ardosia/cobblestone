@@ -143,26 +143,37 @@ try {
         nativeStorageExpect($metadata->generatorSettings === '2;7,2x3,2;1;', 'reopen preset mismatch');
         nativeStorageExpect($metadata->uuid === str_repeat("Z", 16), 'reopen UUID mismatch');
 
+        $bulkMissing = new ChunkPos(60, -60);
+        $bulkProjection = NativeWorldStore::encodeStorageLoadBatch([$position, $bulkMissing]);
+        $bulk = $reopened->prepareStorageLoadBatch($bulkProjection);
         nativeStorageExpect(
-            $reopened->requestStorageLoad($position) === NativeChunkLoadStatus::Queued,
-            'persisted chunk load was not queued',
-        );
-        nativeStorageExpect(
-            $reopened->requestStorageLoad($position) === NativeChunkLoadStatus::Joined,
-            'duplicate persisted chunk load did not join',
+            $bulk === chr(NativeChunkLoadStatus::Queued->value) . chr(NativeChunkLoadStatus::Queued->value),
+            'bulk native load preparation did not queue both unresolved chunks',
         );
         for ($attempt = 0; $attempt < 500; ++$attempt) {
-            $reopened->storageTick(64);
-            $status = $reopened->requestStorageLoad($position);
-            if ($status === NativeChunkLoadStatus::Resident) {
+            $bulk = $reopened->prepareStorageLoadBatch($bulkProjection);
+            $persistedStatus = NativeChunkLoadStatus::from(ord($bulk[0]));
+            $missingStatus = NativeChunkLoadStatus::from(ord($bulk[1]));
+            if (
+                $persistedStatus === NativeChunkLoadStatus::Resident
+                && $missingStatus === NativeChunkLoadStatus::Missing
+            ) {
                 break;
             }
             nativeStorageExpect(
-                $status !== NativeChunkLoadStatus::Missing,
+                $persistedStatus !== NativeChunkLoadStatus::Missing,
                 'persisted chunk unexpectedly became a durable miss',
+            );
+            nativeStorageExpect(
+                $missingStatus !== NativeChunkLoadStatus::Resident,
+                'durably missing bulk chunk unexpectedly became resident',
             );
             usleep(1_000);
         }
+        nativeStorageExpect(
+            $bulk === chr(NativeChunkLoadStatus::Resident->value) . chr(NativeChunkLoadStatus::Missing->value),
+            'bulk native load preparation did not converge to resident/missing states',
+        );
         nativeStorageExpect(
             $reopened->requestStorageLoad($position) === NativeChunkLoadStatus::Resident,
             'persisted chunk was not imported into WorldStore',

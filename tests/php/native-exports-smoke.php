@@ -30,6 +30,7 @@ $required = [
     'cobblestone_session_protocol84_flush_world_changes',
     'cobblestone_world_create',
     'cobblestone_world_storage_attach',
+    'cobblestone_world_storage_prepare_loads',
     'cobblestone_world_storage_request_load',
     'cobblestone_world_storage_tick',
     'cobblestone_world_destroy',
