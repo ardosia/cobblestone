@@ -84,31 +84,6 @@
             }
         },
         {
-            "name": "ardosia/cobblestone-native-session",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "modules/php/native-session",
-                "reference": "dc59a5dedacd63c2d5b905ebf21ab63714c17690"
-            },
-            "require": {
-                "php": ">=8.5"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Cobblestone\\Native\\Session\\": ""
-                }
-            },
-            "license": [
-                "MIT OR Apache-2.0"
-            ],
-            "description": "Cobblestone PHP facade over the native session mechanism.",
-            "transport-options": {
-                "relative": true
-            }
-        },
-        {
             "name": "ardosia/cobblestone-plugin",
             "version": "dev-main",
             "dist": {
@@ -144,13 +119,12 @@
             "dist": {
                 "type": "path",
                 "url": "modules/php/server",
-                "reference": "860b84268a6638d01c01cfc670c09a13afabbabf"
+                "reference": "3b796385f0abe0e2f22a05dd886929c2ccced565"
             },
             "require": {
                 "ardosia/cobblestone-command": "dev-main",
                 "ardosia/cobblestone-event": "dev-main",
                 "ardosia/cobblestone-log": "dev-main",
-                "ardosia/cobblestone-native-session": "dev-main",
                 "ardosia/cobblestone-plugin": "dev-main",
                 "ardosia/cobblestone-session": "dev-main",
                 "ardosia/cobblestone-task": "dev-main",
@@ -182,17 +156,17 @@
             "dist": {
                 "type": "path",
                 "url": "modules/php/session",
-                "reference": "58b734a510917abb8483cb96b115a0df0c56705b"
+                "reference": "db0f11eba91b9fb65cc66e20613365b2485a5b23"
             },
             "require": {
-                "ardosia/cobblestone-native-session": "dev-main",
                 "ardosia/cobblestone-world": "dev-main",
                 "php": ">=8.5"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Cobblestone\\Session\\": ""
+                    "Cobblestone\\Session\\": "",
+                    "Cobblestone\\Native\\Session\\": "Native/"
                 }
             },
             "license": [

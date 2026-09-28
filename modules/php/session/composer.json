@@ -5,12 +5,12 @@
   "license": "MIT OR Apache-2.0",
   "require": {
     "php": ">=8.5",
-    "ardosia/cobblestone-native-session": "dev-main",
     "ardosia/cobblestone-world": "dev-main"
   },
   "autoload": {
     "psr-4": {
-      "Cobblestone\\Session\\": ""
+      "Cobblestone\\Session\\": "",
+      "Cobblestone\\Native\\Session\\": "Native/"
     }
   }
 }

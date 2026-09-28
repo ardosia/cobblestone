@@ -9,7 +9,6 @@
     "ardosia/cobblestone-command": "dev-main",
     "ardosia/cobblestone-event": "dev-main",
     "ardosia/cobblestone-log": "dev-main",
-    "ardosia/cobblestone-native-session": "dev-main",
     "ardosia/cobblestone-plugin": "dev-main",
     "ardosia/cobblestone-session": "dev-main",
     "ardosia/cobblestone-task": "dev-main",

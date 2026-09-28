@@ -20,7 +20,6 @@ modules/
 ├── php/
 │   ├── kernel/
 │   ├── log/
-│   ├── native-session/
 │   ├── plugin/
 │   ├── server/
 │   ├── session/
