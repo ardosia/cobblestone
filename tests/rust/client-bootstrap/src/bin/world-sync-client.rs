@@ -292,6 +292,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let persistent_stream = std::env::args().any(|argument| argument == "--persistent-stream");
     let hold_east = std::env::args().any(|argument| argument == "--hold-east");
     let hold_west = std::env::args().any(|argument| argument == "--hold-west");
+    let pending_disconnect = std::env::args().any(|argument| argument == "--pending-disconnect");
     let limits = limits();
 
     let mut client = RaknetClient::connect_with_config(
@@ -377,6 +378,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::time::sleep(Duration::from_millis(750)).await;
         client.disconnect(None).await?;
         tokio::time::sleep(Duration::from_millis(100)).await;
+        return Ok(());
+    }
+
+    if pending_disconnect {
+        send_movement(&mut client, limits, [145.0, 64.0, 129.0]).await?;
+        println!("world-sync-client: pending-disconnect movement=sent");
+        std::io::stdout().flush()?;
+        tokio::time::sleep(Duration::from_secs(2)).await;
         return Ok(());
     }
 

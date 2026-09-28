@@ -9,7 +9,8 @@ use cobblestone_codec::{
     encode_protocol84_full_chunk_data, encode_protocol84_update_block, packet_id,
 };
 use cobblestone_core::{
-    ChunkCoord, MAX_POINT_BLOCK_CHANGES, NativeBuffer, RuntimeId, WorldChangeKind, WorldStore,
+    ChunkCoord, MAX_POINT_BLOCK_CHANGES, NativeBuffer, RuntimeId, WorldChangeKind,
+    WorldChangeLogSnapshot, WorldStore,
 };
 use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
 use ext_php_rs::binary::Binary;
@@ -241,7 +242,7 @@ pub(crate) fn queue_view_delta_chunks(
     )
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum PendingChunkSync {
     Blocks(BTreeMap<u16, u16>),
     FullChunk,
@@ -737,6 +738,32 @@ fn merge_change(
     }
 }
 
+fn pending_view_changes(
+    view: &WorldView,
+    log: &WorldChangeLogSnapshot,
+) -> HashMap<ChunkCoord, PendingChunkSync> {
+    let mut pending = HashMap::new();
+
+    if log.cursor_is_stale(view.cursor) {
+        for position in view_chunks(view) {
+            pending.insert(position, PendingChunkSync::FullChunk);
+        }
+        return pending;
+    }
+
+    for change in log
+        .changes()
+        .iter()
+        .filter(|change| change.sequence() > view.cursor)
+    {
+        if view.contains(change.position()) {
+            merge_change(&mut pending, change.position(), change.kind());
+        }
+    }
+
+    pending
+}
+
 fn update_block_packet(position: ChunkCoord, index: u16, state: u16) -> PhpResult<RawPacket> {
     let local_x = i32::from(index & 0x0f);
     let local_z = i32::from((index >> 4) & 0x0f);
@@ -798,22 +825,7 @@ pub fn cobblestone_session_protocol84_flush_world_changes(world_handle: i64) -> 
                 continue;
             }
 
-            let mut pending = HashMap::<ChunkCoord, PendingChunkSync>::new();
-            if log.cursor_is_stale(view.cursor) {
-                for position in view_chunks(&view) {
-                    pending.insert(position, PendingChunkSync::FullChunk);
-                }
-            } else {
-                for change in log
-                    .changes()
-                    .iter()
-                    .filter(|change| change.sequence() > view.cursor)
-                {
-                    if view.contains(change.position()) {
-                        merge_change(&mut pending, change.position(), change.kind());
-                    }
-                }
-            }
+            let pending = pending_view_changes(&view, &log);
 
             if pending.is_empty() {
                 cursor_updates.push((session_id, log.latest_sequence()));
@@ -912,6 +924,7 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
 #[cfg(test)]
 mod view_delta_tests {
     use super::*;
+    use cobblestone_core::{ChunkPatch, WORLD_CHANGE_LOG_CAPACITY};
 
     fn positions(values: &[(i32, i32)]) -> Vec<ChunkCoord> {
         values.iter().map(|&(x, z)| ChunkCoord::new(x, z)).collect()
@@ -933,6 +946,30 @@ mod view_delta_tests {
             cursor: 7,
             pinned_chunks,
         }
+    }
+
+    fn record_block_change(
+        store: &WorldStore,
+        position: ChunkCoord,
+        terrain_revision: u64,
+        state: u16,
+    ) {
+        store
+            .apply_patch(
+                position,
+                ChunkPatch {
+                    expected_terrain_revision: terrain_revision,
+                    next_terrain_revision: terrain_revision + 1,
+                    expected_light_revision: 0,
+                    next_light_revision: 0,
+                    blocks: vec![(0, state)],
+                    biomes: Vec::new(),
+                    extra_data: Vec::new(),
+                    sky_light: Vec::new(),
+                    block_light: Vec::new(),
+                },
+            )
+            .expect("record block change");
     }
 
     #[test]
@@ -1050,5 +1087,72 @@ mod view_delta_tests {
         for &position in &delta.leaving {
             assert_eq!(view.store.pin_count(position).unwrap(), 1);
         }
+    }
+
+    #[test]
+    fn recentered_view_filters_changes_using_preserved_cursor() {
+        let mut view = pinned_view(ChunkCoord::new(0, 0), 1);
+        view.cursor = view.store.current_change_sequence();
+        let delta =
+            chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
+        for &position in &delta.entering {
+            view.store.ensure_chunk(position, 1);
+        }
+
+        apply_view_delta(&mut view, &delta).expect("apply view delta");
+        assert_eq!(view.cursor, 0);
+
+        let old_only = ChunkCoord::new(-1, 0);
+        let current_only = ChunkCoord::new(2, 0);
+        record_block_change(&view.store, old_only, 0, 1);
+        record_block_change(&view.store, current_only, 0, 1);
+
+        let log = view.store.change_log_snapshot();
+        let pending = pending_view_changes(&view, &log);
+
+        assert_eq!(pending.len(), 1);
+        assert!(!pending.contains_key(&old_only));
+        assert!(matches!(
+            pending.get(&current_only),
+            Some(PendingChunkSync::Blocks(_))
+        ));
+    }
+
+    #[test]
+    fn stale_cursor_after_recenter_recovers_exact_current_view() {
+        let mut view = pinned_view(ChunkCoord::new(0, 0), 1);
+        view.cursor = view.store.current_change_sequence();
+        let delta =
+            chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
+        for &position in &delta.entering {
+            view.store.ensure_chunk(position, 1);
+        }
+        apply_view_delta(&mut view, &delta).expect("apply view delta");
+
+        let current = ChunkCoord::new(1, 0);
+        for revision in 0..=WORLD_CHANGE_LOG_CAPACITY as u64 {
+            record_block_change(
+                &view.store,
+                current,
+                revision,
+                u16::try_from(revision & 1).expect("binary state"),
+            );
+        }
+
+        let log = view.store.change_log_snapshot();
+        assert!(log.cursor_is_stale(view.cursor));
+
+        let pending = pending_view_changes(&view, &log);
+        assert_eq!(pending.len(), view.pinned_chunks.len());
+        assert!(
+            pending
+                .values()
+                .all(|change| *change == PendingChunkSync::FullChunk)
+        );
+
+        let mut recovered = pending.into_keys().collect::<Vec<_>>();
+        recovered.sort_unstable_by_key(|position| (position.x(), position.z()));
+        assert_eq!(recovered, view_positions(ChunkCoord::new(1, 0), 1));
+        assert!(!recovered.contains(&ChunkCoord::new(-1, 0)));
     }
 }

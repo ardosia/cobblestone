@@ -120,18 +120,9 @@ final class SessionGameplay
                 $preparation->toRadius,
             );
 
-            if ($status === self::VIEW_SEND_BACKPRESSURED) {
+            if (!$this->acceptViewSendStatus($sessionId, $preparation, $status)) {
                 return;
             }
-            if ($status === self::VIEW_SEND_GONE) {
-                $this->clearPreparation($sessionId);
-                return;
-            }
-            if ($status !== self::VIEW_SEND_SENT) {
-                throw new UnexpectedValueException('native prepared view send returned an invalid status');
-            }
-
-            $preparation->markSent();
         }
 
         $this->sessions->commitPreparedView(
@@ -144,6 +135,26 @@ final class SessionGameplay
             $preparation->toRadius,
         );
         $this->clearPreparation($sessionId);
+    }
+
+    private function acceptViewSendStatus(
+        int $sessionId,
+        ChunkViewPreparation $preparation,
+        int $status,
+    ): bool {
+        if ($status === self::VIEW_SEND_BACKPRESSURED) {
+            return false;
+        }
+        if ($status === self::VIEW_SEND_GONE) {
+            $this->clearPreparation($sessionId);
+            return false;
+        }
+        if ($status !== self::VIEW_SEND_SENT) {
+            throw new UnexpectedValueException('native prepared view send returned an invalid status');
+        }
+
+        $preparation->markSent();
+        return true;
     }
 
     private function clearPreparation(int $sessionId): void
