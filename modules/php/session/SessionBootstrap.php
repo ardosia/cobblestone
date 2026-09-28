@@ -7,8 +7,6 @@ namespace Cobblestone\Session;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\ChunkSnapshot;
-use Cobblestone\World\NativeChunkLoadStatus;
 use Cobblestone\World\World;
 use LogicException;
 use ValueError;
@@ -26,6 +24,7 @@ final class SessionBootstrap
 
     /** @var array<int, int> */
     private array $states = [];
+    private readonly InitialChunkView $initialChunks;
 
     /**
      * @var array<int, array{
@@ -46,6 +45,8 @@ final class SessionBootstrap
         if ($initialChunkRadius <= 0 || $initialChunkRadius > self::MAX_INITIAL_CHUNK_RADIUS) {
             throw new ValueError('initial chunk radius must be in range 1..3');
         }
+
+        $this->initialChunks = new InitialChunkView($this->world);
     }
 
     public function connected(int $sessionId): void
@@ -73,7 +74,7 @@ final class SessionBootstrap
                 continue;
             }
 
-            if (!$this->preparePersistentChunks($pending['positions'], $pending['projection'])) {
+            if (!$this->initialChunks->preparePersistent($pending['positions'], $pending['projection'])) {
                 continue;
             }
 
@@ -170,7 +171,7 @@ final class SessionBootstrap
     ): BootstrapUpdate {
         $nativeStore = $this->world->nativeStore();
         if ($nativeStore === null || !$nativeStore->hasStorage()) {
-            $chunkCount = $this->ensureInitialChunks($effectiveRadius, $center);
+            $chunkCount = $this->initialChunks->ensure($effectiveRadius, $center);
 
             return $this->finishSpawn(
                 $sessionId,
@@ -181,9 +182,9 @@ final class SessionBootstrap
             );
         }
 
-        $positions = $this->initialChunkPositions($effectiveRadius, $center);
+        $positions = $this->initialChunks->positions($effectiveRadius, $center);
         $projection = $nativeStore::encodeStorageLoadBatch($positions);
-        if ($this->preparePersistentChunks($positions, $projection)) {
+        if ($this->initialChunks->preparePersistent($positions, $projection)) {
             return $this->finishSpawn(
                 $sessionId,
                 $requestedRadius,
@@ -205,52 +206,6 @@ final class SessionBootstrap
         return BootstrapUpdate::chunksLoading($requestedRadius, $effectiveRadius);
     }
 
-    /**
-     * @param list<ChunkPos> $positions
-     */
-    private function preparePersistentChunks(array $positions, string $projection): bool
-    {
-        $nativeStore = $this->world->nativeStore()
-            ?? throw new LogicException('persistent chunk preparation requires native world storage');
-        if (!$nativeStore->hasStorage()) {
-            throw new LogicException('persistent chunk preparation lost its native storage attachment');
-        }
-
-        $statuses = $nativeStore->prepareStorageLoadBatch($projection);
-        if (strlen($statuses) !== count($positions)) {
-            throw new LogicException('persistent chunk preparation returned the wrong status width');
-        }
-
-        $resolved = [];
-        foreach ($positions as $index => $position) {
-            $status = NativeChunkLoadStatus::from(ord($statuses[$index]));
-            if (
-                $status !== NativeChunkLoadStatus::Resident
-                && $status !== NativeChunkLoadStatus::Missing
-            ) {
-                return false;
-            }
-            $resolved[] = $status;
-        }
-
-        foreach ($positions as $index => $position) {
-            if ($resolved[$index] === NativeChunkLoadStatus::Resident) {
-                if ($this->world->chunk($position, false) === null) {
-                    $this->world->adoptNativeChunk($position);
-                }
-                continue;
-            }
-
-            if ($this->world->chunk($position, true) === null) {
-                throw new LogicException(
-                    "world failed to generate durably missing initial chunk {$position->x}:{$position->z}",
-                );
-            }
-        }
-
-        return true;
-    }
-
     private function finishSpawn(
         int $sessionId,
         int $requestedRadius,
@@ -269,11 +224,11 @@ final class SessionBootstrap
                 $center->z,
             );
         } else {
-            $snapshots = $this->initialChunkSnapshots($effectiveRadius, $center);
+            $snapshots = $this->initialChunks->snapshots($effectiveRadius, $center);
             $encodedBytes = $this->sessions->sendInitialChunks(
                 $sessionId,
                 $effectiveRadius,
-                self::nativeProjection($snapshots),
+                $this->initialChunks->projection($snapshots),
             );
         }
         $encodeNanos = hrtime(true) - $encodeStarted;
@@ -289,92 +244,4 @@ final class SessionBootstrap
         );
     }
 
-    /** @return list<ChunkPos> */
-    private function initialChunkPositions(int $radius, ChunkPos $center): array
-    {
-        $positions = [];
-        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
-            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
-                $positions[] = new ChunkPos($x, $z);
-            }
-        }
-
-        return $positions;
-    }
-
-    private function ensureInitialChunks(int $radius, ChunkPos $center): int
-    {
-        $count = 0;
-        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
-            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
-                if ($this->world->chunk(new ChunkPos($x, $z)) === null) {
-                    throw new LogicException("world failed to generate initial chunk {$x}:{$z}");
-                }
-                ++$count;
-            }
-        }
-
-        return $count;
-    }
-
-    /** @return list<ChunkSnapshot> */
-    private function initialChunkSnapshots(int $radius, ChunkPos $center): array
-    {
-        $snapshots = [];
-
-        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
-            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
-                $chunk = $this->world->chunk(new ChunkPos($x, $z), false);
-                if ($chunk === null) {
-                    throw new LogicException("initial chunk {$x}:{$z} disappeared before snapshot");
-                }
-                $snapshots[] = $chunk->snapshot();
-            }
-        }
-
-        return $snapshots;
-    }
-
-    /**
-     * Serializes semantic snapshots into the private PHP/native bulk bridge.
-     *
-     * This is not a complete protocol-84 packet: block/light planes remain semantic Y/Z/X order,
-     * which is already the ORDER_LAYERED terrain order, while biome columns remain semantic IDs.
-     * Rust owns validation, biome-word construction, packet framing, compression, and submission.
-     *
-     * @param list<ChunkSnapshot> $snapshots
-     */
-    private static function nativeProjection(array $snapshots): string
-    {
-        $parts = [pack('V', count($snapshots))];
-
-        foreach ($snapshots as $snapshot) {
-            $parts[] = self::packInt32Le($snapshot->position->x);
-            $parts[] = self::packInt32Le($snapshot->position->z);
-            $parts[] = $snapshot->blockIds;
-            $parts[] = $snapshot->blockData;
-            $parts[] = $snapshot->skyLight;
-            $parts[] = $snapshot->blockLight;
-            $parts[] = $snapshot->biomes;
-            $parts[] = $snapshot->heightMap;
-
-            $extraData = $snapshot->extraData;
-            ksort($extraData, SORT_NUMERIC);
-            $parts[] = pack('V', count($extraData));
-            foreach ($extraData as $key => $value) {
-                $parts[] = pack('Vv', $key, $value);
-            }
-        }
-
-        return implode('', $parts);
-    }
-
-    private static function packInt32Le(int $value): string
-    {
-        if ($value < -0x80000000 || $value > 0x7fffffff) {
-            throw new ValueError('protocol-84 chunk coordinate must fit signed 32 bits');
-        }
-
-        return pack('V', $value & 0xffffffff);
-    }
 }

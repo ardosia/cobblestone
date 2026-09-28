@@ -1,0 +1,151 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Cobblestone\Session;
+
+use Cobblestone\World\ChunkPos;
+use Cobblestone\World\ChunkSnapshot;
+use Cobblestone\World\NativeChunkLoadStatus;
+use Cobblestone\World\World;
+use LogicException;
+use ValueError;
+
+/** @internal */
+final class InitialChunkView
+{
+    public function __construct(private readonly World $world)
+    {
+    }
+
+    /** @return list<ChunkPos> */
+    public function positions(int $radius, ChunkPos $center): array
+    {
+        $positions = [];
+        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
+            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
+                $positions[] = new ChunkPos($x, $z);
+            }
+        }
+
+        return $positions;
+    }
+
+    public function ensure(int $radius, ChunkPos $center): int
+    {
+        $count = 0;
+        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
+            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
+                if ($this->world->chunk(new ChunkPos($x, $z)) === null) {
+                    throw new LogicException("world failed to generate initial chunk {$x}:{$z}");
+                }
+                ++$count;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param list<ChunkPos> $positions
+     */
+    public function preparePersistent(array $positions, string $projection): bool
+    {
+        $nativeStore = $this->world->nativeStore()
+            ?? throw new LogicException('persistent chunk preparation requires native world storage');
+        if (!$nativeStore->hasStorage()) {
+            throw new LogicException('persistent chunk preparation lost its native storage attachment');
+        }
+
+        $statuses = $nativeStore->prepareStorageLoadBatch($projection);
+        if (strlen($statuses) !== count($positions)) {
+            throw new LogicException('persistent chunk preparation returned the wrong status width');
+        }
+
+        $resolved = [];
+        foreach ($positions as $index => $position) {
+            $status = NativeChunkLoadStatus::from(ord($statuses[$index]));
+            if (
+                $status !== NativeChunkLoadStatus::Resident
+                && $status !== NativeChunkLoadStatus::Missing
+            ) {
+                return false;
+            }
+            $resolved[] = $status;
+        }
+
+        foreach ($positions as $index => $position) {
+            if ($resolved[$index] === NativeChunkLoadStatus::Resident) {
+                if ($this->world->chunk($position, false) === null) {
+                    $this->world->adoptNativeChunk($position);
+                }
+                continue;
+            }
+
+            if ($this->world->chunk($position, true) === null) {
+                throw new LogicException(
+                    "world failed to generate durably missing initial chunk {$position->x}:{$position->z}",
+                );
+            }
+        }
+
+        return true;
+    }
+
+    /** @return list<ChunkSnapshot> */
+    public function snapshots(int $radius, ChunkPos $center): array
+    {
+        $snapshots = [];
+
+        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
+            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
+                $chunk = $this->world->chunk(new ChunkPos($x, $z), false);
+                if ($chunk === null) {
+                    throw new LogicException("initial chunk {$x}:{$z} disappeared before snapshot");
+                }
+                $snapshots[] = $chunk->snapshot();
+            }
+        }
+
+        return $snapshots;
+    }
+
+    /**
+     * Serializes semantic snapshots into the private PHP/native bulk bridge.
+     *
+     * @param list<ChunkSnapshot> $snapshots
+     */
+    public function projection(array $snapshots): string
+    {
+        $parts = [pack('V', count($snapshots))];
+
+        foreach ($snapshots as $snapshot) {
+            $parts[] = self::packInt32Le($snapshot->position->x);
+            $parts[] = self::packInt32Le($snapshot->position->z);
+            $parts[] = $snapshot->blockIds;
+            $parts[] = $snapshot->blockData;
+            $parts[] = $snapshot->skyLight;
+            $parts[] = $snapshot->blockLight;
+            $parts[] = $snapshot->biomes;
+            $parts[] = $snapshot->heightMap;
+
+            $extraData = $snapshot->extraData;
+            ksort($extraData, SORT_NUMERIC);
+            $parts[] = pack('V', count($extraData));
+            foreach ($extraData as $key => $value) {
+                $parts[] = pack('Vv', $key, $value);
+            }
+        }
+
+        return implode('', $parts);
+    }
+
+    private static function packInt32Le(int $value): string
+    {
+        if ($value < -0x80000000 || $value > 0x7fffffff) {
+            throw new ValueError('protocol-84 chunk coordinate must fit signed 32 bits');
+        }
+
+        return pack('V', $value & 0xffffffff);
+    }
+}
