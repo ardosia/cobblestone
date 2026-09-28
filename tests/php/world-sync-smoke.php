@@ -6,6 +6,7 @@ require __DIR__ . '/bootstrap.php';
 
 $transitionOnly = in_array('--transition-only', $argv, true);
 $radiusCycle = in_array('--radius-cycle', $argv, true);
+$streamTorture = in_array('--stream-torture', $argv, true);
 
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Server\Server;
@@ -53,22 +54,24 @@ $server = Server::start(
     $bind,
     4,
     'Cobblestone World Sync Test',
-    static function (Packet $packet) use (&$movementHandled, &$server): void {
+    static function (Packet $packet) use (&$movementHandled, &$server, $transitionOnly): void {
         if ($packet->packetId !== 0x10) {
             return;
         }
 
-        worldSyncExpect($server instanceof Server, 'world-sync server was unavailable to gameplay handler');
-        $store = $server->world()->nativeStore();
-        worldSyncExpect($store !== null, 'world-sync gameplay handler lost native store');
-        worldSyncExpect(
-            $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
-            'movement preparation released the old streamed center',
-        );
-        worldSyncExpect(
-            $store->chunkPinCount(new ChunkPos(11, 8)) > 0,
-            'movement preparation did not pin an entering chunk',
-        );
+        if ($transitionOnly) {
+            worldSyncExpect($server instanceof Server, 'world-sync server was unavailable to gameplay handler');
+            $store = $server->world()->nativeStore();
+            worldSyncExpect($store !== null, 'world-sync gameplay handler lost native store');
+            worldSyncExpect(
+                $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
+                'movement preparation released the old streamed center',
+            );
+            worldSyncExpect(
+                $store->chunkPinCount(new ChunkPos(11, 8)) > 0,
+                'movement preparation did not pin an entering chunk',
+            );
+        }
         $movementHandled = true;
     },
     null,
@@ -79,7 +82,7 @@ $spawned = false;
 $mutated = false;
 $server->events()->listen(
     SessionSpawned::class,
-    static function (SessionSpawned $event) use ($server, $transitionOnly, $radiusCycle, &$spawned, &$mutated): void {
+    static function (SessionSpawned $event) use ($server, $transitionOnly, $radiusCycle, $streamTorture, &$spawned, &$mutated): void {
         $spawned = true;
         worldSyncExpect($event->chunksSent > 0, 'world-sync client spawned without chunks');
         $store = $server->world()->nativeStore();
@@ -88,7 +91,7 @@ $server->events()->listen(
             $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
             'spawned client view did not pin its streamed center chunk',
         );
-        if ($transitionOnly || $radiusCycle) {
+        if ($transitionOnly || $radiusCycle || $streamTorture) {
             return;
         }
 
@@ -115,7 +118,9 @@ $command = [
     'world-sync-client',
     '--',
     $bind,
-    $radiusCycle ? '--radius-cycle' : ($transitionOnly ? '--transition-only' : '--move-after-update'),
+    $streamTorture
+        ? '--stream-torture'
+        : ($radiusCycle ? '--radius-cycle' : ($transitionOnly ? '--transition-only' : '--move-after-update')),
 ];
 $descriptors = [
     0 => ['pipe', 'r'],
@@ -138,6 +143,7 @@ $exitCode = null;
 $deadline = hrtime(true) + 20_000_000_000;
 $transitionCommitted = false;
 $radiusCycleCommitted = false;
+$streamTortureCommitted = false;
 
 try {
     while (hrtime(true) < $deadline) {
@@ -201,6 +207,33 @@ try {
             $radiusCycleCommitted = $innerPinned && $outerReleased;
         }
 
+        if (
+            $streamTorture
+            && !$streamTortureCommitted
+            && str_contains($stdout, 'world-sync-client: stream-torture returned=verified')
+        ) {
+            $store = $server->world()->nativeStore();
+            worldSyncExpect($store !== null, 'stream-torture verification lost native store');
+
+            $finalPinned = true;
+            for ($chunkX = 6; $chunkX <= 10; ++$chunkX) {
+                for ($chunkZ = 6; $chunkZ <= 10; ++$chunkZ) {
+                    $finalPinned = $finalPinned
+                        && worldSyncPinCountOrZero($store, new ChunkPos($chunkX, $chunkZ)) > 0;
+                }
+            }
+
+            $diagonalReleased = true;
+            for ($chunkX = 11; $chunkX <= 15; ++$chunkX) {
+                for ($chunkZ = 8; $chunkZ <= 12; ++$chunkZ) {
+                    $diagonalReleased = $diagonalReleased
+                        && worldSyncPinCountOrZero($store, new ChunkPos($chunkX, $chunkZ)) === 0;
+                }
+            }
+
+            $streamTortureCommitted = $finalPinned && $diagonalReleased;
+        }
+
         $status = proc_get_status($process);
         if (!$status['running']) {
             $exitCode = $status['exitcode'];
@@ -225,7 +258,20 @@ try {
         worldSyncExpect($movementHandled, 'world-sync MovePlayer never reached post-spawn gameplay handling');
     }
 
-    if ($radiusCycle) {
+    if ($streamTorture) {
+        worldSyncExpect($streamTortureCommitted, 'stream-torture did not return to the original view cleanly');
+        foreach ([
+            'world-sync-client: stream-torture rapid=verified',
+            'world-sync-client: stream-torture diagonal=verified',
+            'world-sync-client: stream-torture returned=verified',
+            'world-sync-client: stream-torture=verified',
+        ] as $marker) {
+            worldSyncExpect(
+                str_contains($stdout, $marker),
+                "world-sync client missed stream-torture marker {$marker}\nstdout={$stdout}\nstderr={$stderr}",
+            );
+        }
+    } elseif ($radiusCycle) {
         worldSyncExpect($radiusCycleCommitted, 'radius-cycle view was never committed down to radius 1');
         worldSyncExpect(
             str_contains($stdout, 'world-sync-client: radius-cycle=verified grow=24 shrink=1'),

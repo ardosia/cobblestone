@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::Write;
 use std::net::SocketAddr;
 use std::time::Duration;
 
@@ -158,6 +159,80 @@ async fn verify_radius_cycle(
     Ok(())
 }
 
+async fn send_movement(
+    client: &mut RaknetClient,
+    limits: CodecLimits,
+    position: [f32; 3],
+) -> Result<(), Box<dyn Error>> {
+    let movement = RawPacket::new(packet_id::MOVE_PLAYER, move_player_body(position));
+    let movement_frame = encode_game_frame(&movement, limits)?;
+    client
+        .send_with_options(
+            Bytes::copy_from_slice(movement_frame.as_slice()),
+            ClientSendOptions {
+                reliability: Reliability::UnreliableSequenced,
+                ..ClientSendOptions::default()
+            },
+        )
+        .await?;
+    Ok(())
+}
+
+async fn wait_for_chunk(
+    client: &mut RaknetClient,
+    limits: CodecLimits,
+    expected: (i32, i32),
+    phase: &'static str,
+) -> Result<(), Box<dyn Error>> {
+    loop {
+        let payload = next_payload(client)
+            .await
+            .map_err(|error| -> Box<dyn Error> {
+                format!("waiting for {phase} chunk {expected:?}: {error}").into()
+            })?;
+        for packet in raw_packets(&payload, limits)? {
+            if packet.id() != cobblestone_codec::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
+                continue;
+            }
+            let body = packet.body().as_slice();
+            let chunk = (
+                i32::from_be_bytes(body[0..4].try_into()?),
+                i32::from_be_bytes(body[4..8].try_into()?),
+            );
+            if chunk == expected {
+                return Ok(());
+            }
+        }
+    }
+}
+
+async fn verify_stream_torture(
+    client: &mut RaknetClient,
+    limits: CodecLimits,
+) -> Result<(), Box<dyn Error>> {
+    for position in [
+        [145.0, 64.0, 129.0],
+        [161.0, 64.0, 129.0],
+        [193.0, 64.0, 129.0],
+    ] {
+        send_movement(client, limits, position).await?;
+    }
+    wait_for_chunk(client, limits, (14, 8), "rapid movement").await?;
+    println!("world-sync-client: stream-torture rapid=verified");
+
+    send_movement(client, limits, [209.0, 64.0, 161.0]).await?;
+    wait_for_chunk(client, limits, (15, 12), "diagonal movement").await?;
+    println!("world-sync-client: stream-torture diagonal=verified");
+
+    send_movement(client, limits, [129.0, 64.0, 129.0]).await?;
+    wait_for_chunk(client, limits, (6, 6), "return movement").await?;
+    println!("world-sync-client: stream-torture returned=verified");
+    std::io::stdout().flush()?;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    Ok(())
+}
+
 async fn send_boundary_movement(
     client: &mut RaknetClient,
     limits: CodecLimits,
@@ -212,6 +287,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let send_movement = std::env::args().any(|argument| argument == "--move-after-update");
     let transition_only = std::env::args().any(|argument| argument == "--transition-only");
     let radius_cycle = std::env::args().any(|argument| argument == "--radius-cycle");
+    let stream_torture = std::env::args().any(|argument| argument == "--stream-torture");
     let limits = limits();
 
     let mut client = RaknetClient::connect_with_config(
@@ -273,6 +349,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if radius_cycle {
         verify_radius_cycle(&mut client, limits).await?;
         println!("world-sync-client: radius-cycle=verified grow=24 shrink=1");
+        client.disconnect(None).await?;
+        return Ok(());
+    }
+
+    if stream_torture {
+        verify_stream_torture(&mut client, limits).await?;
+        println!("world-sync-client: stream-torture=verified");
         client.disconnect(None).await?;
         return Ok(());
     }
