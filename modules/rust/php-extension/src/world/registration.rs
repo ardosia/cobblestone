@@ -12,17 +12,13 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_storage_stats))
         .function(wrap_function!(cobblestone_world_storage_flush))
         .function(wrap_function!(cobblestone_world_destroy))
-        .function(wrap_function!(cobblestone_world_sky_light))
-        .function(wrap_function!(cobblestone_world_set_sky_light))
-        .function(wrap_function!(cobblestone_world_fill_sky_light_from))
-        .function(wrap_function!(cobblestone_world_block_light))
-        .function(wrap_function!(cobblestone_world_set_block_light))
         .function(wrap_function!(cobblestone_world_height_map))
         .function(wrap_function!(cobblestone_world_recalculate_height_map))
         .function(wrap_function!(cobblestone_world_block_extra_data))
         .function(wrap_function!(cobblestone_world_set_block_extra_data));
 
     let module = super::block::register(module);
+    let module = super::light::register(module);
     let module = super::patch::register(module);
     let module = super::residency::register(module);
     let module = super::revision::register(module);
