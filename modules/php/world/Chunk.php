@@ -300,56 +300,16 @@ final class Chunk
      */
     public function snapshot(): ChunkSnapshot
     {
-        if ($this->nativeStore !== null) {
-            return $this->nativeSnapshot();
-        }
-
-        $blockIds = '';
-        $blockData = '';
-        $skyLight = '';
-        $blockLight = '';
-
-        foreach ($this->fallbackState()->sections() as $section) {
-            $snapshot = $section->snapshot();
-            $blockIds .= $snapshot->blockIds;
-            $blockData .= $snapshot->blockData;
-            $skyLight .= $snapshot->skyLight;
-            $blockLight .= $snapshot->blockLight;
-        }
-
-        return new ChunkSnapshot(
-            $this->position,
-            $this->fallbackState()->revision(),
-            $blockIds,
-            $blockData,
-            $skyLight,
-            $blockLight,
-            $this->fallbackState()->biomes(),
-            $this->fallbackState()->heightMap(),
-            $this->fallbackState()->extraData(),
-            $this->fallbackState()->lightRevision(),
-        );
+        return $this->nativeStore !== null
+            ? $this->nativeSnapshot()
+            : $this->fallbackState()->snapshot($this->position);
     }
 
     public function lightSnapshot(): LightSnapshot
     {
-        if ($this->nativeStore !== null) {
-            return $this->nativeSnapshot()->light();
-        }
-
-        $sky = '';
-        $block = '';
-        foreach ($this->fallbackState()->sections() as $section) {
-            $snapshot = $section->snapshot();
-            $sky .= $snapshot->skyLight;
-            $block .= $snapshot->blockLight;
-        }
-
-        return new LightSnapshot(
-            new LightRevision($this->fallbackState()->lightRevision()),
-            $sky,
-            $block,
-        );
+        return $this->nativeStore !== null
+            ? $this->nativeSnapshot()->light()
+            : $this->fallbackState()->lightSnapshot();
     }
 
 

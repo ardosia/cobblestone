@@ -40,15 +40,46 @@ final class ChunkFallbackState
         $this->heightMap = str_repeat("\x00", $columns);
     }
 
-    public function section(int $index): ChunkSection
+    public function snapshot(ChunkPos $position): ChunkSnapshot
     {
-        return $this->sections[$index];
+        $blockIds = '';
+        $blockData = '';
+        $skyLight = '';
+        $blockLight = '';
+
+        foreach ($this->sections as $section) {
+            $snapshot = $section->snapshot();
+            $blockIds .= $snapshot->blockIds;
+            $blockData .= $snapshot->blockData;
+            $skyLight .= $snapshot->skyLight;
+            $blockLight .= $snapshot->blockLight;
+        }
+
+        return new ChunkSnapshot(
+            $position,
+            $this->revision,
+            $blockIds,
+            $blockData,
+            $skyLight,
+            $blockLight,
+            $this->biomes,
+            $this->heightMap,
+            $this->extraData,
+            $this->lightRevision,
+        );
     }
 
-    /** @return array<int, ChunkSection> */
-    public function sections(): array
+    public function lightSnapshot(): LightSnapshot
     {
-        return $this->sections;
+        $sky = '';
+        $block = '';
+        foreach ($this->sections as $section) {
+            $snapshot = $section->snapshot();
+            $sky .= $snapshot->skyLight;
+            $block .= $snapshot->blockLight;
+        }
+
+        return new LightSnapshot(new LightRevision($this->lightRevision), $sky, $block);
     }
 
     public function blockStateId(int $x, int $y, int $z): int
