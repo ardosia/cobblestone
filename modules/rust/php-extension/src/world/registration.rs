@@ -1,12 +1,7 @@
 use ext_php_rs::prelude::*;
 
-use super::*;
-
 pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
-    let module = module
-        .function(wrap_function!(cobblestone_world_create))
-        .function(wrap_function!(cobblestone_world_destroy));
-
+    let module = super::lifecycle::register(module);
     let module = super::block::register(module);
     let module = super::block_extra::register(module);
     let module = super::height::register(module);
