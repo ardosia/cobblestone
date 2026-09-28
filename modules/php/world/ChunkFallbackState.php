@@ -11,6 +11,8 @@ namespace Cobblestone\World;
  */
 final class ChunkFallbackState
 {
+    /** @var array<int, ChunkSection> */
+    private array $sections;
     private string $biomes;
     private string $heightMap;
 
@@ -28,9 +30,25 @@ final class ChunkFallbackState
 
     public function __construct(BiomeId $biome)
     {
+        $this->sections = array_fill(0, WorldBounds::SECTION_COUNT, null);
+        for ($index = 0; $index < WorldBounds::SECTION_COUNT; ++$index) {
+            $this->sections[$index] = ChunkSection::air();
+        }
+
         $columns = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE;
         $this->biomes = str_repeat(chr($biome->value), $columns);
         $this->heightMap = str_repeat("\x00", $columns);
+    }
+
+    public function section(int $index): ChunkSection
+    {
+        return $this->sections[$index];
+    }
+
+    /** @return array<int, ChunkSection> */
+    public function sections(): array
+    {
+        return $this->sections;
     }
 
     public function biome(int $index): BiomeId

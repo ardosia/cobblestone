@@ -12,8 +12,6 @@ final class Chunk
     public const LIFECYCLE_POPULATED = 0x02;
     public const LIFECYCLE_LIGHT_POPULATED = 0x04;
 
-    /** @var array<int, ChunkSection> */
-    private array $sections = [];
     private readonly ?ChunkFallbackState $fallbackState;
 
     public function __construct(
@@ -30,11 +28,6 @@ final class Chunk
                 $this->nativeStore->ensureChunk($this->position, $biome);
             }
             return;
-        }
-
-        $this->sections = array_fill(0, WorldBounds::SECTION_COUNT, null);
-        for ($index = 0; $index < WorldBounds::SECTION_COUNT; ++$index) {
-            $this->sections[$index] = ChunkSection::air();
         }
 
     }
@@ -102,7 +95,7 @@ final class Chunk
 
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
-        return $this->sections[$section]->blockStateId($x, $y & 0x0f, $z);
+        return $this->fallbackState()->section($section)->blockStateId($x, $y & 0x0f, $z);
     }
 
     public function block(int $x, int $y, int $z): BlockState
@@ -120,7 +113,7 @@ final class Chunk
         }
 
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
-        $previous = $this->sections[$section]->setBlockStateId($x, $y & 0x0f, $z, $stateId);
+        $previous = $this->fallbackState()->section($section)->setBlockStateId($x, $y & 0x0f, $z, $stateId);
 
         $previousAir = ($previous >> 4) === 0;
         $nextAir = ($stateId >> 4) === 0;
@@ -166,7 +159,7 @@ final class Chunk
             $sectionStart = $sectionIndex * WorldBounds::SECTION_EDGE;
             $localStart = $cursor - $sectionStart;
             $sectionCount = min(WorldBounds::SECTION_EDGE - $localStart, $endY - $cursor);
-            $this->sections[$sectionIndex]->fillLayers($localStart, $sectionCount, $stateId);
+            $this->fallbackState()->section($sectionIndex)->fillLayers($localStart, $sectionCount, $stateId);
             $cursor += $sectionCount;
         }
 
@@ -193,7 +186,7 @@ final class Chunk
 
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
-        return $this->sections[$section]->skyLight($x, $y & 0x0f, $z);
+        return $this->fallbackState()->section($section)->skyLight($x, $y & 0x0f, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -206,7 +199,7 @@ final class Chunk
 
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
-        return $this->sections[$section]->setSkyLight($x, $y & 0x0f, $z, $level);
+        return $this->fallbackState()->section($section)->setSkyLight($x, $y & 0x0f, $z, $level);
     }
 
     /**
@@ -227,7 +220,7 @@ final class Chunk
             return;
         }
 
-        foreach ($this->sections as $index => $section) {
+        foreach ($this->fallbackState()->sections() as $index => $section) {
             $sectionStart = $index * WorldBounds::SECTION_EDGE;
             $sectionEnd = $sectionStart + WorldBounds::SECTION_EDGE;
             if ($y >= $sectionEnd) {
@@ -247,7 +240,7 @@ final class Chunk
 
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
-        return $this->sections[$section]->blockLight($x, $y & 0x0f, $z);
+        return $this->fallbackState()->section($section)->blockLight($x, $y & 0x0f, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -260,7 +253,7 @@ final class Chunk
 
         $section = intdiv($y, WorldBounds::SECTION_EDGE);
 
-        return $this->sections[$section]->setBlockLight($x, $y & 0x0f, $z, $level);
+        return $this->fallbackState()->section($section)->setBlockLight($x, $y & 0x0f, $z, $level);
     }
 
     public function biome(int $x, int $z): BiomeId
@@ -294,7 +287,7 @@ final class Chunk
         }
 
         for ($section = WorldBounds::SECTION_COUNT - 1; $section >= 0; --$section) {
-            $localY = $this->sections[$section]->highestBlockAt($x, $z);
+            $localY = $this->fallbackState()->section($section)->highestBlockAt($x, $z);
             if ($localY !== null) {
                 return ($section * WorldBounds::SECTION_EDGE) + $localY;
             }
@@ -379,7 +372,7 @@ final class Chunk
         $skyLight = '';
         $blockLight = '';
 
-        foreach ($this->sections as $section) {
+        foreach ($this->fallbackState()->sections() as $section) {
             $snapshot = $section->snapshot();
             $blockIds .= $snapshot->blockIds;
             $blockData .= $snapshot->blockData;
@@ -409,7 +402,7 @@ final class Chunk
 
         $sky = '';
         $block = '';
-        foreach ($this->sections as $section) {
+        foreach ($this->fallbackState()->sections() as $section) {
             $snapshot = $section->snapshot();
             $sky .= $snapshot->skyLight;
             $block .= $snapshot->blockLight;
