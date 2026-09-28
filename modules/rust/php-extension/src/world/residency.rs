@@ -23,7 +23,7 @@ pub fn cobblestone_world_ensure_chunk(
                 Err(poisoned) => poisoned.into_inner(),
             };
             if let Some(persistence) = persistence.as_mut() {
-                persistence.load_missing.remove(&position);
+                persistence.clear_missing(position);
             }
         }
         Ok(inserted)
