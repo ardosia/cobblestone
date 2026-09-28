@@ -82,7 +82,7 @@ final class NativeWorldStore
             throw new \RuntimeException('cobblestone_core_php world store is unavailable or stale');
         }
 
-        return new self(cobblestone_world_create());
+        return new self(NativeWorldHandle::create());
     }
 
     public function handle(): int
@@ -420,19 +420,15 @@ final class NativeWorldStore
         }
 
         $handle = $this->handle;
-        cobblestone_world_destroy($handle);
+        NativeWorldHandle::destroy($handle);
         $this->handle = null;
         $this->storageAttached = false;
     }
 
     public function __destruct()
     {
-        if ($this->handle !== null && \function_exists('cobblestone_world_destroy')) {
-            try {
-                cobblestone_world_destroy($this->handle);
-            } catch (\Throwable) {
-                // Extension/module shutdown owns the final cleanup fallback.
-            }
+        if ($this->handle !== null) {
+            NativeWorldHandle::destroyIfAvailable($this->handle);
             $this->handle = null;
         }
     }
