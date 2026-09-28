@@ -498,7 +498,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 [[package]]
 name = "raknet-rust"
 version = "0.2.0"
-source = "git+https://github.com/ardosia/ardosia-raknet?rev=55b57787b6715ef2a931631ef4b690e3df0651e5#55b57787b6715ef2a931631ef4b690e3df0651e5"
+source = "git+https://github.com/ardosia/ardosia-raknet?rev=f0dbbfb8ef95cdea52dba16ee10c197e75560964#f0dbbfb8ef95cdea52dba16ee10c197e75560964"
 dependencies = [
  "ahash",
  "bitflags",

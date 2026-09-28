@@ -30,4 +30,4 @@ zstd = "0.13"
 thiserror = "2.0"
 tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
 tracing = "0.1"
-raknet-rust = { git = "https://github.com/ardosia/ardosia-raknet", rev = "55b57787b6715ef2a931631ef4b690e3df0651e5" }
+raknet-rust = { git = "https://github.com/ardosia/ardosia-raknet", rev = "f0dbbfb8ef95cdea52dba16ee10c197e75560964" }
