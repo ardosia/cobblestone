@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Cobblestone\World\Light;
 
-use Cobblestone\World\BlockState;
 use Cobblestone\World\BlockStateId;
 
 /**
@@ -359,9 +358,4 @@ final class BlockLightCatalog
         );
     }
 
-    /** Compatibility wrapper for non-hot ergonomic callers. */
-    public function properties(BlockState $state): ?BlockLightProperties
-    {
-        return $this->propertiesForStateId($state->fullId());
-    }
 }
