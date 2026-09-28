@@ -34,15 +34,4 @@ final class ContextLogger extends AbstractLogger
             ),
         );
     }
-
-    /** @param array<string, mixed> $context */
-    public function withContext(array $context): self
-    {
-        return new self(
-            $this->logger,
-            $this->name,
-            array_merge($this->context, $context),
-            $this->execution,
-        );
-    }
 }
