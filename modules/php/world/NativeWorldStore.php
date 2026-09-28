@@ -166,20 +166,7 @@ final class NativeWorldStore
      */
     public static function encodeStorageLoadBatch(array $positions): string
     {
-        if (count($positions) > 4096) {
-            throw new \ValueError('native world storage load batch cannot exceed 4096 chunks');
-        }
-
-        $projection = [pack('V', count($positions))];
-        foreach ($positions as $position) {
-            if (!$position instanceof ChunkPos) {
-                throw new \TypeError('native world storage load batch expects ChunkPos values');
-            }
-            $projection[] = pack('V', $position->x & 0xffffffff);
-            $projection[] = pack('V', $position->z & 0xffffffff);
-        }
-
-        return implode('', $projection);
+        return NativeWorldStorageProjection::encodeLoadBatch($positions);
     }
 
     /**
@@ -189,15 +176,7 @@ final class NativeWorldStore
      */
     public function prepareStorageLoadBatch(string $projection): string
     {
-        if (strlen($projection) < 4) {
-            throw new \ValueError('native world storage load batch is truncated');
-        }
-        $header = unpack('Vcount', substr($projection, 0, 4));
-        $count = (int) ($header['count'] ?? -1);
-        if ($count < 0 || $count > 4096 || strlen($projection) !== 4 + ($count * 8)) {
-            throw new \ValueError('native world storage load batch has invalid length');
-        }
-
+        $count = NativeWorldStorageProjection::loadBatchCount($projection);
         $statuses = cobblestone_world_storage_prepare_loads(
             $this->requireHandle(),
             $projection,
@@ -245,25 +224,9 @@ final class NativeWorldStore
             throw new \ValueError('native world storage tick budget must be in range 1..4096');
         }
 
-        $values = cobblestone_world_storage_tick($this->requireHandle(), $budget);
-        if (count($values) !== 12) {
-            throw new \UnexpectedValueException('native world storage tick projection has wrong width');
-        }
-
-        return [
-            'completed' => (int) $values[0],
-            'scheduled' => (int) $values[1],
-            'in_flight' => (int) $values[2],
-            'metadata_generation' => (int) $values[3],
-            'load_completed' => (int) $values[4],
-            'load_in_flight' => (int) $values[5],
-            'load_missing' => (int) $values[6],
-            'compaction_completed' => (int) $values[7],
-            'compaction_failed' => (int) $values[8],
-            'compaction_scheduled' => (int) $values[9],
-            'compaction_in_flight' => (int) $values[10],
-            'compaction_queued' => (int) $values[11],
-        ];
+        return NativeWorldStorageProjection::decodeTick(
+            cobblestone_world_storage_tick($this->requireHandle(), $budget),
+        );
     }
 
     /**
@@ -282,23 +245,9 @@ final class NativeWorldStore
      */
     public function storageStats(): array
     {
-        $values = cobblestone_world_storage_stats($this->requireHandle());
-        if (count($values) !== 10) {
-            throw new \UnexpectedValueException('native world storage stats projection has wrong width');
-        }
-
-        return [
-            'save_bytes_appended' => (int) $values[0],
-            'regions_observed' => (int) $values[1],
-            'record_bytes' => (int) $values[2],
-            'live_bytes' => (int) $values[3],
-            'dead_bytes' => (int) $values[4],
-            'compactions_completed' => (int) $values[5],
-            'compactions_failed' => (int) $values[6],
-            'compaction_bytes_reclaimed' => (int) $values[7],
-            'compaction_blocked_regions' => (int) $values[8],
-            'compaction_last_error' => (string) $values[9],
-        ];
+        return NativeWorldStorageProjection::decodeStats(
+            cobblestone_world_storage_stats($this->requireHandle()),
+        );
     }
 
     public function flushStorage(): void
