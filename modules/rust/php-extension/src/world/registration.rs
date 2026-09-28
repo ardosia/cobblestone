@@ -11,11 +11,10 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_storage_tick))
         .function(wrap_function!(cobblestone_world_storage_stats))
         .function(wrap_function!(cobblestone_world_storage_flush))
-        .function(wrap_function!(cobblestone_world_destroy))
-        .function(wrap_function!(cobblestone_world_block_extra_data))
-        .function(wrap_function!(cobblestone_world_set_block_extra_data));
+        .function(wrap_function!(cobblestone_world_destroy));
 
     let module = super::block::register(module);
+    let module = super::block_extra::register(module);
     let module = super::height::register(module);
     let module = super::light::register(module);
     let module = super::patch::register(module);
