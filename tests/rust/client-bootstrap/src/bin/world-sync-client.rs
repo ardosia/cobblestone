@@ -290,6 +290,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let radius_cycle = std::env::args().any(|argument| argument == "--radius-cycle");
     let stream_torture = std::env::args().any(|argument| argument == "--stream-torture");
     let persistent_stream = std::env::args().any(|argument| argument == "--persistent-stream");
+    let hold_east = std::env::args().any(|argument| argument == "--hold-east");
+    let hold_west = std::env::args().any(|argument| argument == "--hold-west");
     let limits = limits();
 
     let mut client = RaknetClient::connect_with_config(
@@ -359,6 +361,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         verify_stream_torture(&mut client, limits).await?;
         println!("world-sync-client: stream-torture=verified");
         client.disconnect(None).await?;
+        return Ok(());
+    }
+
+    if hold_east || hold_west {
+        let (position, expected_chunk, marker) = if hold_east {
+            ([161.0, 64.0, 129.0], (12, 8), "east")
+        } else {
+            ([97.0, 64.0, 129.0], (4, 8), "west")
+        };
+        send_movement(&mut client, limits, position).await?;
+        wait_for_chunk(&mut client, limits, expected_chunk, "shared residency").await?;
+        println!("world-sync-client: shared-view {marker}=ready");
+        std::io::stdout().flush()?;
+        tokio::time::sleep(Duration::from_millis(750)).await;
+        client.disconnect(None).await?;
+        tokio::time::sleep(Duration::from_millis(100)).await;
         return Ok(());
     }
 

@@ -1,0 +1,228 @@
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/bootstrap.php';
+
+use Cobblestone\Native\Session\Runtime;
+use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerState;
+use Cobblestone\Session\Event\SessionDisconnected;
+use Cobblestone\Session\Event\SessionSpawned;
+use Cobblestone\World\ChunkPos;
+use Cobblestone\World\NativeWorldStore;
+
+function multiViewExpect(bool $condition, string $message): void
+{
+    if (!$condition) {
+        throw new RuntimeException($message);
+    }
+}
+
+function multiViewPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+{
+    try {
+        return $store->chunkPinCount($position);
+    } catch (Throwable) {
+        return 0;
+    }
+}
+
+$probe = stream_socket_server('udp://127.0.0.1:0', $errorCode, $errorMessage, STREAM_SERVER_BIND);
+if ($probe === false) {
+    throw new RuntimeException("failed to allocate loopback UDP port: {$errorCode} {$errorMessage}");
+}
+$bind = stream_socket_get_name($probe, false);
+fclose($probe);
+multiViewExpect(is_string($bind) && $bind !== '', 'failed to resolve loopback UDP address');
+
+$server = Server::start($bind, 4, 'Cobblestone Multi View Test');
+$spawned = 0;
+/** @var list<int> $sessionIds */
+$sessionIds = [];
+$disconnected = 0;
+$server->events()->listen(
+    SessionSpawned::class,
+    static function (SessionSpawned $event) use (&$spawned, &$sessionIds): void {
+        ++$spawned;
+        $sessionIds[] = $event->sessionId;
+    },
+);
+$server->events()->listen(
+    SessionDisconnected::class,
+    static function () use (&$disconnected): void {
+        ++$disconnected;
+    },
+);
+
+$root = dirname(__DIR__, 2);
+$clients = [];
+foreach (['east' => '--hold-east', 'west' => '--hold-west'] as $name => $mode) {
+    $command = [
+        'cargo',
+        'run',
+        '--quiet',
+        '-p',
+        'cobblestone-client-bootstrap',
+        '--bin',
+        'world-sync-client',
+        '--',
+        $bind,
+        $mode,
+    ];
+    $process = proc_open(
+        $command,
+        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $pipes,
+        $root,
+    );
+    if (!is_resource($process)) {
+        throw new RuntimeException("failed to start {$name} loopback client");
+    }
+    fclose($pipes[0]);
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+    $clients[$name] = [
+        'process' => $process,
+        'pipes' => $pipes,
+        'stdout' => '',
+        'stderr' => '',
+        'exit' => null,
+    ];
+}
+
+$sharedVerified = false;
+$disconnectRequested = false;
+$deadline = hrtime(true) + 20_000_000_000;
+
+try {
+    while (hrtime(true) < $deadline) {
+        $server->tick(256);
+
+        foreach ($clients as $name => &$client) {
+            $client['stdout'] .= stream_get_contents($client['pipes'][1]);
+            $client['stderr'] .= stream_get_contents($client['pipes'][2]);
+            if ($client['exit'] !== null) {
+                continue;
+            }
+
+            $status = proc_get_status($client['process']);
+            if (!$status['running']) {
+                $client['exit'] = $status['exitcode'];
+            }
+        }
+        unset($client);
+
+        if (
+            !$sharedVerified
+            && str_contains($clients['east']['stdout'], 'world-sync-client: shared-view east=ready')
+            && str_contains($clients['west']['stdout'], 'world-sync-client: shared-view west=ready')
+        ) {
+            $store = $server->world()->nativeStore();
+            multiViewExpect($store !== null, 'multi-view server lost native world store');
+
+            for ($z = 6; $z <= 10; ++$z) {
+                multiViewExpect(
+                    multiViewPinCountOrZero($store, new ChunkPos(8, $z)) === 2,
+                    "overlap chunk 8:{$z} did not have two viewer pins",
+                );
+                multiViewExpect(
+                    multiViewPinCountOrZero($store, new ChunkPos(12, $z)) === 1,
+                    "east-only chunk 12:{$z} did not have one viewer pin",
+                );
+                multiViewExpect(
+                    multiViewPinCountOrZero($store, new ChunkPos(4, $z)) === 1,
+                    "west-only chunk 4:{$z} did not have one viewer pin",
+                );
+            }
+            $sharedVerified = true;
+        }
+
+        if (
+            $sharedVerified
+            && !$disconnectRequested
+            && $clients['east']['exit'] !== null
+            && $clients['west']['exit'] !== null
+            && count($sessionIds) === 2
+        ) {
+            $sessionsProperty = new ReflectionProperty(Server::class, 'sessions');
+            $runtime = $sessionsProperty->getValue($server);
+            multiViewExpect($runtime instanceof Runtime, 'multi-view session runtime was unavailable');
+            foreach ($sessionIds as $sessionId) {
+                $runtime->disconnect($sessionId);
+            }
+            $disconnectRequested = true;
+        }
+
+        if ($disconnectRequested && $disconnected === 2) {
+            $store = $server->world()->nativeStore();
+            multiViewExpect($store !== null, 'multi-view native store disappeared during cleanup');
+            $pinsCleared = true;
+            for ($x = 4; $x <= 12; ++$x) {
+                for ($z = 6; $z <= 10; ++$z) {
+                    $pinsCleared = $pinsCleared
+                        && multiViewPinCountOrZero($store, new ChunkPos($x, $z)) === 0;
+                }
+            }
+            if ($pinsCleared) {
+                break;
+            }
+        }
+
+        usleep(1_000);
+    }
+
+    $diagnostic = sprintf(
+        " east_exit=%s west_exit=%s east_stdout=%s east_stderr=%s west_stdout=%s west_stderr=%s",
+        var_export($clients['east']['exit'], true),
+        var_export($clients['west']['exit'], true),
+        trim($clients['east']['stdout']),
+        trim($clients['east']['stderr']),
+        trim($clients['west']['stdout']),
+        trim($clients['west']['stderr']),
+    );
+    multiViewExpect($spawned === 2, "expected two spawned clients, got {$spawned}{$diagnostic}");
+    multiViewExpect($sharedVerified, "overlapping streamed residency was never observed{$diagnostic}");
+    multiViewExpect($disconnectRequested, "owner disconnect was never requested{$diagnostic}");
+    multiViewExpect($disconnected === 2, "expected two disconnected clients, got {$disconnected}{$diagnostic}");
+
+    foreach ($clients as $name => &$client) {
+        $client['stdout'] .= stream_get_contents($client['pipes'][1]);
+        $client['stderr'] .= stream_get_contents($client['pipes'][2]);
+        multiViewExpect(
+            $client['exit'] === 0,
+            "{$name} client failed: {$client['stderr']}",
+        );
+    }
+    unset($client);
+
+    $store = $server->world()->nativeStore();
+    multiViewExpect($store !== null, 'multi-view native store disappeared');
+    for ($x = 4; $x <= 12; ++$x) {
+        for ($z = 6; $z <= 10; ++$z) {
+            multiViewExpect(
+                multiViewPinCountOrZero($store, new ChunkPos($x, $z)) === 0,
+                "chunk {$x}:{$z} leaked a viewer pin after both disconnects",
+            );
+        }
+    }
+} finally {
+    foreach ($clients as &$client) {
+        foreach ([1, 2] as $pipe) {
+            if (isset($client['pipes'][$pipe]) && is_resource($client['pipes'][$pipe])) {
+                fclose($client['pipes'][$pipe]);
+            }
+        }
+        if (is_resource($client['process'])) {
+            proc_close($client['process']);
+        }
+    }
+    unset($client);
+
+    if ($server->state() === ServerState::Running) {
+        $server->requestStop('multi-view-smoke');
+        $server->stop();
+    }
+}
+
+fwrite(STDOUT, "multi-view-smoke: passed\n");
