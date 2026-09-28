@@ -88,31 +88,41 @@ final class SessionGameplay
 
     private function advancePreparation(int $sessionId, ChunkViewPreparation $preparation): void
     {
-        if ($preparation->sent() || !$preparation->prepare($this->world)) {
-            return;
+        if (!$preparation->sent()) {
+            if (!$preparation->prepare($this->world)) {
+                return;
+            }
+
+            $status = $this->sessions->sendPreparedViewChunks(
+                $sessionId,
+                $preparation->fromCenter->x,
+                $preparation->fromCenter->z,
+                $preparation->toCenter->x,
+                $preparation->toCenter->z,
+            );
+
+            if ($status === self::VIEW_SEND_BACKPRESSURED) {
+                return;
+            }
+            if ($status === self::VIEW_SEND_GONE) {
+                $this->clearPreparation($sessionId);
+                return;
+            }
+            if ($status !== self::VIEW_SEND_SENT) {
+                throw new UnexpectedValueException('native prepared view send returned an invalid status');
+            }
+
+            $preparation->markSent();
         }
 
-        $status = $this->sessions->sendPreparedViewChunks(
+        $this->sessions->commitPreparedView(
             $sessionId,
             $preparation->fromCenter->x,
             $preparation->fromCenter->z,
             $preparation->toCenter->x,
             $preparation->toCenter->z,
         );
-
-        if ($status === self::VIEW_SEND_BACKPRESSURED) {
-            return;
-        }
-        if ($status === self::VIEW_SEND_SENT) {
-            $preparation->markSent();
-            return;
-        }
-        if ($status === self::VIEW_SEND_GONE) {
-            $this->clearPreparation($sessionId);
-            return;
-        }
-
-        throw new UnexpectedValueException('native prepared view send returned an invalid status');
+        $this->clearPreparation($sessionId);
     }
 
     private function clearPreparation(int $sessionId): void

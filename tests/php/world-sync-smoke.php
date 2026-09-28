@@ -10,7 +10,6 @@ use Cobblestone\Native\Session\Packet;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\SessionGameplay;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\ChunkPos;
@@ -123,9 +122,7 @@ $stdout = '';
 $stderr = '';
 $exitCode = null;
 $deadline = hrtime(true) + 20_000_000_000;
-$transitionQueued = false;
-$gameplayProperty = new ReflectionProperty(Server::class, 'gameplay');
-$preparationsProperty = new ReflectionProperty(SessionGameplay::class, 'preparations');
+$transitionCommitted = false;
 
 try {
     while (hrtime(true) < $deadline) {
@@ -133,28 +130,33 @@ try {
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
 
-        if ($transitionOnly && !$transitionQueued) {
-            $gameplay = $gameplayProperty->getValue($server);
-            $preparations = $preparationsProperty->getValue($gameplay);
-            foreach ($preparations as $preparation) {
-                if (!$preparation->sent()) {
-                    continue;
-                }
+        if ($transitionOnly && !$transitionCommitted) {
+            $store = $server->world()->nativeStore();
+            worldSyncExpect($store !== null, 'transition verification lost native store');
 
-                $store = $server->world()->nativeStore();
-                worldSyncExpect($store !== null, 'transition verification lost native store');
+            $enteringPinned = true;
+            $leavingReleased = true;
+            for ($chunkZ = 6; $chunkZ <= 10; ++$chunkZ) {
+                try {
+                    $enteringPinned = $enteringPinned
+                        && $store->chunkPinCount(new ChunkPos(11, $chunkZ)) > 0;
+                } catch (Throwable) {
+                    $enteringPinned = false;
+                }
+                try {
+                    $leavingReleased = $leavingReleased
+                        && $store->chunkPinCount(new ChunkPos(6, $chunkZ)) === 0;
+                } catch (Throwable) {
+                    // A released leaving chunk may be evicted immediately.
+                }
+            }
+
+            if ($enteringPinned && $leavingReleased) {
                 worldSyncExpect(
                     $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
-                    'queued transition released the old streamed center',
+                    'committed transition lost an overlapping view pin',
                 );
-                for ($chunkZ = 6; $chunkZ <= 10; ++$chunkZ) {
-                    worldSyncExpect(
-                        $store->chunkPinCount(new ChunkPos(11, $chunkZ)) > 0,
-                        "queued transition did not retain entering chunk 11:{$chunkZ}",
-                    );
-                }
-                $transitionQueued = true;
-                break;
+                $transitionCommitted = true;
             }
         }
 
@@ -181,7 +183,7 @@ try {
     worldSyncExpect($movementHandled, 'world-sync MovePlayer never reached post-spawn gameplay handling');
 
     if ($transitionOnly) {
-        worldSyncExpect($transitionQueued, 'prepared entering chunks were never queued');
+        worldSyncExpect($transitionCommitted, 'prepared chunk view was never committed');
         worldSyncExpect(
             str_contains($stdout, 'world-sync-client: transition=verified entering=5'),
             "world-sync client did not observe five entering chunks\nstdout={$stdout}\nstderr={$stderr}",

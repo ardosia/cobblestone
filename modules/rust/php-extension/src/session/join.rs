@@ -114,6 +114,54 @@ pub(crate) fn plan_view_delta(
     chunk_view_delta(view.center, view.radius, to_center)
 }
 
+fn apply_view_delta(view: &mut WorldView, delta: &ChunkViewDelta) -> Result<(), String> {
+    if view.center != delta.from_center {
+        return Err(
+            "pending chunk view delta no longer matches the active world view center".into(),
+        );
+    }
+
+    let expected = chunk_view_delta(view.center, view.radius, delta.to_center)
+        .ok_or_else(|| "pending chunk view delta does not change the active center".to_string())?;
+    if expected != *delta {
+        return Err("pending chunk view delta does not match the active view geometry".into());
+    }
+
+    let mut acquired = Vec::with_capacity(delta.entering.len());
+    for &position in &delta.entering {
+        if let Err(error) = view.store.pin_chunk(position) {
+            for &rollback in &acquired {
+                let _ = view.store.unpin_chunk(rollback);
+            }
+            return Err(error.to_string());
+        }
+        acquired.push(position);
+    }
+
+    view.center = delta.to_center;
+    view.pinned_chunks = view_positions(delta.to_center, view.radius);
+
+    for &position in &delta.leaving {
+        let _ = view.store.unpin_chunk(position);
+    }
+
+    Ok(())
+}
+
+pub(crate) fn commit_view_delta(
+    owner: RuntimeId,
+    session_id: SessionId,
+    delta: &ChunkViewDelta,
+) -> PhpResult<bool> {
+    let mut views = world_views();
+    let Some(view) = views.get_mut(&(owner, session_id)) else {
+        return Ok(false);
+    };
+
+    apply_view_delta(view, delta).map_err(php_error)?;
+    Ok(true)
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) enum ViewChunkQueueResult {
     Sent,
@@ -834,6 +882,24 @@ mod view_delta_tests {
         values.iter().map(|&(x, z)| ChunkCoord::new(x, z)).collect()
     }
 
+    fn pinned_view(center: ChunkCoord, radius: i32) -> WorldView {
+        let store = Arc::new(WorldStore::new());
+        let pinned_chunks = view_positions(center, radius);
+        for &position in &pinned_chunks {
+            store.ensure_chunk(position, 1);
+            store.pin_chunk(position).expect("pin initial view chunk");
+        }
+
+        WorldView {
+            world_handle: 1,
+            store,
+            center,
+            radius,
+            cursor: 7,
+            pinned_chunks,
+        }
+    }
+
     #[test]
     fn unchanged_center_has_no_delta() {
         assert_eq!(
@@ -885,5 +951,54 @@ mod view_delta_tests {
                 .iter()
                 .all(|position| !delta.leaving.contains(position))
         );
+    }
+
+    #[test]
+    fn applying_delta_transfers_native_pins_and_preserves_cursor() {
+        let mut view = pinned_view(ChunkCoord::new(0, 0), 1);
+        let delta =
+            chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
+        for &position in &delta.entering {
+            view.store.ensure_chunk(position, 1);
+        }
+
+        let shared_leaving = delta.leaving[0];
+        assert_eq!(view.store.pin_chunk(shared_leaving).unwrap(), 2);
+
+        apply_view_delta(&mut view, &delta).expect("apply view delta");
+
+        assert_eq!(view.center, ChunkCoord::new(1, 0));
+        assert_eq!(view.cursor, 7);
+        assert_eq!(view.pinned_chunks, view_positions(ChunkCoord::new(1, 0), 1));
+        for &position in &delta.entering {
+            assert_eq!(view.store.pin_count(position).unwrap(), 1);
+        }
+        for &position in &delta.leaving[1..] {
+            assert_eq!(view.store.pin_count(position).unwrap(), 0);
+        }
+        assert_eq!(view.store.pin_count(shared_leaving).unwrap(), 1);
+        assert_eq!(view.store.pin_count(ChunkCoord::new(0, 0)).unwrap(), 1);
+    }
+
+    #[test]
+    fn failed_entry_pin_rolls_back_without_publishing_new_view() {
+        let mut view = pinned_view(ChunkCoord::new(0, 0), 1);
+        let original_positions = view.pinned_chunks.clone();
+        let delta =
+            chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
+
+        for &position in &delta.entering[..2] {
+            view.store.ensure_chunk(position, 1);
+        }
+
+        assert!(apply_view_delta(&mut view, &delta).is_err());
+        assert_eq!(view.center, ChunkCoord::new(0, 0));
+        assert_eq!(view.pinned_chunks, original_positions);
+        for &position in &delta.entering[..2] {
+            assert_eq!(view.store.pin_count(position).unwrap(), 0);
+        }
+        for &position in &delta.leaving {
+            assert_eq!(view.store.pin_count(position).unwrap(), 1);
+        }
     }
 }

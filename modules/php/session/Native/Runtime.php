@@ -40,6 +40,7 @@ final class Runtime
             'cobblestone_session_protocol84_player_spawned',
             'cobblestone_session_protocol84_track_move_player',
             'cobblestone_session_protocol84_send_prepared_view_chunks',
+            'cobblestone_session_protocol84_commit_prepared_view',
             'cobblestone_session_protocol84_flush_world_changes',
             'cobblestone_session_disconnect',
             'cobblestone_session_stop',
@@ -158,6 +159,25 @@ final class Runtime
         $this->assertRunning();
 
         return cobblestone_session_protocol84_send_prepared_view_chunks(
+            $sessionId,
+            $fromChunkX,
+            $fromChunkZ,
+            $toChunkX,
+            $toChunkZ,
+        );
+    }
+
+    /** @internal */
+    public function commitPreparedView(
+        int $sessionId,
+        int $fromChunkX,
+        int $fromChunkZ,
+        int $toChunkX,
+        int $toChunkZ,
+    ): bool {
+        $this->assertRunning();
+
+        return cobblestone_session_protocol84_commit_prepared_view(
             $sessionId,
             $fromChunkX,
             $fromChunkZ,
