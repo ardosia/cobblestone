@@ -12,15 +12,6 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_storage_stats))
         .function(wrap_function!(cobblestone_world_storage_flush))
         .function(wrap_function!(cobblestone_world_destroy))
-        .function(wrap_function!(cobblestone_world_ensure_chunk))
-        .function(wrap_function!(cobblestone_world_lifecycle_flags))
-        .function(wrap_function!(cobblestone_world_set_lifecycle_flags))
-        .function(wrap_function!(cobblestone_world_pin_chunk))
-        .function(wrap_function!(cobblestone_world_unpin_chunk))
-        .function(wrap_function!(cobblestone_world_chunk_pin_count))
-        .function(wrap_function!(cobblestone_world_chunk_dirty))
-        .function(wrap_function!(cobblestone_world_mark_persisted))
-        .function(wrap_function!(cobblestone_world_try_evict_chunk))
         .function(wrap_function!(cobblestone_world_block_state))
         .function(wrap_function!(cobblestone_world_set_block_state))
         .function(wrap_function!(cobblestone_world_fill_layers))
@@ -38,6 +29,7 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_set_block_extra_data));
 
     let module = super::patch::register(module);
+    let module = super::residency::register(module);
     let module = super::revision::register(module);
     super::snapshot::register(module)
 }
