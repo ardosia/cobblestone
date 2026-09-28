@@ -51,6 +51,75 @@ final class ChunkFallbackState
         return $this->sections;
     }
 
+    public function blockStateId(int $x, int $y, int $z): int
+    {
+        $section = intdiv($y, WorldBounds::SECTION_EDGE);
+
+        return $this->sections[$section]->blockStateId($x, $y & 0x0f, $z);
+    }
+
+    public function setBlockStateId(int $x, int $y, int $z, int $stateId): int
+    {
+        $section = intdiv($y, WorldBounds::SECTION_EDGE);
+        $previous = $this->sections[$section]->setBlockStateId($x, $y & 0x0f, $z, $stateId);
+
+        $previousAir = ($previous >> 4) === 0;
+        $nextAir = ($stateId >> 4) === 0;
+        if ($previousAir !== $nextAir) {
+            $this->refreshHeightAfterBlockChange($x, $y, $z, $previousAir, $nextAir);
+        }
+
+        return $previous;
+    }
+
+    public function fillBlockLayers(int $startY, int $count, int $stateId): void
+    {
+        $endY = $startY + $count;
+        $cursor = $startY;
+        while ($cursor < $endY) {
+            $sectionIndex = intdiv($cursor, WorldBounds::SECTION_EDGE);
+            $sectionStart = $sectionIndex * WorldBounds::SECTION_EDGE;
+            $localStart = $cursor - $sectionStart;
+            $sectionCount = min(WorldBounds::SECTION_EDGE - $localStart, $endY - $cursor);
+            $this->sections[$sectionIndex]->fillLayers($localStart, $sectionCount, $stateId);
+            $cursor += $sectionCount;
+        }
+
+        if (($stateId >> 4) !== 0) {
+            $top = $endY - 1;
+            $columns = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE;
+            for ($column = 0; $column < $columns; ++$column) {
+                if ($top >= $this->heightAt($column)) {
+                    $this->setHeight($column, $top);
+                }
+            }
+            return;
+        }
+
+        $this->recalculateHeightMap();
+    }
+
+    public function highestBlockAt(int $x, int $z): int
+    {
+        for ($section = WorldBounds::SECTION_COUNT - 1; $section >= 0; --$section) {
+            $localY = $this->sections[$section]->highestBlockAt($x, $z);
+            if ($localY !== null) {
+                return ($section * WorldBounds::SECTION_EDGE) + $localY;
+            }
+        }
+
+        return 0;
+    }
+
+    public function recalculateHeightMap(): void
+    {
+        for ($z = 0; $z < WorldBounds::CHUNK_EDGE; ++$z) {
+            for ($x = 0; $x < WorldBounds::CHUNK_EDGE; ++$x) {
+                $this->setHeight(($z << 4) | $x, $this->highestBlockAt($x, $z));
+            }
+        }
+    }
+
     public function biome(int $index): BiomeId
     {
         return new BiomeId(ord($this->biomes[$index]));
@@ -186,5 +255,27 @@ final class ChunkFallbackState
         $this->persistedRevision = $terrainRevision;
         $this->persistedLightRevision = $lightRevision;
         $this->persistedLifecycleFlags = $lifecycleFlags;
+    }
+
+    private function refreshHeightAfterBlockChange(
+        int $x,
+        int $y,
+        int $z,
+        bool $previousAir,
+        bool $nextAir,
+    ): void {
+        $column = ($z << 4) | $x;
+        $current = $this->heightAt($column);
+
+        if (!$nextAir) {
+            if ($y >= $current) {
+                $this->setHeight($column, $y);
+            }
+            return;
+        }
+
+        if (!$previousAir && $y >= $current) {
+            $this->setHeight($column, $this->highestBlockAt($x, $z));
+        }
     }
 }

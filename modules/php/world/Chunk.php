@@ -93,9 +93,7 @@ final class Chunk
             return $this->nativeStore->blockStateId($this->position, $x, $y, $z);
         }
 
-        $section = intdiv($y, WorldBounds::SECTION_EDGE);
-
-        return $this->fallbackState()->section($section)->blockStateId($x, $y & 0x0f, $z);
+        return $this->fallbackState()->blockStateId($x, $y, $z);
     }
 
     public function block(int $x, int $y, int $z): BlockState
@@ -112,16 +110,7 @@ final class Chunk
             return $this->nativeStore->setBlockStateId($this->position, $x, $y, $z, $stateId);
         }
 
-        $section = intdiv($y, WorldBounds::SECTION_EDGE);
-        $previous = $this->fallbackState()->section($section)->setBlockStateId($x, $y & 0x0f, $z, $stateId);
-
-        $previousAir = ($previous >> 4) === 0;
-        $nextAir = ($stateId >> 4) === 0;
-        if ($previousAir !== $nextAir) {
-            $this->refreshHeightAfterBlockChange($x, $y, $z, $previousAir, $nextAir);
-        }
-
-        return $previous;
+        return $this->fallbackState()->setBlockStateId($x, $y, $z, $stateId);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -152,29 +141,7 @@ final class Chunk
             return;
         }
 
-        $endY = $startY + $count;
-        $cursor = $startY;
-        while ($cursor < $endY) {
-            $sectionIndex = intdiv($cursor, WorldBounds::SECTION_EDGE);
-            $sectionStart = $sectionIndex * WorldBounds::SECTION_EDGE;
-            $localStart = $cursor - $sectionStart;
-            $sectionCount = min(WorldBounds::SECTION_EDGE - $localStart, $endY - $cursor);
-            $this->fallbackState()->section($sectionIndex)->fillLayers($localStart, $sectionCount, $stateId);
-            $cursor += $sectionCount;
-        }
-
-        if (($stateId >> 4) !== 0) {
-            $top = $endY - 1;
-            $columns = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE;
-            for ($column = 0; $column < $columns; ++$column) {
-                if ($top >= $this->fallbackState()->heightAt($column)) {
-                    $this->fallbackState()->setHeight($column, $top);
-                }
-            }
-            return;
-        }
-
-        $this->recalculateHeightMap();
+        $this->fallbackState()->fillBlockLayers($startY, $count, $stateId);
     }
 
     public function skyLight(int $x, int $y, int $z): int
@@ -286,14 +253,7 @@ final class Chunk
             return $this->nativeStore->heightMap($this->position, $x, $z);
         }
 
-        for ($section = WorldBounds::SECTION_COUNT - 1; $section >= 0; --$section) {
-            $localY = $this->fallbackState()->section($section)->highestBlockAt($x, $z);
-            if ($localY !== null) {
-                return ($section * WorldBounds::SECTION_EDGE) + $localY;
-            }
-        }
-
-        return 0;
+        return $this->fallbackState()->highestBlockAt($x, $z);
     }
 
     public function heightMap(int $x, int $z): int
@@ -313,14 +273,7 @@ final class Chunk
             return;
         }
 
-        for ($z = 0; $z < WorldBounds::CHUNK_EDGE; ++$z) {
-            for ($x = 0; $x < WorldBounds::CHUNK_EDGE; ++$x) {
-                $this->fallbackState()->setHeight(
-                    self::columnIndex($x, $z),
-                    $this->highestBlockAt($x, $z),
-                );
-            }
-        }
+        $this->fallbackState()->recalculateHeightMap();
     }
 
     public function blockExtraData(int $x, int $y, int $z): int
@@ -579,28 +532,6 @@ final class Chunk
             ?? throw new \LogicException('native chunk snapshot requested without a native store');
 
         return NativeChunkSnapshotDecoder::decode($this->position, $projection);
-    }
-
-    private function refreshHeightAfterBlockChange(
-        int $x,
-        int $y,
-        int $z,
-        bool $previousAir,
-        bool $nextAir,
-    ): void {
-        $column = self::columnIndex($x, $z);
-        $current = $this->fallbackState()->heightAt($column);
-
-        if (!$nextAir) {
-            if ($y >= $current) {
-                $this->fallbackState()->setHeight($column, $y);
-            }
-            return;
-        }
-
-        if (!$previousAir && $y >= $current) {
-            $this->fallbackState()->setHeight($column, $this->highestBlockAt($x, $z));
-        }
     }
 
     private static function assertBlockCoordinates(int $x, int $y, int $z): void
