@@ -176,6 +176,7 @@ function testPhp(): void
         runWithExtension(ROOT . '/tests/php/' . $test);
         if ($test === 'world-sync-smoke.php') {
             runWithExtension(ROOT . '/tests/php/' . $test, ['--transition-only']);
+            runWithExtension(ROOT . '/tests/php/' . $test, ['--radius-cycle']);
         }
     }
 }

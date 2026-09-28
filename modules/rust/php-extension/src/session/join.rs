@@ -74,8 +74,39 @@ impl WorldView {
 pub(crate) struct ChunkViewDelta {
     pub(crate) from_center: ChunkCoord,
     pub(crate) to_center: ChunkCoord,
+    pub(crate) from_radius: i32,
+    pub(crate) to_radius: i32,
     pub(crate) entering: Vec<ChunkCoord>,
     pub(crate) leaving: Vec<ChunkCoord>,
+}
+
+fn chunk_view_transition(
+    from_center: ChunkCoord,
+    from_radius: i32,
+    to_center: ChunkCoord,
+    to_radius: i32,
+) -> Option<ChunkViewDelta> {
+    if from_center == to_center && from_radius == to_radius {
+        return None;
+    }
+
+    let entering = view_positions(to_center, to_radius)
+        .into_iter()
+        .filter(|&position| !view_contains(from_center, from_radius, position))
+        .collect();
+    let leaving = view_positions(from_center, from_radius)
+        .into_iter()
+        .filter(|&position| !view_contains(to_center, to_radius, position))
+        .collect();
+
+    Some(ChunkViewDelta {
+        from_center,
+        to_center,
+        from_radius,
+        to_radius,
+        entering,
+        leaving,
+    })
 }
 
 fn chunk_view_delta(
@@ -83,25 +114,7 @@ fn chunk_view_delta(
     radius: i32,
     to_center: ChunkCoord,
 ) -> Option<ChunkViewDelta> {
-    if from_center == to_center {
-        return None;
-    }
-
-    let entering = view_positions(to_center, radius)
-        .into_iter()
-        .filter(|&position| !view_contains(from_center, radius, position))
-        .collect();
-    let leaving = view_positions(from_center, radius)
-        .into_iter()
-        .filter(|&position| !view_contains(to_center, radius, position))
-        .collect();
-
-    Some(ChunkViewDelta {
-        from_center,
-        to_center,
-        entering,
-        leaving,
-    })
+    chunk_view_transition(from_center, radius, to_center, radius)
 }
 
 pub(crate) fn plan_view_delta(
@@ -114,15 +127,29 @@ pub(crate) fn plan_view_delta(
     chunk_view_delta(view.center, view.radius, to_center)
 }
 
+pub(crate) fn plan_view_transition(
+    owner: RuntimeId,
+    session_id: SessionId,
+    to_center: ChunkCoord,
+    to_radius: i32,
+) -> Option<ChunkViewDelta> {
+    let views = world_views();
+    let view = views.get(&(owner, session_id))?;
+    chunk_view_transition(view.center, view.radius, to_center, to_radius)
+}
+
 fn apply_view_delta(view: &mut WorldView, delta: &ChunkViewDelta) -> Result<(), String> {
-    if view.center != delta.from_center {
+    if view.center != delta.from_center || view.radius != delta.from_radius {
         return Err(
-            "pending chunk view delta no longer matches the active world view center".into(),
+            "pending chunk view delta no longer matches the active world view geometry".into(),
         );
     }
 
-    let expected = chunk_view_delta(view.center, view.radius, delta.to_center)
-        .ok_or_else(|| "pending chunk view delta does not change the active center".to_string())?;
+    let expected =
+        chunk_view_transition(view.center, view.radius, delta.to_center, delta.to_radius)
+            .ok_or_else(|| {
+                "pending chunk view delta does not change the active view".to_string()
+            })?;
     if expected != *delta {
         return Err("pending chunk view delta does not match the active view geometry".into());
     }
@@ -139,7 +166,8 @@ fn apply_view_delta(view: &mut WorldView, delta: &ChunkViewDelta) -> Result<(), 
     }
 
     view.center = delta.to_center;
-    view.pinned_chunks = view_positions(delta.to_center, view.radius);
+    view.radius = delta.to_radius;
+    view.pinned_chunks = view_positions(delta.to_center, delta.to_radius);
 
     for &position in &delta.leaving {
         let _ = view.store.unpin_chunk(position);
@@ -174,28 +202,35 @@ pub(crate) fn queue_view_delta_chunks(
     session_id: SessionId,
     delta: &ChunkViewDelta,
 ) -> PhpResult<ViewChunkQueueResult> {
-    let (world_handle, center) = {
+    let (world_handle, center, radius) = {
         let views = world_views();
         let view = views
             .get(&(owner, session_id))
             .ok_or_else(|| php_error("cannot send entering chunks without an active world view"))?;
-        (view.world_handle, view.center)
+        (view.world_handle, view.center, view.radius)
     };
 
-    if center != delta.from_center {
+    if center != delta.from_center || radius != delta.from_radius {
         return Err(php_error(
-            "pending chunk view delta no longer matches the active world view center",
+            "pending chunk view delta no longer matches the active world view geometry",
         ));
     }
-    if delta.entering.is_empty() {
+
+    let radius_changed = delta.from_radius != delta.to_radius;
+    let mut packets = Vec::with_capacity(delta.entering.len() + usize::from(radius_changed));
+    if radius_changed {
+        packets.push(RawPacket::new(
+            CHUNK_RADIUS_UPDATED_ID,
+            NativeBuffer::copy_from_slice(&delta.to_radius.to_be_bytes()),
+        ));
+    }
+    for &position in &delta.entering {
+        packets.push(protocol84_chunk(world_handle, position)?);
+    }
+    if packets.is_empty() {
         return Ok(ViewChunkQueueResult::Sent);
     }
-
-    let mut chunks = Vec::with_capacity(delta.entering.len());
-    for &position in &delta.entering {
-        chunks.push(protocol84_chunk(world_handle, position)?);
-    }
-    let batch = bootstrap_session_packet(BootstrapPacket::Batch(BatchPacket::new(chunks)))?;
+    let batch = bootstrap_session_packet(BootstrapPacket::Batch(BatchPacket::new(packets)))?;
 
     Ok(
         match try_queue(owner, session_id, batch, SessionDelivery::ReliableOrdered)? {
@@ -951,6 +986,21 @@ mod view_delta_tests {
                 .iter()
                 .all(|position| !delta.leaving.contains(position))
         );
+    }
+
+    #[test]
+    fn radius_grow_and_shrink_have_inverse_edges() {
+        let grow = chunk_view_transition(ChunkCoord::new(0, 0), 1, ChunkCoord::new(0, 0), 2)
+            .expect("grow delta");
+        assert_eq!(grow.from_radius, 1);
+        assert_eq!(grow.to_radius, 2);
+        assert_eq!(grow.entering.len(), 16);
+        assert!(grow.leaving.is_empty());
+
+        let shrink = chunk_view_transition(ChunkCoord::new(0, 0), 2, ChunkCoord::new(0, 0), 1)
+            .expect("shrink delta");
+        assert!(shrink.entering.is_empty());
+        assert_eq!(shrink.leaving, grow.entering);
     }
 
     #[test]

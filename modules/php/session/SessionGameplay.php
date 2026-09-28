@@ -14,7 +14,8 @@ use UnexpectedValueException;
 final class SessionGameplay
 {
     private const MOVE_PLAYER_PACKET = 0x10;
-    private const VIEW_DELTA_HEADER_BYTES = 20;
+    private const REQUEST_CHUNK_RADIUS_PACKET = 0x3d;
+    private const VIEW_DELTA_HEADER_BYTES = 28;
     private const VIEW_DELTA_ENTRY_BYTES = 8;
     private const MAX_VIEW_DELTA_ENTRIES = 4096;
     private const VIEW_SEND_BACKPRESSURED = 0;
@@ -27,6 +28,7 @@ final class SessionGameplay
     public function __construct(
         private readonly Runtime $sessions,
         private readonly World $world,
+        private readonly int $maxChunkRadius,
     ) {
     }
 
@@ -64,25 +66,40 @@ final class SessionGameplay
 
     public function handle(Packet $packet): void
     {
-        if ($packet->packetId !== self::MOVE_PLAYER_PACKET) {
+        if ($packet->packetId === self::MOVE_PLAYER_PACKET) {
+            $projection = $this->sessions->trackPlayerMovement($packet->sessionId, $packet->body);
+        } elseif ($packet->packetId === self::REQUEST_CHUNK_RADIUS_PACKET) {
+            $requestedRadius = $this->sessions->requestedChunkRadius($packet->body);
+            $effectiveRadius = min($requestedRadius, $this->maxChunkRadius);
+            $projection = $this->sessions->planChunkRadius($packet->sessionId, $effectiveRadius);
+        } else {
             return;
         }
 
-        $projection = $this->sessions->trackPlayerMovement($packet->sessionId, $packet->body);
+        $this->acceptProjection($packet->sessionId, $projection);
+    }
+
+    private function acceptProjection(int $sessionId, string $projection): void
+    {
         $next = $this->decodePreparation($projection);
         if ($next === null) {
-            $this->clearPreparation($packet->sessionId);
+            $this->clearPreparation($sessionId);
             return;
         }
 
-        $current = $this->preparations[$packet->sessionId] ?? null;
-        if ($current !== null && $current->sameTransition($next->fromCenter, $next->toCenter)) {
+        $current = $this->preparations[$sessionId] ?? null;
+        if ($current !== null && $current->sameTransition(
+            $next->fromCenter,
+            $next->fromRadius,
+            $next->toCenter,
+            $next->toRadius,
+        )) {
             $current->prepare($this->world);
             return;
         }
 
-        $this->clearPreparation($packet->sessionId);
-        $this->preparations[$packet->sessionId] = $next;
+        $this->clearPreparation($sessionId);
+        $this->preparations[$sessionId] = $next;
         $next->prepare($this->world);
     }
 
@@ -97,8 +114,10 @@ final class SessionGameplay
                 $sessionId,
                 $preparation->fromCenter->x,
                 $preparation->fromCenter->z,
+                $preparation->fromRadius,
                 $preparation->toCenter->x,
                 $preparation->toCenter->z,
+                $preparation->toRadius,
             );
 
             if ($status === self::VIEW_SEND_BACKPRESSURED) {
@@ -119,8 +138,10 @@ final class SessionGameplay
             $sessionId,
             $preparation->fromCenter->x,
             $preparation->fromCenter->z,
+            $preparation->fromRadius,
             $preparation->toCenter->x,
             $preparation->toCenter->z,
+            $preparation->toRadius,
         );
         $this->clearPreparation($sessionId);
     }
@@ -146,7 +167,7 @@ final class SessionGameplay
         }
 
         $header = unpack(
-            'Vfrom_x/Vfrom_z/Vto_x/Vto_z/Vcount',
+            'Vfrom_x/Vfrom_z/Vto_x/Vto_z/Vfrom_radius/Vto_radius/Vcount',
             substr($projection, 0, self::VIEW_DELTA_HEADER_BYTES),
         );
         if (!is_array($header)) {
@@ -181,10 +202,12 @@ final class SessionGameplay
                 self::signedInt32($header['from_x']),
                 self::signedInt32($header['from_z']),
             ),
+            self::signedInt32($header['from_radius']),
             new ChunkPos(
                 self::signedInt32($header['to_x']),
                 self::signedInt32($header['to_z']),
             ),
+            self::signedInt32($header['to_radius']),
             $entering,
         );
     }

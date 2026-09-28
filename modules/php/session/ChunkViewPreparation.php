@@ -22,17 +22,25 @@ final class ChunkViewPreparation
      */
     public function __construct(
         public readonly ChunkPos $fromCenter,
+        public readonly int $fromRadius,
         public readonly ChunkPos $toCenter,
+        public readonly int $toRadius,
         private readonly array $entering,
     ) {
     }
 
-    public function sameTransition(ChunkPos $fromCenter, ChunkPos $toCenter): bool
-    {
+    public function sameTransition(
+        ChunkPos $fromCenter,
+        int $fromRadius,
+        ChunkPos $toCenter,
+        int $toRadius,
+    ): bool {
         return $this->fromCenter->x === $fromCenter->x
             && $this->fromCenter->z === $fromCenter->z
+            && $this->fromRadius === $fromRadius
             && $this->toCenter->x === $toCenter->x
-            && $this->toCenter->z === $toCenter->z;
+            && $this->toCenter->z === $toCenter->z
+            && $this->toRadius === $toRadius;
     }
 
     public function prepare(World $world): bool

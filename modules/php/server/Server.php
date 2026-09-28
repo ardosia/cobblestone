@@ -66,7 +66,7 @@ final class Server
             $this->logs,
         );
         $this->bootstrap = new SessionBootstrap($this->sessions, $this->world, $initialChunkRadius);
-        $this->gameplay = new SessionGameplay($this->sessions, $this->world);
+        $this->gameplay = new SessionGameplay($this->sessions, $this->world, $initialChunkRadius);
         $this->worldMaintenance = new WorldMaintenance($this->sessions, $this->world, $this->logger);
 
         $this->state = ServerState::Running;

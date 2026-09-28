@@ -13,6 +13,7 @@ use raknet_rust::low_level::protocol::Reliability;
 use tokio::time::timeout;
 
 const REQUEST_CHUNK_RADIUS_ID: u8 = 0x3d;
+const CHUNK_RADIUS_UPDATED_ID: u8 = 0x3e;
 const UPDATE_BLOCK_ID: u8 = 0x13;
 
 fn move_player_body(position: [f32; 3]) -> NativeBuffer {
@@ -81,6 +82,82 @@ async fn next_payload(client: &mut RaknetClient) -> Result<Bytes, Box<dyn Error>
     Ok(payload)
 }
 
+async fn send_radius_request(
+    client: &mut RaknetClient,
+    limits: CodecLimits,
+    radius: i32,
+) -> Result<(), Box<dyn Error>> {
+    let request = RawPacket::new(
+        REQUEST_CHUNK_RADIUS_ID,
+        NativeBuffer::copy_from_slice(&radius.to_be_bytes()),
+    );
+    let frame = encode_game_frame(&request, limits)?;
+    send_frame(client, frame.as_slice()).await
+}
+
+async fn verify_radius_cycle(
+    client: &mut RaknetClient,
+    limits: CodecLimits,
+) -> Result<(), Box<dyn Error>> {
+    send_radius_request(client, limits, 3).await?;
+
+    let mut saw_radius_three = false;
+    let mut entering = std::collections::BTreeSet::new();
+    while !saw_radius_three || entering.len() < 24 {
+        let payload = next_payload(client)
+            .await
+            .map_err(|error| -> Box<dyn Error> {
+                format!("waiting for radius grow: {error}").into()
+            })?;
+        for packet in raw_packets(&payload, limits)? {
+            if packet.id() == CHUNK_RADIUS_UPDATED_ID {
+                if packet.body().as_slice() == 3_i32.to_be_bytes() {
+                    saw_radius_three = true;
+                }
+                continue;
+            }
+            if packet.id() != cobblestone_codec::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
+                continue;
+            }
+
+            let body = packet.body().as_slice();
+            let chunk_x = i32::from_be_bytes(body[0..4].try_into()?);
+            let chunk_z = i32::from_be_bytes(body[4..8].try_into()?);
+            let in_outer_square = (5..=11).contains(&chunk_x) && (5..=11).contains(&chunk_z);
+            let in_old_square = (6..=10).contains(&chunk_x) && (6..=10).contains(&chunk_z);
+            if in_outer_square && !in_old_square {
+                entering.insert((chunk_x, chunk_z));
+            }
+        }
+    }
+
+    if entering.len() != 24 {
+        return Err(format!("unexpected radius-grow chunk set: {entering:?}").into());
+    }
+
+    send_radius_request(client, limits, 1).await?;
+    loop {
+        let payload = next_payload(client)
+            .await
+            .map_err(|error| -> Box<dyn Error> {
+                format!("waiting for radius shrink: {error}").into()
+            })?;
+        let mut saw_radius_one = false;
+        for packet in raw_packets(&payload, limits)? {
+            if packet.id() == CHUNK_RADIUS_UPDATED_ID
+                && packet.body().as_slice() == 1_i32.to_be_bytes()
+            {
+                saw_radius_one = true;
+            }
+        }
+        if saw_radius_one {
+            break;
+        }
+    }
+
+    Ok(())
+}
+
 async fn send_boundary_movement(
     client: &mut RaknetClient,
     limits: CodecLimits,
@@ -134,6 +211,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .parse()?;
     let send_movement = std::env::args().any(|argument| argument == "--move-after-update");
     let transition_only = std::env::args().any(|argument| argument == "--transition-only");
+    let radius_cycle = std::env::args().any(|argument| argument == "--radius-cycle");
     let limits = limits();
 
     let mut client = RaknetClient::connect_with_config(
@@ -188,6 +266,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if transition_only {
         send_boundary_movement(&mut client, limits).await?;
         println!("world-sync-client: transition=verified entering=5");
+        client.disconnect(None).await?;
+        return Ok(());
+    }
+
+    if radius_cycle {
+        verify_radius_cycle(&mut client, limits).await?;
+        println!("world-sync-client: radius-cycle=verified grow=24 shrink=1");
         client.disconnect(None).await?;
         return Ok(());
     }

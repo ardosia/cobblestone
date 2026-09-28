@@ -39,6 +39,7 @@ final class Runtime
             'cobblestone_session_protocol84_send_native_chunks',
             'cobblestone_session_protocol84_player_spawned',
             'cobblestone_session_protocol84_track_move_player',
+            'cobblestone_session_protocol84_plan_chunk_radius',
             'cobblestone_session_protocol84_send_prepared_view_chunks',
             'cobblestone_session_protocol84_commit_prepared_view',
             'cobblestone_session_protocol84_flush_world_changes',
@@ -149,12 +150,22 @@ final class Runtime
     }
 
     /** @internal */
+    public function planChunkRadius(int $sessionId, int $effectiveRadius): string
+    {
+        $this->assertRunning();
+
+        return cobblestone_session_protocol84_plan_chunk_radius($sessionId, $effectiveRadius);
+    }
+
+    /** @internal */
     public function sendPreparedViewChunks(
         int $sessionId,
         int $fromChunkX,
         int $fromChunkZ,
+        int $fromRadius,
         int $toChunkX,
         int $toChunkZ,
+        int $toRadius,
     ): int {
         $this->assertRunning();
 
@@ -162,8 +173,10 @@ final class Runtime
             $sessionId,
             $fromChunkX,
             $fromChunkZ,
+            $fromRadius,
             $toChunkX,
             $toChunkZ,
+            $toRadius,
         );
     }
 
@@ -172,8 +185,10 @@ final class Runtime
         int $sessionId,
         int $fromChunkX,
         int $fromChunkZ,
+        int $fromRadius,
         int $toChunkX,
         int $toChunkZ,
+        int $toRadius,
     ): bool {
         $this->assertRunning();
 
@@ -181,8 +196,10 @@ final class Runtime
             $sessionId,
             $fromChunkX,
             $fromChunkZ,
+            $fromRadius,
             $toChunkX,
             $toChunkZ,
+            $toRadius,
         );
     }
 

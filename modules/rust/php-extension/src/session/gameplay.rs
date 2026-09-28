@@ -12,17 +12,19 @@ use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 use crate::session::bridge::owner_session_id;
 use crate::session::join::{
-    ChunkViewDelta, ViewChunkQueueResult, commit_view_delta, plan_view_delta,
+    ChunkViewDelta, ViewChunkQueueResult, commit_view_delta, plan_view_delta, plan_view_transition,
     queue_view_delta_chunks,
 };
 
 const CHUNK_EDGE: f32 = 16.0;
 const MAX_PLAYER_COORDINATE: f32 = 1_000_000.0;
+const MAX_VIEW_RADIUS: i32 = 3;
 
 #[derive(Debug, Clone, PartialEq)]
 struct PlayerState {
     position: [f32; 3],
     chunk: ChunkCoord,
+    desired_radius: Option<i32>,
     view_delta: Option<ChunkViewDelta>,
 }
 
@@ -52,6 +54,7 @@ fn validate_position(position: [f32; 3]) -> Result<PlayerState, &'static str> {
             (position[0] / CHUNK_EDGE).floor() as i32,
             (position[2] / CHUNK_EDGE).floor() as i32,
         ),
+        desired_radius: None,
         view_delta: None,
     })
 }
@@ -66,14 +69,16 @@ fn encode_view_delta(delta: Option<&ChunkViewDelta>) -> Result<Binary<u8>, &'sta
     };
     let entering_count =
         u32::try_from(delta.entering.len()).map_err(|_| "chunk view delta is too large")?;
-    let mut projection = Vec::with_capacity(20 + delta.entering.len().saturating_mul(8));
-    for coordinate in [
+    let mut projection = Vec::with_capacity(28 + delta.entering.len().saturating_mul(8));
+    for value in [
         delta.from_center.x(),
         delta.from_center.z(),
         delta.to_center.x(),
         delta.to_center.z(),
+        delta.from_radius,
+        delta.to_radius,
     ] {
-        projection.extend_from_slice(&coordinate.to_le_bytes());
+        projection.extend_from_slice(&value.to_le_bytes());
     }
     projection.extend_from_slice(&entering_count.to_le_bytes());
     for position in &delta.entering {
@@ -144,15 +149,59 @@ pub fn cobblestone_session_protocol84_track_move_player(
             decode_protocol84_move_player(&body).map_err(|error| php_error(error.to_string()))?;
         let mut state = state_from_move(packet).map_err(php_error)?;
 
-        if !player_states().contains_key(&(owner, session_id)) {
-            return Err(php_error(
-                "protocol-84 MovePlayer received before spawned player state",
-            ));
-        }
-
-        state.view_delta = plan_view_delta(owner, session_id, state.chunk);
+        let desired_radius = {
+            let states = player_states();
+            states
+                .get(&(owner, session_id))
+                .ok_or_else(|| {
+                    php_error("protocol-84 MovePlayer received before spawned player state")
+                })?
+                .desired_radius
+        };
+        state.desired_radius = desired_radius;
+        state.view_delta = match desired_radius {
+            Some(radius) => plan_view_transition(owner, session_id, state.chunk, radius),
+            None => plan_view_delta(owner, session_id, state.chunk),
+        };
         let projection = encode_view_delta(state.view_delta.as_ref()).map_err(php_error)?;
         player_states().insert((owner, session_id), state);
+        Ok(projection)
+    })
+}
+
+/// Plans one post-spawn effective-radius change around the latest player chunk.
+#[php_function]
+#[php(name = "cobblestone_session_protocol84_plan_chunk_radius")]
+pub fn cobblestone_session_protocol84_plan_chunk_radius(
+    session_id: i64,
+    effective_radius: i64,
+) -> PhpResult<Binary<u8>> {
+    php_boundary(|| {
+        let owner = current_runtime_id().map_err(php_error)?;
+        let session_id = owner_session_id(session_id)?;
+        let effective_radius = i32_field("effective chunk radius", effective_radius)?;
+        if !(1..=MAX_VIEW_RADIUS).contains(&effective_radius) {
+            return Err(php_error(format!(
+                "effective post-spawn chunk radius must be in range 1..={MAX_VIEW_RADIUS}"
+            )));
+        }
+
+        let chunk = {
+            let states = player_states();
+            states
+                .get(&(owner, session_id))
+                .ok_or_else(|| php_error("cannot resize chunk view before spawned player state"))?
+                .chunk
+        };
+        let delta = plan_view_transition(owner, session_id, chunk, effective_radius);
+        let projection = encode_view_delta(delta.as_ref()).map_err(php_error)?;
+
+        let mut states = player_states();
+        let state = states
+            .get_mut(&(owner, session_id))
+            .ok_or_else(|| php_error("spawned player state disappeared during view resize"))?;
+        state.desired_radius = Some(effective_radius);
+        state.view_delta = delta;
         Ok(projection)
     })
 }
@@ -164,8 +213,10 @@ pub fn cobblestone_session_protocol84_commit_prepared_view(
     session_id: i64,
     from_chunk_x: i64,
     from_chunk_z: i64,
+    from_radius: i64,
     to_chunk_x: i64,
     to_chunk_z: i64,
+    to_radius: i64,
 ) -> PhpResult<bool> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
@@ -174,10 +225,12 @@ pub fn cobblestone_session_protocol84_commit_prepared_view(
             i32_field("view transition from chunk x", from_chunk_x)?,
             i32_field("view transition from chunk z", from_chunk_z)?,
         );
+        let from_radius = i32_field("view transition from radius", from_radius)?;
         let to_center = ChunkCoord::new(
             i32_field("view transition to chunk x", to_chunk_x)?,
             i32_field("view transition to chunk z", to_chunk_z)?,
         );
+        let to_radius = i32_field("view transition to radius", to_radius)?;
 
         let delta = {
             let states = player_states();
@@ -190,7 +243,11 @@ pub fn cobblestone_session_protocol84_commit_prepared_view(
                 .ok_or_else(|| php_error("player has no pending chunk view delta"))?
         };
 
-        if delta.from_center != from_center || delta.to_center != to_center {
+        if delta.from_center != from_center
+            || delta.from_radius != from_radius
+            || delta.to_center != to_center
+            || delta.to_radius != to_radius
+        {
             return Err(php_error(
                 "prepared chunk view transition no longer matches the pending player delta",
             ));
@@ -214,8 +271,10 @@ pub fn cobblestone_session_protocol84_send_prepared_view_chunks(
     session_id: i64,
     from_chunk_x: i64,
     from_chunk_z: i64,
+    from_radius: i64,
     to_chunk_x: i64,
     to_chunk_z: i64,
+    to_radius: i64,
 ) -> PhpResult<i64> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
@@ -224,10 +283,12 @@ pub fn cobblestone_session_protocol84_send_prepared_view_chunks(
             i32_field("view transition from chunk x", from_chunk_x)?,
             i32_field("view transition from chunk z", from_chunk_z)?,
         );
+        let from_radius = i32_field("view transition from radius", from_radius)?;
         let to_center = ChunkCoord::new(
             i32_field("view transition to chunk x", to_chunk_x)?,
             i32_field("view transition to chunk z", to_chunk_z)?,
         );
+        let to_radius = i32_field("view transition to radius", to_radius)?;
 
         let delta = {
             let states = player_states();
@@ -240,7 +301,11 @@ pub fn cobblestone_session_protocol84_send_prepared_view_chunks(
                 .ok_or_else(|| php_error("player has no pending chunk view delta"))?
         };
 
-        if delta.from_center != from_center || delta.to_center != to_center {
+        if delta.from_center != from_center
+            || delta.from_radius != from_radius
+            || delta.to_center != to_center
+            || delta.to_radius != to_radius
+        {
             return Err(php_error(
                 "prepared chunk view transition no longer matches the pending player delta",
             ));
@@ -261,6 +326,9 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
         ))
         .function(wrap_function!(
             cobblestone_session_protocol84_track_move_player
+        ))
+        .function(wrap_function!(
+            cobblestone_session_protocol84_plan_chunk_radius
         ))
         .function(wrap_function!(
             cobblestone_session_protocol84_send_prepared_view_chunks
@@ -321,14 +389,16 @@ mod tests {
         let delta = ChunkViewDelta {
             from_center: ChunkCoord::new(-1, 2),
             to_center: ChunkCoord::new(3, -4),
+            from_radius: 2,
+            to_radius: 3,
             entering: vec![ChunkCoord::new(5, 6), ChunkCoord::new(-7, 8)],
             leaving: Vec::new(),
         };
 
         let projection = encode_view_delta(Some(&delta)).expect("encode view delta");
         let mut expected = Vec::new();
-        for coordinate in [-1_i32, 2, 3, -4] {
-            expected.extend_from_slice(&coordinate.to_le_bytes());
+        for value in [-1_i32, 2, 3, -4, 2, 3] {
+            expected.extend_from_slice(&value.to_le_bytes());
         }
         expected.extend_from_slice(&2_u32.to_le_bytes());
         for coordinate in [5_i32, 6, -7, 8] {

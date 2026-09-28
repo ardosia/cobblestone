@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 $transitionOnly = in_array('--transition-only', $argv, true);
+$radiusCycle = in_array('--radius-cycle', $argv, true);
 
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Server\Server;
@@ -13,11 +14,21 @@ use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\NativeWorldStore;
 
 function worldSyncExpect(bool $condition, string $message): void
 {
     if (!$condition) {
         throw new RuntimeException($message);
+    }
+}
+
+function worldSyncPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+{
+    try {
+        return $store->chunkPinCount($position);
+    } catch (Throwable) {
+        return 0;
     }
 }
 
@@ -60,12 +71,15 @@ $server = Server::start(
         );
         $movementHandled = true;
     },
+    null,
+    null,
+    $radiusCycle ? 3 : 2,
 );
 $spawned = false;
 $mutated = false;
 $server->events()->listen(
     SessionSpawned::class,
-    static function (SessionSpawned $event) use ($server, $transitionOnly, &$spawned, &$mutated): void {
+    static function (SessionSpawned $event) use ($server, $transitionOnly, $radiusCycle, &$spawned, &$mutated): void {
         $spawned = true;
         worldSyncExpect($event->chunksSent > 0, 'world-sync client spawned without chunks');
         $store = $server->world()->nativeStore();
@@ -74,7 +88,7 @@ $server->events()->listen(
             $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
             'spawned client view did not pin its streamed center chunk',
         );
-        if ($transitionOnly) {
+        if ($transitionOnly || $radiusCycle) {
             return;
         }
 
@@ -101,7 +115,7 @@ $command = [
     'world-sync-client',
     '--',
     $bind,
-    $transitionOnly ? '--transition-only' : '--move-after-update',
+    $radiusCycle ? '--radius-cycle' : ($transitionOnly ? '--transition-only' : '--move-after-update'),
 ];
 $descriptors = [
     0 => ['pipe', 'r'],
@@ -123,6 +137,7 @@ $stderr = '';
 $exitCode = null;
 $deadline = hrtime(true) + 20_000_000_000;
 $transitionCommitted = false;
+$radiusCycleCommitted = false;
 
 try {
     while (hrtime(true) < $deadline) {
@@ -160,6 +175,32 @@ try {
             }
         }
 
+        if ($radiusCycle && !$radiusCycleCommitted) {
+            $store = $server->world()->nativeStore();
+            worldSyncExpect($store !== null, 'radius-cycle verification lost native store');
+
+            $innerPinned = true;
+            for ($chunkX = 7; $chunkX <= 9; ++$chunkX) {
+                for ($chunkZ = 7; $chunkZ <= 9; ++$chunkZ) {
+                    $innerPinned = $innerPinned
+                        && worldSyncPinCountOrZero($store, new ChunkPos($chunkX, $chunkZ)) > 0;
+                }
+            }
+
+            $outerReleased = true;
+            for ($chunkX = 5; $chunkX <= 11; ++$chunkX) {
+                for ($chunkZ = 5; $chunkZ <= 11; ++$chunkZ) {
+                    if ((7 <= $chunkX && $chunkX <= 9) && (7 <= $chunkZ && $chunkZ <= 9)) {
+                        continue;
+                    }
+                    $outerReleased = $outerReleased
+                        && worldSyncPinCountOrZero($store, new ChunkPos($chunkX, $chunkZ)) === 0;
+                }
+            }
+
+            $radiusCycleCommitted = $innerPinned && $outerReleased;
+        }
+
         $status = proc_get_status($process);
         if (!$status['running']) {
             $exitCode = $status['exitcode'];
@@ -180,9 +221,17 @@ try {
 
     worldSyncExpect($exitCode === 0, "world-sync client failed: {$stderr}");
     worldSyncExpect($spawned, 'world-sync session never reached spawned state');
-    worldSyncExpect($movementHandled, 'world-sync MovePlayer never reached post-spawn gameplay handling');
+    if (!$radiusCycle) {
+        worldSyncExpect($movementHandled, 'world-sync MovePlayer never reached post-spawn gameplay handling');
+    }
 
-    if ($transitionOnly) {
+    if ($radiusCycle) {
+        worldSyncExpect($radiusCycleCommitted, 'radius-cycle view was never committed down to radius 1');
+        worldSyncExpect(
+            str_contains($stdout, 'world-sync-client: radius-cycle=verified grow=24 shrink=1'),
+            "world-sync client did not observe radius grow/shrink\nstdout={$stdout}\nstderr={$stderr}",
+        );
+    } elseif ($transitionOnly) {
         worldSyncExpect($transitionCommitted, 'prepared chunk view was never committed');
         worldSyncExpect(
             str_contains($stdout, 'world-sync-client: transition=verified entering=5'),
@@ -213,11 +262,11 @@ try {
 $store = $server->world()->nativeStore();
 worldSyncExpect($store !== null, 'world-sync native store disappeared during shutdown');
 worldSyncExpect(
-    $store->chunkPinCount(new ChunkPos(8, 8)) === 0,
+    worldSyncPinCountOrZero($store, new ChunkPos(8, 8)) === 0,
     'session shutdown did not release streamed chunk pins',
 );
 worldSyncExpect(
-    $store->chunkPinCount(new ChunkPos(11, 8)) === 0,
+    worldSyncPinCountOrZero($store, new ChunkPos(11, 8)) === 0,
     'session shutdown did not release prepared entering chunk pins',
 );
 
