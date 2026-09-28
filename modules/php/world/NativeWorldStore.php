@@ -222,57 +222,32 @@ final class NativeWorldStore
 
     public function lifecycleFlags(ChunkPos $position): int
     {
-        return cobblestone_world_lifecycle_flags(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkResidency::lifecycleFlags($this->requireHandle(), $position);
     }
 
     public function setLifecycleFlags(ChunkPos $position, int $flags): void
     {
-        cobblestone_world_set_lifecycle_flags(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $flags,
-        );
+        NativeChunkResidency::setLifecycleFlags($this->requireHandle(), $position, $flags);
     }
 
     public function pinChunk(ChunkPos $position): int
     {
-        return cobblestone_world_pin_chunk(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkResidency::pin($this->requireHandle(), $position);
     }
 
     public function unpinChunk(ChunkPos $position): int
     {
-        return cobblestone_world_unpin_chunk(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkResidency::unpin($this->requireHandle(), $position);
     }
 
     public function chunkPinCount(ChunkPos $position): int
     {
-        return cobblestone_world_chunk_pin_count(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkResidency::pinCount($this->requireHandle(), $position);
     }
 
     public function chunkDirty(ChunkPos $position): bool
     {
-        return cobblestone_world_chunk_dirty(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkResidency::dirty($this->requireHandle(), $position);
     }
 
     public function markPersisted(
@@ -281,10 +256,9 @@ final class NativeWorldStore
         int $lightRevision,
         int $lifecycleFlags,
     ): void {
-        cobblestone_world_mark_persisted(
+        NativeChunkResidency::markPersisted(
             $this->requireHandle(),
-            $position->x,
-            $position->z,
+            $position,
             $terrainRevision,
             $lightRevision,
             $lifecycleFlags,
@@ -294,11 +268,7 @@ final class NativeWorldStore
     /** @return 0|1|2|3 0=missing, 1=pinned, 2=dirty, 3=evicted */
     public function tryEvictChunk(ChunkPos $position): int
     {
-        return cobblestone_world_try_evict_chunk(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkResidency::tryEvict($this->requireHandle(), $position);
     }
 
     public function terrainRevision(ChunkPos $position): int
