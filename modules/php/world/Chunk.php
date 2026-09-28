@@ -14,7 +14,6 @@ final class Chunk
 
     /** @var array<int, ChunkSection> */
     private array $sections = [];
-    private string $biomes = '';
     private string $heightMap = '';
 
     private readonly ?ChunkFallbackState $fallbackState;
@@ -26,7 +25,7 @@ final class Chunk
         bool $nativeResident = false,
     ) {
         $biome ??= new BiomeId(1);
-        $this->fallbackState = $this->nativeStore === null ? new ChunkFallbackState() : null;
+        $this->fallbackState = $this->nativeStore === null ? new ChunkFallbackState($biome) : null;
 
         if ($this->nativeStore !== null) {
             if (!$nativeResident) {
@@ -40,7 +39,6 @@ final class Chunk
             $this->sections[$index] = ChunkSection::air();
         }
 
-        $this->biomes = str_repeat(chr($biome->value), WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
         $this->heightMap = str_repeat("\x00", WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE);
     }
 
@@ -275,7 +273,7 @@ final class Chunk
             return new BiomeId($this->nativeStore->biome($this->position, $x, $z));
         }
 
-        return new BiomeId(ord($this->biomes[$index]));
+        return $this->fallbackState()->biome($index);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -288,10 +286,7 @@ final class Chunk
             );
         }
 
-        $previous = new BiomeId(ord($this->biomes[$index]));
-        $this->biomes[$index] = chr($biome->value);
-
-        return $previous;
+        return $this->fallbackState()->setBiome($index, $biome);
     }
 
     public function highestBlockAt(int $x, int $z): int
@@ -399,7 +394,7 @@ final class Chunk
             $blockData,
             $skyLight,
             $blockLight,
-            $this->biomes,
+            $this->fallbackState()->biomes(),
             $this->heightMap,
             $this->fallbackState()->extraData(),
             $this->fallbackState()->lightRevision(),

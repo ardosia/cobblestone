@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Cobblestone\World;
 
 /**
- * PHP-backed chunk revision, lifecycle, and persistence-watermark state.
+ * PHP-backed chunk state kept behind the public Chunk facade.
  *
  * @internal
  */
 final class ChunkFallbackState
 {
+    private string $biomes;
+
     private bool $generated = false;
     private bool $populated = false;
     private bool $lightPopulated = false;
@@ -22,6 +24,32 @@ final class ChunkFallbackState
 
     /** @var array<int, int> */
     private array $extraData = [];
+
+    public function __construct(BiomeId $biome)
+    {
+        $this->biomes = str_repeat(
+            chr($biome->value),
+            WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE,
+        );
+    }
+
+    public function biome(int $index): BiomeId
+    {
+        return new BiomeId(ord($this->biomes[$index]));
+    }
+
+    public function setBiome(int $index, BiomeId $biome): BiomeId
+    {
+        $previous = $this->biome($index);
+        $this->biomes[$index] = chr($biome->value);
+
+        return $previous;
+    }
+
+    public function biomes(): string
+    {
+        return $this->biomes;
+    }
 
     public function revision(): int
     {
