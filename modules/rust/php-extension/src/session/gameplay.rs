@@ -11,14 +11,16 @@ use ext_php_rs::prelude::*;
 use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 use crate::session::bridge::owner_session_id;
+use crate::session::join::{ChunkViewDelta, plan_view_delta};
 
 const CHUNK_EDGE: f32 = 16.0;
 const MAX_PLAYER_COORDINATE: f32 = 1_000_000.0;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 struct PlayerState {
     position: [f32; 3],
     chunk: ChunkCoord,
+    view_delta: Option<ChunkViewDelta>,
 }
 
 static PLAYER_STATES: LazyLock<Mutex<HashMap<(RuntimeId, SessionId), PlayerState>>> =
@@ -47,6 +49,7 @@ fn validate_position(position: [f32; 3]) -> Result<PlayerState, &'static str> {
             (position[0] / CHUNK_EDGE).floor() as i32,
             (position[2] / CHUNK_EDGE).floor() as i32,
         ),
+        view_delta: None,
     })
 }
 
@@ -113,13 +116,16 @@ pub fn cobblestone_session_protocol84_track_move_player(
         let body: Vec<u8> = body.into();
         let packet =
             decode_protocol84_move_player(&body).map_err(|error| php_error(error.to_string()))?;
-        let state = state_from_move(packet).map_err(php_error)?;
+        let mut state = state_from_move(packet).map_err(php_error)?;
 
-        let mut states = player_states();
-        let current = states.get_mut(&(owner, session_id)).ok_or_else(|| {
-            php_error("protocol-84 MovePlayer received before spawned player state")
-        })?;
-        *current = state;
+        if !player_states().contains_key(&(owner, session_id)) {
+            return Err(php_error(
+                "protocol-84 MovePlayer received before spawned player state",
+            ));
+        }
+
+        state.view_delta = plan_view_delta(owner, session_id, state.chunk);
+        player_states().insert((owner, session_id), state);
         Ok(())
     })
 }

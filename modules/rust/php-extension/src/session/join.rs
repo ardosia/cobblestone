@@ -39,13 +39,79 @@ struct WorldView {
     pinned_chunks: Vec<ChunkCoord>,
 }
 
+fn view_contains(center: ChunkCoord, radius: i32, position: ChunkCoord) -> bool {
+    position.x() >= center.x().saturating_sub(radius)
+        && position.x() <= center.x().saturating_add(radius)
+        && position.z() >= center.z().saturating_sub(radius)
+        && position.z() <= center.z().saturating_add(radius)
+}
+
+fn view_positions(center: ChunkCoord, radius: i32) -> Vec<ChunkCoord> {
+    debug_assert!(radius >= 0);
+    let min_x = center.x().saturating_sub(radius);
+    let max_x = center.x().saturating_add(radius);
+    let min_z = center.z().saturating_sub(radius);
+    let max_z = center.z().saturating_add(radius);
+    let side = usize::try_from(radius.saturating_mul(2).saturating_add(1)).unwrap_or(0);
+    let mut positions = Vec::with_capacity(side.saturating_mul(side));
+
+    for x in min_x..=max_x {
+        for z in min_z..=max_z {
+            positions.push(ChunkCoord::new(x, z));
+        }
+    }
+
+    positions
+}
+
 impl WorldView {
     fn contains(&self, position: ChunkCoord) -> bool {
-        position.x() >= self.center.x().saturating_sub(self.radius)
-            && position.x() <= self.center.x().saturating_add(self.radius)
-            && position.z() >= self.center.z().saturating_sub(self.radius)
-            && position.z() <= self.center.z().saturating_add(self.radius)
+        view_contains(self.center, self.radius, position)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChunkViewDelta {
+    pub(crate) from_center: ChunkCoord,
+    pub(crate) to_center: ChunkCoord,
+    pub(crate) entering: Vec<ChunkCoord>,
+    pub(crate) leaving: Vec<ChunkCoord>,
+}
+
+fn chunk_view_delta(
+    from_center: ChunkCoord,
+    radius: i32,
+    to_center: ChunkCoord,
+) -> Option<ChunkViewDelta> {
+    if from_center == to_center {
+        return None;
+    }
+
+    let entering = view_positions(to_center, radius)
+        .into_iter()
+        .filter(|&position| !view_contains(from_center, radius, position))
+        .collect();
+    let leaving = view_positions(from_center, radius)
+        .into_iter()
+        .filter(|&position| !view_contains(to_center, radius, position))
+        .collect();
+
+    Some(ChunkViewDelta {
+        from_center,
+        to_center,
+        entering,
+        leaving,
+    })
+}
+
+pub(crate) fn plan_view_delta(
+    owner: RuntimeId,
+    session_id: SessionId,
+    to_center: ChunkCoord,
+) -> Option<ChunkViewDelta> {
+    let views = world_views();
+    let view = views.get(&(owner, session_id))?;
+    chunk_view_delta(view.center, view.radius, to_center)
 }
 
 #[derive(Debug)]
@@ -714,4 +780,66 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(
             cobblestone_session_protocol84_flush_world_changes
         ))
+}
+
+#[cfg(test)]
+mod view_delta_tests {
+    use super::*;
+
+    fn positions(values: &[(i32, i32)]) -> Vec<ChunkCoord> {
+        values.iter().map(|&(x, z)| ChunkCoord::new(x, z)).collect()
+    }
+
+    #[test]
+    fn unchanged_center_has_no_delta() {
+        assert_eq!(
+            chunk_view_delta(ChunkCoord::new(8, 8), 2, ChunkCoord::new(8, 8)),
+            None
+        );
+    }
+
+    #[test]
+    fn cardinal_shift_has_deterministic_entering_and_leaving_edges() {
+        let delta =
+            chunk_view_delta(ChunkCoord::new(0, 0), 1, ChunkCoord::new(1, 0)).expect("delta");
+
+        assert_eq!(delta.from_center, ChunkCoord::new(0, 0));
+        assert_eq!(delta.to_center, ChunkCoord::new(1, 0));
+        assert_eq!(delta.entering, positions(&[(2, -1), (2, 0), (2, 1)]));
+        assert_eq!(delta.leaving, positions(&[(-1, -1), (-1, 0), (-1, 1)]));
+    }
+
+    #[test]
+    fn diagonal_shift_keeps_x_then_z_order() {
+        let delta =
+            chunk_view_delta(ChunkCoord::new(0, 0), 1, ChunkCoord::new(1, 1)).expect("delta");
+
+        assert_eq!(
+            delta.entering,
+            positions(&[(0, 2), (1, 2), (2, 0), (2, 1), (2, 2)])
+        );
+        assert_eq!(
+            delta.leaving,
+            positions(&[(-1, -1), (-1, 0), (-1, 1), (0, -1), (1, -1)])
+        );
+    }
+
+    #[test]
+    fn multi_chunk_jump_replaces_the_entire_disjoint_view() {
+        let delta =
+            chunk_view_delta(ChunkCoord::new(0, 0), 1, ChunkCoord::new(4, 0)).expect("delta");
+
+        assert_eq!(delta.entering.len(), 9);
+        assert_eq!(delta.leaving.len(), 9);
+        assert_eq!(delta.entering.first(), Some(&ChunkCoord::new(3, -1)));
+        assert_eq!(delta.entering.last(), Some(&ChunkCoord::new(5, 1)));
+        assert_eq!(delta.leaving.first(), Some(&ChunkCoord::new(-1, -1)));
+        assert_eq!(delta.leaving.last(), Some(&ChunkCoord::new(1, 1)));
+        assert!(
+            delta
+                .entering
+                .iter()
+                .all(|position| !delta.leaving.contains(position))
+        );
+    }
 }
