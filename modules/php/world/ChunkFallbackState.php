@@ -20,6 +20,9 @@ final class ChunkFallbackState
     private ?int $persistedLightRevision = null;
     private ?int $persistedLifecycleFlags = null;
 
+    /** @var array<int, int> */
+    private array $extraData = [];
+
     public function revision(): int
     {
         return $this->revision;
@@ -69,6 +72,29 @@ final class ChunkFallbackState
         $this->generated = ($flags & Chunk::LIFECYCLE_GENERATED) !== 0;
         $this->populated = ($flags & Chunk::LIFECYCLE_POPULATED) !== 0;
         $this->lightPopulated = ($flags & Chunk::LIFECYCLE_LIGHT_POPULATED) !== 0;
+    }
+
+    public function blockExtraData(int $key): int
+    {
+        return $this->extraData[$key] ?? 0;
+    }
+
+    public function setBlockExtraData(int $key, int $data): int
+    {
+        $previous = $this->extraData[$key] ?? 0;
+        if ($data === 0) {
+            unset($this->extraData[$key]);
+        } else {
+            $this->extraData[$key] = $data;
+        }
+
+        return $previous;
+    }
+
+    /** @return array<int, int> */
+    public function extraData(): array
+    {
+        return $this->extraData;
     }
 
     public function isDirty(): bool

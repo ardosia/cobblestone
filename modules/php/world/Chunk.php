@@ -17,9 +17,6 @@ final class Chunk
     private string $biomes = '';
     private string $heightMap = '';
 
-    /** @var array<int, int> */
-    private array $extraData = [];
-
     private readonly ?ChunkFallbackState $fallbackState;
 
     public function __construct(
@@ -345,7 +342,7 @@ final class Chunk
             return $this->nativeStore->blockExtraData($this->position, $x, $y, $z);
         }
 
-        return $this->extraData[self::extraDataKey($x, $y, $z)] ?? 0;
+        return $this->fallbackState()->blockExtraData(self::extraDataKey($x, $y, $z));
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -359,15 +356,10 @@ final class Chunk
             return $this->nativeStore->setBlockExtraData($this->position, $x, $y, $z, $data);
         }
 
-        $key = self::extraDataKey($x, $y, $z);
-        $previous = $this->extraData[$key] ?? 0;
-        if ($data === 0) {
-            unset($this->extraData[$key]);
-        } else {
-            $this->extraData[$key] = $data;
-        }
-
-        return $previous;
+        return $this->fallbackState()->setBlockExtraData(
+            self::extraDataKey($x, $y, $z),
+            $data,
+        );
     }
 
     /** @return array<int, int> */
@@ -375,7 +367,7 @@ final class Chunk
     {
         return $this->nativeStore !== null
             ? $this->nativeSnapshot()->extraData
-            : $this->extraData;
+            : $this->fallbackState()->extraData();
     }
 
     /**
@@ -409,7 +401,7 @@ final class Chunk
             $blockLight,
             $this->biomes,
             $this->heightMap,
-            $this->extraData,
+            $this->fallbackState()->extraData(),
             $this->fallbackState()->lightRevision(),
         );
     }
