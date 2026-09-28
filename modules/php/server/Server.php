@@ -33,13 +33,12 @@ use Throwable;
 
 final class Server
 {
-    private const CHUNK_EVICTION_BUDGET = 64;
-
     private readonly EventBus $events;
     private readonly CommandRegistry $commands;
     private readonly Scheduler $scheduler;
     private readonly PluginManager $plugins;
     private readonly SessionBootstrap $bootstrap;
+    private readonly WorldMaintenance $worldMaintenance;
     private readonly LoggerInterface $logger;
 
     private ServerState $state = ServerState::Starting;
@@ -65,6 +64,7 @@ final class Server
             $this->logs,
         );
         $this->bootstrap = new SessionBootstrap($this->sessions, $this->world, $initialChunkRadius);
+        $this->worldMaintenance = new WorldMaintenance($this->sessions, $this->world, $this->logger);
 
         $this->state = ServerState::Running;
         $this->events->dispatch(new ServerStarted());
@@ -237,32 +237,13 @@ final class Server
             }
         }
 
-        $nativeStore = $this->world->nativeStore();
-        if ($nativeStore !== null && $nativeStore->hasStorage()) {
-            $storageTick = $nativeStore->storageTick(64);
-            if ($storageTick['compaction_failed'] > 0) {
-                $storageStats = $nativeStore->storageStats();
-                $this->logger->warning(
-                    'Persistent region compaction failed; automatic retry is blocked for this process',
-                    [
-                        'failures' => $storageTick['compaction_failed'],
-                        'blocked_regions' => $storageStats['compaction_blocked_regions'],
-                        'last_error' => $storageStats['compaction_last_error'],
-                    ],
-                );
-            }
-        }
+        $this->worldMaintenance->tickStorage();
 
         foreach ($this->bootstrap->tick() as $completion) {
             $this->dispatchSpawned($completion['sessionId'], $completion['update']);
         }
 
-        if ($nativeStore !== null) {
-            $this->sessions->flushWorldChanges($nativeStore->handle());
-            if ($nativeStore->hasStorage()) {
-                $this->world->chunks()->evictCleanUnpinned(self::CHUNK_EVICTION_BUDGET);
-            }
-        }
+        $this->worldMaintenance->flushWorldChanges();
     }
 
     public function stop(): void
