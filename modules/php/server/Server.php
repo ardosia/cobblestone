@@ -20,7 +20,7 @@ use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionLoginAccepted;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\Session\SessionBootstrap;
-use Cobblestone\Session\JoinResult;
+use Cobblestone\Session\BootstrapUpdate;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\World\ChunkLoadPending;
 use Cobblestone\World\ChunkPos;
@@ -215,7 +215,7 @@ final class Server
                     continue;
                 }
 
-                if ($result->kind === JoinResult::LOGIN_ACCEPTED) {
+                if ($result->kind === BootstrapUpdate::LOGIN_ACCEPTED) {
                     $this->logger->info(
                         'Session login accepted',
                         ['session' => $event->sessionId, 'protocol' => 84],
@@ -223,10 +223,10 @@ final class Server
                     $this->events->dispatch(new SessionLoginAccepted($event->sessionId));
                     continue;
                 }
-                if ($result->kind === JoinResult::CHUNKS_LOADING) {
+                if ($result->kind === BootstrapUpdate::CHUNKS_LOADING) {
                     continue;
                 }
-                if ($result->kind === JoinResult::SPAWNED) {
+                if ($result->kind === BootstrapUpdate::SPAWNED) {
                     $this->dispatchSpawned($event->sessionId, $result);
                     continue;
                 }
@@ -308,7 +308,7 @@ final class Server
         }
     }
 
-    private function dispatchSpawned(int $sessionId, JoinResult $result): void
+    private function dispatchSpawned(int $sessionId, BootstrapUpdate $result): void
     {
         $effectiveRadius = $result->effectiveRadius ?? 0;
         $this->logger->info(

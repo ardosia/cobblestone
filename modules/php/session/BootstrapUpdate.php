@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\Session;
 
-final readonly class JoinResult
+final readonly class BootstrapUpdate
 {
     public const LOGIN_ACCEPTED = 'login-accepted';
     public const CHUNKS_LOADING = 'chunks-loading';

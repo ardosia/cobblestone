@@ -61,7 +61,7 @@ final class SessionBootstrap
     /**
      * Advances persistent chunk loads without blocking the owner runtime.
      *
-     * @return list<array{sessionId: int, result: JoinResult}>
+     * @return list<array{sessionId: int, result: BootstrapUpdate}>
      */
     public function tick(): array
     {
@@ -93,7 +93,7 @@ final class SessionBootstrap
         return $completed;
     }
 
-    public function handle(Packet $packet): JoinResult
+    public function handle(Packet $packet): BootstrapUpdate
     {
         $state = $this->states[$packet->sessionId] ?? null;
         if ($state === null) {
@@ -121,7 +121,7 @@ final class SessionBootstrap
                 $this->world->name(),
             );
             $this->states[$packet->sessionId] = self::WAIT_CHUNK_RADIUS;
-            return JoinResult::loginAccepted();
+            return BootstrapUpdate::loginAccepted();
         }
 
         if ($state === self::WAIT_CHUNK_RADIUS) {
@@ -148,7 +148,7 @@ final class SessionBootstrap
                 ?? throw new LogicException("missing pending spawn state for session {$packet->sessionId}");
 
             if ($packet->packetId === self::REQUEST_CHUNK_RADIUS_PACKET) {
-                return JoinResult::chunksLoading(
+                return BootstrapUpdate::chunksLoading(
                     $pending['requested'],
                     $pending['effective'],
                 );
@@ -159,7 +159,7 @@ final class SessionBootstrap
             );
         }
 
-        return JoinResult::gameplay();
+        return BootstrapUpdate::gameplay();
     }
 
     private function startSpawn(
@@ -167,7 +167,7 @@ final class SessionBootstrap
         int $requestedRadius,
         int $effectiveRadius,
         ChunkPos $center,
-    ): JoinResult {
+    ): BootstrapUpdate {
         $nativeStore = $this->world->nativeStore();
         if ($nativeStore === null || !$nativeStore->hasStorage()) {
             $chunkCount = $this->ensureInitialChunks($effectiveRadius, $center);
@@ -202,7 +202,7 @@ final class SessionBootstrap
         ];
         $this->states[$sessionId] = self::WAIT_CHUNK_LOAD;
 
-        return JoinResult::chunksLoading($requestedRadius, $effectiveRadius);
+        return BootstrapUpdate::chunksLoading($requestedRadius, $effectiveRadius);
     }
 
     /**
@@ -257,7 +257,7 @@ final class SessionBootstrap
         int $effectiveRadius,
         ChunkPos $center,
         int $chunkCount,
-    ): JoinResult {
+    ): BootstrapUpdate {
         $encodeStarted = hrtime(true);
         $nativeStore = $this->world->nativeStore();
         if ($nativeStore !== null) {
@@ -280,7 +280,7 @@ final class SessionBootstrap
 
         $this->states[$sessionId] = self::SPAWNED;
 
-        return JoinResult::spawned(
+        return BootstrapUpdate::spawned(
             $requestedRadius,
             $effectiveRadius,
             $chunkCount,
