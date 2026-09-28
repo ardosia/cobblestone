@@ -20,14 +20,7 @@ final class Chunk
     /** @var array<int, int> */
     private array $extraData = [];
 
-    private bool $generated = false;
-    private bool $populated = false;
-    private bool $lightPopulated = false;
-    private int $revision = 0;
-    private int $lightRevision = 0;
-    private ?int $persistedRevision = null;
-    private ?int $persistedLightRevision = null;
-    private ?int $persistedLifecycleFlags = null;
+    private readonly ?ChunkFallbackState $fallbackState;
 
     public function __construct(
         private readonly ChunkPos $position,
@@ -36,6 +29,8 @@ final class Chunk
         bool $nativeResident = false,
     ) {
         $biome ??= new BiomeId(1);
+        $this->fallbackState = $this->nativeStore === null ? new ChunkFallbackState() : null;
+
         if ($this->nativeStore !== null) {
             if (!$nativeResident) {
                 $this->nativeStore->ensureChunk($this->position, $biome);
@@ -59,7 +54,7 @@ final class Chunk
 
     public function revision(): int
     {
-        return $this->nativeStore?->terrainRevision($this->position) ?? $this->revision;
+        return $this->nativeStore?->terrainRevision($this->position) ?? $this->fallbackState()->revision();
     }
 
     public function terrainRevision(): ChunkRevision
@@ -80,7 +75,7 @@ final class Chunk
     public function lightRevision(): LightRevision
     {
         return new LightRevision(
-            $this->nativeStore?->lightRevision($this->position) ?? $this->lightRevision,
+            $this->nativeStore?->lightRevision($this->position) ?? $this->fallbackState()->lightRevision(),
         );
     }
 
@@ -92,16 +87,7 @@ final class Chunk
             return;
         }
 
-        if ($this->revision !== $expected) {
-            throw new \LogicException(
-                "chunk revision changed: expected {$expected}, current {$this->revision}",
-            );
-        }
-        if ($next !== $expected + 1) {
-            throw new \LogicException('chunk mutation revision must advance exactly once');
-        }
-
-        $this->revision = $next;
+        $this->fallbackState()->commitRevision($expected, $next);
     }
 
     /** @internal Light-commit primitive. */
@@ -112,16 +98,7 @@ final class Chunk
             return;
         }
 
-        if ($this->lightRevision !== $expected) {
-            throw new \LogicException(
-                "chunk light revision changed: expected {$expected}, current {$this->lightRevision}",
-            );
-        }
-        if ($next !== $expected + 1) {
-            throw new \LogicException('chunk light revision must advance exactly once');
-        }
-
-        $this->lightRevision = $next;
+        $this->fallbackState()->commitLightRevision($expected, $next);
     }
 
     public function blockStateId(int $x, int $y, int $z): int
@@ -425,7 +402,7 @@ final class Chunk
 
         return new ChunkSnapshot(
             $this->position,
-            $this->revision,
+            $this->fallbackState()->revision(),
             $blockIds,
             $blockData,
             $skyLight,
@@ -433,7 +410,7 @@ final class Chunk
             $this->biomes,
             $this->heightMap,
             $this->extraData,
-            $this->lightRevision,
+            $this->fallbackState()->lightRevision(),
         );
     }
 
@@ -451,7 +428,11 @@ final class Chunk
             $block .= $snapshot->blockLight;
         }
 
-        return new LightSnapshot(new LightRevision($this->lightRevision), $sky, $block);
+        return new LightSnapshot(
+            new LightRevision($this->fallbackState()->lightRevision()),
+            $sky,
+            $block,
+        );
     }
 
 
@@ -505,9 +486,7 @@ final class Chunk
             return $this->nativeStore->lifecycleFlags($this->position);
         }
 
-        return ($this->generated ? self::LIFECYCLE_GENERATED : 0)
-            | ($this->populated ? self::LIFECYCLE_POPULATED : 0)
-            | ($this->lightPopulated ? self::LIFECYCLE_LIGHT_POPULATED : 0);
+        return $this->fallbackState()->lifecycleFlags();
     }
 
     public function isGenerated(): bool
@@ -562,9 +541,7 @@ final class Chunk
             return $this->nativeStore->chunkDirty($this->position);
         }
 
-        return $this->persistedRevision !== $this->revision
-            || $this->persistedLightRevision !== $this->lightRevision
-            || $this->persistedLifecycleFlags !== $this->lifecycleFlags();
+        return $this->fallbackState()->isDirty();
     }
 
     /** @internal Persistence completion primitive. */
@@ -583,22 +560,11 @@ final class Chunk
             return;
         }
 
-        if ($terrainRevision > $this->revision || $lightRevision > $this->lightRevision) {
-            throw new \LogicException('persisted chunk revision cannot exceed live revision');
-        }
-        if ($this->persistedRevision !== null && $terrainRevision < $this->persistedRevision) {
-            throw new \LogicException('persisted terrain revision cannot regress');
-        }
-        if (
-            $this->persistedLightRevision !== null
-            && $lightRevision < $this->persistedLightRevision
-        ) {
-            throw new \LogicException('persisted light revision cannot regress');
-        }
-
-        $this->persistedRevision = $terrainRevision;
-        $this->persistedLightRevision = $lightRevision;
-        $this->persistedLifecycleFlags = $lifecycleFlags;
+        $this->fallbackState()->markPersisted(
+            $terrainRevision,
+            $lightRevision,
+            $lifecycleFlags,
+        );
     }
 
     /** @internal Test/bootstrap helper until asynchronous persistence owns completion. */
@@ -618,11 +584,14 @@ final class Chunk
             return;
         }
 
-        $this->generated = ($flags & self::LIFECYCLE_GENERATED) !== 0;
-        $this->populated = ($flags & self::LIFECYCLE_POPULATED) !== 0;
-        $this->lightPopulated = ($flags & self::LIFECYCLE_LIGHT_POPULATED) !== 0;
+        $this->fallbackState()->setLifecycleFlags($flags);
     }
 
+    private function fallbackState(): ChunkFallbackState
+    {
+        return $this->fallbackState
+            ?? throw new \LogicException('PHP fallback state requested for a native-backed chunk');
+    }
 
     private function nativeSnapshot(): ChunkSnapshot
     {
