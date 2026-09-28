@@ -1,0 +1,504 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "2bb33d4ac6ec774a9cc21f6355a77432",
+    "packages": [
+        {
+            "name": "ardosia/cobblestone-kernel",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/kernel",
+                "reference": "ada2b3c8b8b461212633dba2855091b0e56842bd"
+            },
+            "require": {
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Command\\": "Command/",
+                    "Cobblestone\\Event\\": "Event/"
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone owner-runtime event and command primitives.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-log",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/log",
+                "reference": "cba2c2fe5300544c82237cb21854cc1384fe3f5c"
+            },
+            "require": {
+                "monolog/monolog": "^3.0",
+                "php": ">=8.5",
+                "psr/log": "^3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Log\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone structured logging with a Spring Boot-inspired console layout.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-native-session",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/native-session",
+                "reference": "dc59a5dedacd63c2d5b905ebf21ab63714c17690"
+            },
+            "require": {
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Native\\Session\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone PHP facade over the native session mechanism.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-plugin",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/plugin",
+                "reference": "a3a0a9be7cbb7073697c516ff5c7850976b9c7f8"
+            },
+            "require": {
+                "ardosia/cobblestone-kernel": "dev-main",
+                "ardosia/cobblestone-log": "dev-main",
+                "ardosia/cobblestone-task": "dev-main",
+                "php": ">=8.5",
+                "psr/log": "^3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Plugin\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone plugin contracts and plugin lifecycle.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-server",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/server",
+                "reference": "c4584df9823c6b1a778944951a0de2fe579ce90f"
+            },
+            "require": {
+                "ardosia/cobblestone-kernel": "dev-main",
+                "ardosia/cobblestone-log": "dev-main",
+                "ardosia/cobblestone-native-session": "dev-main",
+                "ardosia/cobblestone-plugin": "dev-main",
+                "ardosia/cobblestone-session": "dev-main",
+                "ardosia/cobblestone-task": "dev-main",
+                "ardosia/cobblestone-world": "dev-main",
+                "ardosia/cobblestone-world-generation": "dev-main",
+                "ardosia/cobblestone-world-light": "dev-main",
+                "ardosia/cobblestone-world-mutation": "dev-main",
+                "ardosia/cobblestone-world-region": "dev-main",
+                "php": ">=8.5",
+                "psr/log": "^3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Server\\": "",
+                    "Cobblestone\\Tick\\": "Tick/"
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone server composition and lifecycle.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-session",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/session",
+                "reference": "58b734a510917abb8483cb96b115a0df0c56705b"
+            },
+            "require": {
+                "ardosia/cobblestone-native-session": "dev-main",
+                "ardosia/cobblestone-world": "dev-main",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Session\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone PHP session lifecycle and join semantics.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-task",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/task",
+                "reference": "4a4892be52bd8c4e6ccfd3d3e1140432bdc7b572"
+            },
+            "require": {
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\Task\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone owner-runtime scheduling and Fiber primitives.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-world",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/world",
+                "reference": "6ff4e2a792847eb7e2b19bb32bdf75c2587dda04"
+            },
+            "require": {
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\World\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone fixed-target world model and collaboration contracts.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-world-generation",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/world-generation",
+                "reference": "6b52cbe78aa24e8c72fdc97b0743780354f03e35"
+            },
+            "require": {
+                "ardosia/cobblestone-world": "dev-main",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\World\\Generator\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone fixed-target world generation implementations.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-world-light",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/world-light",
+                "reference": "0ebefda2293d3af34f0261314b87618000db8be0"
+            },
+            "require": {
+                "ardosia/cobblestone-world": "dev-main",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\World\\Light\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone fixed-target world lighting substrate.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-world-mutation",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/world-mutation",
+                "reference": "c1ff8fae7d11a7d89a3798320cb20e188c25fc06"
+            },
+            "require": {
+                "ardosia/cobblestone-world": "dev-main",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\World\\Mutation\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone staged world-mutation mechanism.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "ardosia/cobblestone-world-region",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "modules/php/world-region",
+                "reference": "0501b2040862026b74488d003414e70c499530ee"
+            },
+            "require": {
+                "ardosia/cobblestone-world": "dev-main",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cobblestone\\World\\Region\\": ""
+                }
+            },
+            "license": [
+                "MIT OR Apache-2.0"
+            ],
+            "description": "Cobblestone execution-region mapping mechanism.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "monolog/monolog",
+            "version": "3.12.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Seldaek/monolog.git",
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/72c534fc0ab181ef52d92a68382318631e301608",
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1",
+                "psr/log": "^2.0 || ^3.0"
+            },
+            "provide": {
+                "psr/log-implementation": "3.0.0"
+            },
+            "require-dev": {
+                "aws/aws-sdk-php": "^3.0",
+                "doctrine/couchdb": "~1.0@dev",
+                "elasticsearch/elasticsearch": "^7 || ^8",
+                "ext-json": "*",
+                "graylog2/gelf-php": "^1.4.2 || ^2.0",
+                "guzzlehttp/guzzle": "^7.4.5",
+                "guzzlehttp/psr7": "^2.2",
+                "mongodb/mongodb": "^1.8 || ^2.0",
+                "php-amqplib/php-amqplib": "~2.4 || ^3",
+                "php-console/php-console": "^3.1.8",
+                "phpstan/phpstan": "^2",
+                "phpstan/phpstan-deprecation-rules": "^2",
+                "phpstan/phpstan-strict-rules": "^2",
+                "phpunit/phpunit": "^10.5.17 || ^11.0.7",
+                "predis/predis": "^1.1 || ^2",
+                "psr/clock": "^1.0",
+                "rollbar/rollbar": "^4.0",
+                "ruflin/elastica": "^7 || ^8",
+                "symfony/mailer": "^5.4 || ^6",
+                "symfony/mime": "^5.4 || ^6"
+            },
+            "suggest": {
+                "aws/aws-sdk-php": "Allow sending log messages to AWS services like DynamoDB",
+                "doctrine/couchdb": "Allow sending log messages to a CouchDB server",
+                "elasticsearch/elasticsearch": "Allow sending log messages to an Elasticsearch server via official client",
+                "ext-amqp": "Allow sending log messages to an AMQP server (1.0+ required)",
+                "ext-curl": "Required to send log messages using the IFTTTHandler, the LogglyHandler, the SendGridHandler, the SlackWebhookHandler or the TelegramBotHandler",
+                "ext-mbstring": "Allow to work properly with unicode symbols",
+                "ext-mongodb": "Allow sending log messages to a MongoDB server (via driver)",
+                "ext-openssl": "Required to send log messages using SSL",
+                "ext-sockets": "Allow sending log messages to a Syslog server (via UDP driver)",
+                "graylog2/gelf-php": "Allow sending log messages to a GrayLog2 server",
+                "mongodb/mongodb": "Allow sending log messages to a MongoDB server (via library)",
+                "php-amqplib/php-amqplib": "Allow sending log messages to an AMQP server using php-amqplib",
+                "psr/clock": "Required to pass a clock to the Logger and control the timestamp of log records",
+                "rollbar/rollbar": "Allow sending log messages to Rollbar",
+                "ruflin/elastica": "Allow sending log messages to an Elastic Search server"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Monolog\\": "src/Monolog"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jordi Boggiano",
+                    "email": "j.boggiano@seld.be",
+                    "homepage": "https://seld.be"
+                }
+            ],
+            "description": "Sends your logs to files, sockets, inboxes, databases and various web services",
+            "homepage": "https://github.com/Seldaek/monolog",
+            "keywords": [
+                "log",
+                "logging",
+                "psr-3"
+            ],
+            "support": {
+                "issues": "https://github.com/Seldaek/monolog/issues",
+                "source": "https://github.com/Seldaek/monolog/tree/3.12.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/Seldaek",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/monolog/monolog",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-09-09T08:34:20+00:00"
+        },
+        {
+            "name": "psr/log",
+            "version": "3.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/log.git",
+                "reference": "f16e1d5863e37f8d8c2a01719f5b34baa2b714d3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/log/zipball/f16e1d5863e37f8d8c2a01719f5b34baa2b714d3",
+                "reference": "f16e1d5863e37f8d8c2a01719f5b34baa2b714d3",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Log\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for logging libraries",
+            "homepage": "https://github.com/php-fig/log",
+            "keywords": [
+                "log",
+                "psr",
+                "psr-3"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/log/tree/3.0.2"
+            },
+            "time": "2024-09-11T13:17:53+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "dev",
+    "stability-flags": {
+        "ardosia/cobblestone-server": 20
+    },
+    "prefer-stable": true,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=8.5"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}
