@@ -17,6 +17,9 @@ use Throwable;
 /** @internal Application composition root for concrete world mechanisms. */
 final class WorldFactory
 {
+    public const DEFAULT_COMPACTION_MIN_DEAD_BYTES = 64 * 1024 * 1024;
+    public const DEFAULT_COMPACTION_MIN_DEAD_PERCENT = 50;
+
     public static function flat(string $name = 'Cobblestone', int $seed = -1): World
     {
         return self::create($name, $seed, FlatGenerator::defaults());
@@ -29,8 +32,8 @@ final class WorldFactory
         ?string $preset = null,
         int $saveWorkers = 2,
         int $loadWorkers = 2,
-        int $compactionMinDeadBytes = 0,
-        int $compactionMinDeadPercent = 0,
+        int $compactionMinDeadBytes = self::DEFAULT_COMPACTION_MIN_DEAD_BYTES,
+        int $compactionMinDeadPercent = self::DEFAULT_COMPACTION_MIN_DEAD_PERCENT,
     ): World {
         if (!NativeWorldStore::available()) {
             throw new \RuntimeException('persistent worlds require cobblestone_core_php native world storage');

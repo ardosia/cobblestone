@@ -14,13 +14,20 @@ use cobblestone_storage::{
 };
 
 fn snapshot(noisy: bool) -> cobblestone_core::ChunkSnapshot {
+    snapshot_at(ChunkCoord::new(0, 0), noisy, 0x1234_5678)
+}
+
+fn snapshot_at(
+    position: ChunkCoord,
+    noisy: bool,
+    noise_seed: u32,
+) -> cobblestone_core::ChunkSnapshot {
     let store = WorldStore::new();
-    let position = ChunkCoord::new(0, 0);
     let flags =
         CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED | CHUNK_LIFECYCLE_LIGHT_POPULATED;
 
     let (states, sky_light, block_light, biomes, height_map) = if noisy {
-        let mut seed = 0x1234_5678_u32;
+        let mut seed = noise_seed;
         let mut next = || {
             seed ^= seed << 13;
             seed ^= seed >> 17;
@@ -162,6 +169,70 @@ fn bench_region(label: &str, snapshot: &cobblestone_core::ChunkSnapshot, iterati
     std::fs::remove_dir_all(root).unwrap();
 }
 
+fn bench_policy_churn() {
+    const DEFAULT_MIN_DEAD_BYTES: u64 = 64 * 1024 * 1024;
+    const HOT_CHUNKS: usize = 64;
+
+    let root: PathBuf = std::env::temp_dir().join(format!(
+        "cobblestone-storage-policy-bench-{}",
+        std::process::id()
+    ));
+    let path = root.join("regions/r.0.0.cwr");
+    let mut region = RegionFile::open_or_create(&path, [0x51; 16], RegionCoord::new(0, 0)).unwrap();
+
+    let mut snapshots = Vec::with_capacity(256);
+    for z in 0..16 {
+        for x in 0..16 {
+            let index = (z * 16 + x) as usize;
+            let position = ChunkCoord::new(x, z);
+            let noisy = index < HOT_CHUNKS;
+            snapshots.push(snapshot_at(
+                position,
+                noisy,
+                0x9e37_79b9_u32.wrapping_add(index as u32 * 0x85eb_ca6b),
+            ));
+        }
+    }
+
+    for snapshot in &snapshots {
+        region
+            .save_chunk(snapshot, CompressionPolicy::Adaptive)
+            .unwrap();
+    }
+
+    let started = Instant::now();
+    let mut rewrite_rounds = 0_usize;
+    while region.stats().unwrap().dead_bytes < DEFAULT_MIN_DEAD_BYTES {
+        for snapshot in &snapshots[..HOT_CHUNKS] {
+            region
+                .save_chunk(snapshot, CompressionPolicy::Adaptive)
+                .unwrap();
+        }
+        rewrite_rounds += 1;
+        assert!(
+            rewrite_rounds <= 64,
+            "policy benchmark failed to reach threshold"
+        );
+    }
+    let churn_ns = started.elapsed().as_secs_f64() * 1e9;
+    let before = region.stats().unwrap();
+
+    let compact_started = Instant::now();
+    let compacted = region.compact().unwrap();
+    let compact_ns = compact_started.elapsed().as_secs_f64() * 1e9;
+
+    println!(
+        "storage_bench kind=policy_churn hot_chunks={HOT_CHUNKS} rewrite_rounds={rewrite_rounds} live_bytes={} dead_bytes={} dead_ratio={:.3} churn_ns={churn_ns:.0} reclaimed_bytes={} compact_ns={compact_ns:.0}",
+        before.live_bytes,
+        before.dead_bytes,
+        before.dead_bytes as f64 / before.record_bytes as f64,
+        compacted.bytes_reclaimed,
+    );
+
+    drop(region);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
 fn main() {
     let flat = snapshot(false);
     let noisy = snapshot(true);
@@ -169,4 +240,5 @@ fn main() {
     bench_codec("noisy", &noisy, 250);
     bench_region("flat", &flat, 50);
     bench_region("noisy", &noisy, 25);
+    bench_policy_churn();
 }

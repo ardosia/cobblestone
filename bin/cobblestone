@@ -44,8 +44,14 @@ $worldSeedText = getenv('COBBLESTONE_WORLD_SEED') ?: '-1';
 $flatPreset = getenv('COBBLESTONE_FLAT_PRESET') ?: '2;7,2x3,2;1;';
 $saveWorkers = (int) (getenv('COBBLESTONE_SAVE_WORKERS') ?: '2');
 $loadWorkers = (int) (getenv('COBBLESTONE_LOAD_WORKERS') ?: '2');
-$compactionMinDeadBytesText = getenv('COBBLESTONE_COMPACTION_MIN_DEAD_BYTES') ?: '0';
-$compactionMinDeadPercentText = getenv('COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT') ?: '0';
+$compactionMinDeadBytesText = getenv('COBBLESTONE_COMPACTION_MIN_DEAD_BYTES');
+$compactionMinDeadBytesText = is_string($compactionMinDeadBytesText) && $compactionMinDeadBytesText !== ''
+    ? $compactionMinDeadBytesText
+    : (string) WorldFactory::DEFAULT_COMPACTION_MIN_DEAD_BYTES;
+$compactionMinDeadPercentText = getenv('COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT');
+$compactionMinDeadPercentText = is_string($compactionMinDeadPercentText) && $compactionMinDeadPercentText !== ''
+    ? $compactionMinDeadPercentText
+    : (string) WorldFactory::DEFAULT_COMPACTION_MIN_DEAD_PERCENT;
 
 if ($maxConnections <= 0) {
     $logger->error('COBBLESTONE_MAX_CONNECTIONS must be positive');

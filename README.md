@@ -90,6 +90,7 @@ composer test
 composer verify
 composer serve
 composer bench:scheduler
+composer bench:storage
 ```
 
 Focused native commands:
@@ -102,7 +103,7 @@ composer test:php
 
 `composer modules` lists the local PHP packages and Rust crates.
 
-The production CLI uses the custom persistent world store by default at `worlds/world` (ignored by Git). `COBBLESTONE_WORLD_DIR` selects another directory; `COBBLESTONE_WORLD_NAME`, `COBBLESTONE_WORLD_SEED`, and `COBBLESTONE_FLAT_PRESET` are creation defaults only and stored `world.cwm` metadata wins on reopen. `COBBLESTONE_SAVE_WORKERS` and `COBBLESTONE_LOAD_WORKERS` select 1..32 native storage workers and default to 2 each. Automatic region compaction is disabled by default while representative workload thresholds are collected. Operators can explicitly opt in with `COBBLESTONE_COMPACTION_MIN_DEAD_BYTES` and/or `COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT`; zero disables that criterion, both zero disable scheduling, and every enabled criterion must match before native storage workers queue a compaction.
+The production CLI uses the custom persistent world store by default at `worlds/world` (ignored by Git). `COBBLESTONE_WORLD_DIR` selects another directory; `COBBLESTONE_WORLD_NAME`, `COBBLESTONE_WORLD_SEED`, and `COBBLESTONE_FLAT_PRESET` are creation defaults only and stored `world.cwm` metadata wins on reopen. `COBBLESTONE_SAVE_WORKERS` and `COBBLESTONE_LOAD_WORKERS` select 1..32 native storage workers and default to 2 each. Production region compaction uses a conservative default gate of at least 64 MiB reclaimable dead records and at least 50% dead record bytes. `COBBLESTONE_COMPACTION_MIN_DEAD_BYTES` and `COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT` override those gates; zero disables that criterion, both zero disable scheduling, and every enabled criterion must match before native storage workers queue a compaction.
 
 Automatic GitHub Actions runs are temporarily disabled while the current repository/package cleanup is validated locally. The workflow remains available through manual dispatch.
 
