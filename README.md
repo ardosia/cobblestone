@@ -18,7 +18,8 @@ Product code lives under `modules/`:
 ```text
 modules/
 ├── php/
-│   ├── kernel/
+│   ├── command/
+│   ├── event/
 │   ├── log/
 │   ├── plugin/
 │   ├── server/
