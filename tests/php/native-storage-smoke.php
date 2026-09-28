@@ -8,6 +8,7 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\NativeChunkLoadStatus;
 use Cobblestone\World\NativeWorldStore;
 
 function nativeStorageExpect(bool $condition, string $message): void
@@ -141,6 +142,73 @@ try {
         nativeStorageExpect($metadata->generatorId === 2, 'reopen did not trust stored generator id');
         nativeStorageExpect($metadata->generatorSettings === '2;7,2x3,2;1;', 'reopen preset mismatch');
         nativeStorageExpect($metadata->uuid === str_repeat("Z", 16), 'reopen UUID mismatch');
+
+        nativeStorageExpect(
+            $reopened->requestStorageLoad($position) === NativeChunkLoadStatus::Queued,
+            'persisted chunk load was not queued',
+        );
+        nativeStorageExpect(
+            $reopened->requestStorageLoad($position) === NativeChunkLoadStatus::Joined,
+            'duplicate persisted chunk load did not join',
+        );
+        for ($attempt = 0; $attempt < 500; ++$attempt) {
+            $reopened->storageTick(64);
+            $status = $reopened->requestStorageLoad($position);
+            if ($status === NativeChunkLoadStatus::Resident) {
+                break;
+            }
+            nativeStorageExpect(
+                $status !== NativeChunkLoadStatus::Missing,
+                'persisted chunk unexpectedly became a durable miss',
+            );
+            usleep(1_000);
+        }
+        nativeStorageExpect(
+            $reopened->requestStorageLoad($position) === NativeChunkLoadStatus::Resident,
+            'persisted chunk was not imported into WorldStore',
+        );
+        nativeStorageExpect(
+            $reopened->blockStateId($position, 0, 0, 0) === (7 << 4),
+            'loaded persistent chunk block state mismatch',
+        );
+        nativeStorageExpect(
+            !$reopened->chunkDirty($position),
+            'loaded persistent chunk did not enter residency clean',
+        );
+
+        $missing = new ChunkPos(50, -50);
+        nativeStorageExpect(
+            $reopened->requestStorageLoad($missing) === NativeChunkLoadStatus::Queued,
+            'missing chunk load was not queued',
+        );
+        for ($attempt = 0; $attempt < 500; ++$attempt) {
+            $reopened->storageTick(64);
+            $status = $reopened->requestStorageLoad($missing);
+            if ($status === NativeChunkLoadStatus::Missing) {
+                break;
+            }
+            nativeStorageExpect(
+                $status !== NativeChunkLoadStatus::Resident,
+                'durably missing chunk became resident before generation',
+            );
+            usleep(1_000);
+        }
+        nativeStorageExpect(
+            $reopened->requestStorageLoad($missing) === NativeChunkLoadStatus::Missing,
+            'durable missing chunk did not expose Missing state',
+        );
+        nativeStorageExpect(
+            $reopened->ensureChunk($missing, new BiomeId(1)),
+            'generation after durable miss did not create native chunk',
+        );
+        nativeStorageExpect(
+            $reopened->requestStorageLoad($missing) === NativeChunkLoadStatus::Resident,
+            'generated chunk did not clear durable-miss state',
+        );
+        nativeStorageExpect(
+            $reopened->chunkDirty($missing),
+            'generated chunk after durable miss was not dirty',
+        );
     } finally {
         $reopened->destroy();
     }

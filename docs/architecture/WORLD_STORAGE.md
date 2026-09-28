@@ -1,6 +1,6 @@
 # Cobblestone world storage v1 design
 
-Status: v1 world metadata, binary region/chunk format, bounded native async save/load orchestration, and native WorldStore save/watermark attachment implemented; durable load/import, production server composition, and compaction remain pending.
+Status: v1 world metadata, binary region/chunk format, bounded native async save/load orchestration, and native WorldStore save/load attachment implemented; production chunk-acquisition/server composition and compaction remain pending.
 
 ## Goals
 
@@ -236,7 +236,7 @@ The residency contract is now explicit and native-authoritative:
 
 `MainChunkSource::remove()` remains a compatibility wrapper around safe unload: it returns the former PHP facade only when unload actually succeeds. Runtime code should use `unload()` and inspect the status rather than interpreting a missing return value.
 
-Persistence-specific duplicate-load collapse is implemented in the native load service: exactly one disk request may be in flight per chunk coordinate, and duplicate requesters join that operation. World integration must treat only a successful durable `Missing` completion as permission to generate; failed/corrupt loads are errors and must never silently become empty/generated chunks.
+Persistence-specific duplicate-load collapse is implemented end-to-end in the native world bridge: exactly one disk request may be in flight per chunk coordinate, and duplicate requesters join that operation. The coarse request state is `Resident`, `Queued`, `Joined`, or durable `Missing`. Storage ticks consume load completions below Zend and import decoded `ChunkImport` records directly into `WorldStore` with an atomic import-if-absent rule, so a late disk completion cannot overwrite live residency. Imported records enter clean at their durable terrain/light/lifecycle revisions. A failed/corrupt load makes the storage tick fail; it is never converted into generation. Only a durable `Missing` result is permission to generate, and native generation clears the remembered miss and starts the new chunk dirty.
 
 Save-side snapshot handoff is now implemented: the extension scans dirty native residency below Zend, submits immutable snapshots to the bounded save service, advances persisted watermarks only after durable receipts, and leaves newer live revisions dirty. Explicit world destruction additionally schedules every still-unsaved dirty snapshot and waits for completion before removing the native world handle. Safe eviction remains separately gated by clean + unpinned state; automatic eviction policy belongs with the upcoming load/residency integration rather than the save worker.
 
@@ -260,4 +260,4 @@ Checksums detect corruption; they do not authenticate data.
 
 Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, parent-directory fsync on first region creation, bounded region-sharded async saves, and deduplicated bounded async loads. Tests cover torn-index recovery, exact save receipts, save shutdown draining, durable misses without file creation, and one in-flight disk read per chunk.
 
-The next bounded milestone is durable load/import integration: request/join native loads from chunk acquisition, import successful `ChunkImport` records directly into `WorldStore`, permit generation only after a durable `Missing`, then wire one coarse storage tick into production server composition. Compaction follows once real save workloads provide dead-byte measurements.
+The next bounded milestone is production chunk acquisition/server composition: persistent worlds must request/join native loads without blocking the PHP owner runtime, expose a Fiber-friendly resident-or-miss continuation, generate only after durable `Missing`, and call one coarse native storage tick from the server loop. After that, clean unpinned eviction policy can be enabled around player/view residency. Compaction follows once real save workloads provide dead-byte measurements.

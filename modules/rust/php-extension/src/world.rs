@@ -9,8 +9,9 @@ use cobblestone_core::{
     RuntimeId, WorldStore,
 };
 use cobblestone_storage::{
-    AsyncSaveConfig, AsyncSaveService, SaveCompletion, SaveSubmitError, WORLD_METADATA_FILENAME,
-    WorldDirectory, WorldMetadata,
+    AsyncLoadConfig, AsyncLoadService, AsyncSaveConfig, AsyncSaveService, LoadCompletion,
+    LoadRequestState, SaveCompletion, SaveSubmitError, WORLD_METADATA_FILENAME, WorldDirectory,
+    WorldMetadata,
 };
 use ext_php_rs::binary::Binary;
 use ext_php_rs::convert::IntoZval;
@@ -39,7 +40,9 @@ struct NativeWorldState {
 struct NativeWorldPersistence {
     directory: WorldDirectory,
     saves: AsyncSaveService,
+    loads: AsyncLoadService,
     save_in_flight: HashSet<ChunkCoord>,
+    load_missing: HashSet<ChunkCoord>,
 }
 
 struct CachedProtocol84Chunk {
@@ -379,6 +382,42 @@ fn apply_save_completion(
     }
 }
 
+fn poll_load_completions(
+    store: &WorldStore,
+    persistence: &mut NativeWorldPersistence,
+    budget: usize,
+) -> PhpResult<usize> {
+    let mut completed = 0;
+    while completed < budget {
+        let Some(completion) = persistence.loads.try_recv_completion() else {
+            break;
+        };
+
+        match completion {
+            LoadCompletion::Loaded(chunk) => {
+                persistence.load_missing.remove(&chunk.position);
+                store
+                    .import_chunk_if_absent(chunk.position, chunk.import)
+                    .map_err(|error| php_error(error.to_string()))?;
+            }
+            LoadCompletion::Missing(position) => {
+                persistence.load_missing.insert(position);
+            }
+            LoadCompletion::Failed(failure) => {
+                return Err(php_error(format!(
+                    "native world load failed for {}:{}: {}",
+                    failure.position.x(),
+                    failure.position.z(),
+                    failure.error
+                )));
+            }
+        }
+        completed += 1;
+    }
+
+    Ok(completed)
+}
+
 fn tick_persistence(
     store: &WorldStore,
     persistence: &mut NativeWorldPersistence,
@@ -549,6 +588,7 @@ pub fn cobblestone_world_storage_attach(
     root: String,
     creation: &ZendHashTable,
     save_workers: i64,
+    load_workers: i64,
 ) -> PhpResult<Vec<Zval>> {
     php_boundary(|| {
         if root.is_empty() {
@@ -585,18 +625,63 @@ pub fn cobblestone_world_storage_attach(
 
         let workers = usize::try_from(save_workers)
             .map_err(|_| php_error("save worker count must be positive"))?;
-        let mut config = AsyncSaveConfig::new(directory.root(), directory.world_uuid());
-        config.workers = workers;
+        let mut save_config = AsyncSaveConfig::new(directory.root(), directory.world_uuid());
+        save_config.workers = workers;
         let saves =
-            AsyncSaveService::start(config).map_err(|error| php_error(error.to_string()))?;
+            AsyncSaveService::start(save_config).map_err(|error| php_error(error.to_string()))?;
+
+        let load_workers = usize::try_from(load_workers)
+            .map_err(|_| php_error("load worker count must be positive"))?;
+        let mut load_config = AsyncLoadConfig::new(directory.root(), directory.world_uuid());
+        load_config.workers = load_workers;
+        let loads =
+            AsyncLoadService::start(load_config).map_err(|error| php_error(error.to_string()))?;
         let values = metadata_values(created, directory.metadata())?;
 
         *persistence = Some(NativeWorldPersistence {
             directory,
             saves,
+            loads,
             save_in_flight: HashSet::new(),
+            load_missing: HashSet::new(),
         });
         Ok(values)
+    })
+}
+
+#[php_function]
+pub fn cobblestone_world_storage_request_load(
+    handle_value: i64,
+    chunk_x: i64,
+    chunk_z: i64,
+) -> PhpResult<i64> {
+    php_boundary(|| {
+        let position = position(chunk_x, chunk_z)?;
+        let state = resolve_world_state(handle_value)?;
+        if state.store.contains_chunk(position) {
+            return Ok(0);
+        }
+
+        let mut persistence = match state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let persistence = persistence
+            .as_mut()
+            .ok_or_else(|| php_error("native world storage is not attached"))?;
+
+        if persistence.load_missing.contains(&position) {
+            return Ok(3);
+        }
+
+        match persistence
+            .loads
+            .request(position)
+            .map_err(|error| php_error(error.to_string()))?
+        {
+            LoadRequestState::Queued => Ok(1),
+            LoadRequestState::Joined => Ok(2),
+        }
     })
 }
 
@@ -613,19 +698,31 @@ pub fn cobblestone_world_storage_tick(handle_value: i64, budget: i64) -> PhpResu
             Err(poisoned) => poisoned.into_inner(),
         };
         let Some(persistence) = persistence.as_mut() else {
-            return Ok(vec![zval(0_i64)?, zval(0_i64)?, zval(0_i64)?, zval(0_i64)?]);
+            return Ok(vec![
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+            ]);
         };
 
-        let (completed, scheduled) = tick_persistence(&state.store, persistence, budget)?;
+        let load_completed = poll_load_completions(&state.store, persistence, budget)?;
+        let (save_completed, save_scheduled) = tick_persistence(&state.store, persistence, budget)?;
         Ok(vec![
-            zval(i64::try_from(completed).unwrap_or(i64::MAX))?,
-            zval(i64::try_from(scheduled).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(save_completed).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(save_scheduled).unwrap_or(i64::MAX))?,
             zval(i64::try_from(persistence.save_in_flight.len()).unwrap_or(i64::MAX))?,
             zval(
                 i64::try_from(persistence.directory.metadata().generation).map_err(|_| {
                     php_error("world metadata generation exceeds PHP integer range")
                 })?,
             )?,
+            zval(i64::try_from(load_completed).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(persistence.loads.in_flight()).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(persistence.load_missing.len()).unwrap_or(i64::MAX))?,
         ])
     })
 }
@@ -684,8 +781,19 @@ pub fn cobblestone_world_ensure_chunk(
     biome: i64,
 ) -> PhpResult<bool> {
     php_boundary(|| {
-        let store = resolve_world(handle_value)?;
-        Ok(store.ensure_chunk(position(chunk_x, chunk_z)?, byte(biome, "biome")?))
+        let position = position(chunk_x, chunk_z)?;
+        let state = resolve_world_state(handle_value)?;
+        let inserted = state.store.ensure_chunk(position, byte(biome, "biome")?);
+        if inserted {
+            let mut persistence = match state.persistence.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            if let Some(persistence) = persistence.as_mut() {
+                persistence.load_missing.remove(&position);
+            }
+        }
+        Ok(inserted)
     })
 }
 
@@ -1330,6 +1438,7 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
         .function(wrap_function!(cobblestone_world_create))
         .function(wrap_function!(cobblestone_world_storage_attach))
+        .function(wrap_function!(cobblestone_world_storage_request_load))
         .function(wrap_function!(cobblestone_world_storage_tick))
         .function(wrap_function!(cobblestone_world_destroy))
         .function(wrap_function!(cobblestone_world_ensure_chunk))

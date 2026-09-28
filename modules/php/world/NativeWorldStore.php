@@ -30,6 +30,7 @@ final class NativeWorldStore
         foreach ([
             'cobblestone_world_create',
             'cobblestone_world_storage_attach',
+            'cobblestone_world_storage_request_load',
             'cobblestone_world_storage_tick',
             'cobblestone_world_destroy',
             'cobblestone_world_ensure_chunk',
@@ -96,6 +97,7 @@ final class NativeWorldStore
         int $createTime = 0,
         bool $createTimeRunning = true,
         int $saveWorkers = 2,
+        int $loadWorkers = 2,
         ?string $createUuid = null,
     ): NativeWorldMetadata {
         if ($root === '') {
@@ -103,6 +105,9 @@ final class NativeWorldStore
         }
         if ($saveWorkers <= 0 || $saveWorkers > 32) {
             throw new \ValueError('native world save worker count must be in range 1..32');
+        }
+        if ($loadWorkers <= 0 || $loadWorkers > 32) {
+            throw new \ValueError('native world load worker count must be in range 1..32');
         }
 
         $createUuid ??= random_bytes(16);
@@ -127,15 +132,35 @@ final class NativeWorldStore
                 $createTimeRunning,
             ],
             $saveWorkers,
+            $loadWorkers,
         );
 
         return NativeWorldMetadata::fromNative($values);
     }
 
+    public function requestStorageLoad(ChunkPos $position): NativeChunkLoadStatus
+    {
+        return NativeChunkLoadStatus::from(
+            cobblestone_world_storage_request_load(
+                $this->requireHandle(),
+                $position->x,
+                $position->z,
+            ),
+        );
+    }
+
     /**
      * Polls save completions and schedules dirty immutable snapshots entirely in Rust.
      *
-     * @return array{completed: int, scheduled: int, in_flight: int, metadata_generation: int}
+     * @return array{
+     *   completed: int,
+     *   scheduled: int,
+     *   in_flight: int,
+     *   metadata_generation: int,
+     *   load_completed: int,
+     *   load_in_flight: int,
+     *   load_missing: int
+     * }
      */
     public function storageTick(int $budget = 64): array
     {
@@ -144,7 +169,7 @@ final class NativeWorldStore
         }
 
         $values = cobblestone_world_storage_tick($this->requireHandle(), $budget);
-        if (count($values) !== 4) {
+        if (count($values) !== 7) {
             throw new \UnexpectedValueException('native world storage tick projection has wrong width');
         }
 
@@ -153,6 +178,9 @@ final class NativeWorldStore
             'scheduled' => (int) $values[1],
             'in_flight' => (int) $values[2],
             'metadata_generation' => (int) $values[3],
+            'load_completed' => (int) $values[4],
+            'load_in_flight' => (int) $values[5],
+            'load_missing' => (int) $values[6],
         ];
     }
 

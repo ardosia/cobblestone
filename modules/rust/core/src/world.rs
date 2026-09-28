@@ -81,6 +81,26 @@ impl ChunkRecord {
         }
     }
 
+    fn from_import(import: ChunkImport) -> Self {
+        Self {
+            terrain_revision: import.terrain_revision,
+            light_revision: import.light_revision,
+            persisted_terrain_revision: Some(import.terrain_revision),
+            persisted_light_revision: Some(import.light_revision),
+            persisted_lifecycle_flags: Some(import.lifecycle_flags),
+            pin_count: 0,
+            lifecycle_flags: import.lifecycle_flags,
+            data: Arc::new(ChunkData {
+                states: import.states,
+                sky_light: import.sky_light,
+                block_light: import.block_light,
+                biomes: import.biomes,
+                height_map: import.height_map,
+                extra_data: import.extra_data,
+            }),
+        }
+    }
+
     fn is_dirty(&self) -> bool {
         self.persisted_terrain_revision != Some(self.terrain_revision)
             || self.persisted_light_revision != Some(self.light_revision)
@@ -401,6 +421,14 @@ impl WorldStore {
         }
     }
 
+    pub fn contains_chunk(&self, position: ChunkCoord) -> bool {
+        let id = Self::region_for(position);
+        let Some(region) = read_lock(&self.regions).get(&id).cloned() else {
+            return false;
+        };
+        read_lock(&region.chunks).contains_key(&position)
+    }
+
     pub fn ensure_chunk(&self, position: ChunkCoord, biome: u8) -> bool {
         let region = self.region_or_create(position);
         let mut chunks = write_lock(&region.chunks);
@@ -411,6 +439,21 @@ impl WorldStore {
         true
     }
 
+    pub fn import_chunk_if_absent(
+        &self,
+        position: ChunkCoord,
+        import: ChunkImport,
+    ) -> Result<bool, WorldStoreError> {
+        validate_import(&import)?;
+        let region = self.region_or_create(position);
+        let mut chunks = write_lock(&region.chunks);
+        if chunks.contains_key(&position) {
+            return Ok(false);
+        }
+        chunks.insert(position, ChunkRecord::from_import(import));
+        Ok(true)
+    }
+
     pub fn import_chunk(
         &self,
         position: ChunkCoord,
@@ -419,26 +462,7 @@ impl WorldStore {
         validate_import(&import)?;
         let region = self.region_or_create(position);
         let mut chunks = write_lock(&region.chunks);
-        chunks.insert(
-            position,
-            ChunkRecord {
-                terrain_revision: import.terrain_revision,
-                light_revision: import.light_revision,
-                persisted_terrain_revision: Some(import.terrain_revision),
-                persisted_light_revision: Some(import.light_revision),
-                persisted_lifecycle_flags: Some(import.lifecycle_flags),
-                pin_count: 0,
-                lifecycle_flags: import.lifecycle_flags,
-                data: Arc::new(ChunkData {
-                    states: import.states,
-                    sky_light: import.sky_light,
-                    block_light: import.block_light,
-                    biomes: import.biomes,
-                    height_map: import.height_map,
-                    extra_data: import.extra_data,
-                }),
-            },
-        );
+        chunks.insert(position, ChunkRecord::from_import(import));
         Ok(())
     }
 
@@ -1270,8 +1294,11 @@ fn write_lock<T>(lock: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::{
-        CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_POPULATED, ChunkCoord, ChunkEviction,
+        CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
+        CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkEviction, ChunkImport,
         ChunkPatch, WorldChangeKind, WorldStore,
     };
 
@@ -1365,6 +1392,35 @@ mod tests {
         let pruned = store.change_log_snapshot();
         assert_eq!(pruned.changes().len(), 1);
         assert_eq!(pruned.oldest_sequence(), 2);
+    }
+
+    #[test]
+    fn import_if_absent_never_overwrites_live_residency() {
+        let store = WorldStore::new();
+        let pos = ChunkCoord::new(6, -7);
+        let import = ChunkImport {
+            terrain_revision: 4,
+            light_revision: 3,
+            lifecycle_flags: CHUNK_LIFECYCLE_GENERATED,
+            states: {
+                let mut states = vec![0; CHUNK_BLOCK_COUNT];
+                states[0] = 0x32;
+                states
+            },
+            sky_light: vec![0; CHUNK_NIBBLE_BYTES],
+            block_light: vec![0; CHUNK_NIBBLE_BYTES],
+            biomes: vec![1; CHUNK_COLUMN_COUNT],
+            height_map: vec![0; CHUNK_COLUMN_COUNT],
+            extra_data: BTreeMap::new(),
+        };
+
+        assert!(store.import_chunk_if_absent(pos, import.clone()).unwrap());
+        assert!(!store.is_dirty(pos).unwrap());
+        assert_eq!(store.block_state(pos, 0, 0, 0).unwrap(), 0x32);
+
+        store.set_block_state(pos, 0, 0, 0, 0x45).unwrap();
+        assert!(!store.import_chunk_if_absent(pos, import).unwrap());
+        assert_eq!(store.block_state(pos, 0, 0, 0).unwrap(), 0x45);
     }
 
     #[test]
