@@ -29,6 +29,8 @@ final class WorldFactory
         ?string $preset = null,
         int $saveWorkers = 2,
         int $loadWorkers = 2,
+        int $compactionMinDeadBytes = 0,
+        int $compactionMinDeadPercent = 0,
     ): World {
         if (!NativeWorldStore::available()) {
             throw new \RuntimeException('persistent worlds require cobblestone_core_php native world storage');
@@ -55,6 +57,8 @@ final class WorldFactory
                 $creationGenerator->spawn(),
                 saveWorkers: $saveWorkers,
                 loadWorkers: $loadWorkers,
+                compactionMinDeadBytes: $compactionMinDeadBytes,
+                compactionMinDeadPercent: $compactionMinDeadPercent,
             );
             if ($metadata->generatorId !== GeneratorType::Flat->value) {
                 throw new \LogicException(

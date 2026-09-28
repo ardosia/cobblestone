@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
@@ -11,7 +11,9 @@ use std::time::Duration;
 use cobblestone_core::{ChunkCoord, ChunkSnapshot};
 use thiserror::Error;
 
-use crate::{CompressionPolicy, RegionCoord, RegionFile, RegionStats, StorageError};
+use crate::{
+    CompressionPolicy, RegionCompactionResult, RegionCoord, RegionFile, RegionStats, StorageError,
+};
 
 pub const MAX_ASYNC_SAVE_WORKERS: usize = 32;
 pub const MAX_ASYNC_SAVE_QUEUE_CAPACITY: usize = 65_536;
@@ -80,7 +82,7 @@ pub struct SaveReceipt {
 pub enum SaveWorkerError {
     #[error(transparent)]
     Storage(#[from] StorageError),
-    #[error("async save worker panicked while persisting a chunk snapshot")]
+    #[error("async storage worker panicked while processing a command")]
     Panic,
 }
 
@@ -97,6 +99,41 @@ pub struct SaveFailure {
 pub enum SaveCompletion {
     Saved(SaveReceipt),
     Failed(SaveFailure),
+}
+
+#[derive(Debug)]
+pub struct CompactionReceipt {
+    pub region: RegionCoord,
+    pub generation: u64,
+    pub records: usize,
+    pub bytes_reclaimed: u64,
+    pub before: RegionStats,
+    pub after: RegionStats,
+}
+
+impl From<(RegionCoord, RegionCompactionResult)> for CompactionReceipt {
+    fn from((region, result): (RegionCoord, RegionCompactionResult)) -> Self {
+        Self {
+            region,
+            generation: result.generation,
+            records: result.records,
+            bytes_reclaimed: result.bytes_reclaimed,
+            before: result.before,
+            after: result.after,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CompactionFailure {
+    pub region: RegionCoord,
+    pub error: SaveWorkerError,
+}
+
+#[derive(Debug)]
+pub enum CompactionCompletion {
+    Compacted(CompactionReceipt),
+    Failed(CompactionFailure),
 }
 
 impl SaveCompletion {
@@ -129,12 +166,22 @@ impl SaveCompletion {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum CompactionSubmitError {
+    #[error("async storage queue is full")]
+    Backpressure(RegionCoord),
+    #[error("async storage worker is closed")]
+    Closed(RegionCoord),
+}
+
 enum SaveCommand {
     Save(ChunkSnapshot),
+    Compact(RegionCoord),
 }
 
 enum WorkerEvent {
     Completion(SaveCompletion),
+    Compaction(CompactionCompletion),
     Stopped,
 }
 
@@ -146,6 +193,8 @@ struct SaveWorker {
 pub struct AsyncSaveService {
     workers: Vec<SaveWorker>,
     completion_rx: Option<Receiver<WorkerEvent>>,
+    pending_completions: VecDeque<SaveCompletion>,
+    pending_compactions: VecDeque<CompactionCompletion>,
     observed_stopped: usize,
 }
 
@@ -194,6 +243,8 @@ impl AsyncSaveService {
         Ok(Self {
             workers,
             completion_rx: Some(completion_rx),
+            pending_completions: VecDeque::new(),
+            pending_compactions: VecDeque::new(),
             observed_stopped: 0,
         })
     }
@@ -212,14 +263,70 @@ impl AsyncSaveService {
             Err(TrySendError::Disconnected(SaveCommand::Save(snapshot))) => {
                 Err(SaveSubmitError::Closed(snapshot))
             }
+            Err(
+                TrySendError::Full(SaveCommand::Compact(_))
+                | TrySendError::Disconnected(SaveCommand::Compact(_)),
+            ) => {
+                unreachable!("try_save submitted only a save command")
+            }
+        }
+    }
+
+    pub fn try_compact(&self, region: RegionCoord) -> Result<(), CompactionSubmitError> {
+        let worker = route_region_worker(region, self.workers.len());
+        let Some(sender) = self.workers[worker].sender.as_ref() else {
+            return Err(CompactionSubmitError::Closed(region));
+        };
+
+        match sender.try_send(SaveCommand::Compact(region)) {
+            Ok(()) => Ok(()),
+            Err(TrySendError::Full(SaveCommand::Compact(region))) => {
+                Err(CompactionSubmitError::Backpressure(region))
+            }
+            Err(TrySendError::Disconnected(SaveCommand::Compact(region))) => {
+                Err(CompactionSubmitError::Closed(region))
+            }
+            Err(
+                TrySendError::Full(SaveCommand::Save(_))
+                | TrySendError::Disconnected(SaveCommand::Save(_)),
+            ) => {
+                unreachable!("try_compact submitted only a compaction command")
+            }
         }
     }
 
     pub fn try_recv_completion(&mut self) -> Option<SaveCompletion> {
+        if let Some(completion) = self.pending_completions.pop_front() {
+            return Some(completion);
+        }
+
         loop {
             let receiver = self.completion_rx.as_ref()?;
             match receiver.try_recv() {
                 Ok(WorkerEvent::Completion(completion)) => return Some(completion),
+                Ok(WorkerEvent::Compaction(completion)) => {
+                    self.pending_compactions.push_back(completion);
+                }
+                Ok(WorkerEvent::Stopped) => {
+                    self.observed_stopped = self.observed_stopped.saturating_add(1);
+                }
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => return None,
+            }
+        }
+    }
+
+    pub fn try_recv_compaction(&mut self) -> Option<CompactionCompletion> {
+        if let Some(completion) = self.pending_compactions.pop_front() {
+            return Some(completion);
+        }
+
+        loop {
+            let receiver = self.completion_rx.as_ref()?;
+            match receiver.try_recv() {
+                Ok(WorkerEvent::Completion(completion)) => {
+                    self.pending_completions.push_back(completion);
+                }
+                Ok(WorkerEvent::Compaction(completion)) => return Some(completion),
                 Ok(WorkerEvent::Stopped) => {
                     self.observed_stopped = self.observed_stopped.saturating_add(1);
                 }
@@ -232,12 +339,46 @@ impl AsyncSaveService {
         &mut self,
         timeout: Duration,
     ) -> Result<Option<SaveCompletion>, RecvTimeoutError> {
+        if let Some(completion) = self.pending_completions.pop_front() {
+            return Ok(Some(completion));
+        }
+
         loop {
             let Some(receiver) = self.completion_rx.as_ref() else {
                 return Ok(None);
             };
             match receiver.recv_timeout(timeout)? {
                 WorkerEvent::Completion(completion) => return Ok(Some(completion)),
+                WorkerEvent::Compaction(completion) => {
+                    self.pending_compactions.push_back(completion);
+                }
+                WorkerEvent::Stopped => {
+                    self.observed_stopped = self.observed_stopped.saturating_add(1);
+                    if self.observed_stopped == self.workers.len() {
+                        return Ok(None);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn recv_compaction_timeout(
+        &mut self,
+        timeout: Duration,
+    ) -> Result<Option<CompactionCompletion>, RecvTimeoutError> {
+        if let Some(completion) = self.pending_compactions.pop_front() {
+            return Ok(Some(completion));
+        }
+
+        loop {
+            let Some(receiver) = self.completion_rx.as_ref() else {
+                return Ok(None);
+            };
+            match receiver.recv_timeout(timeout)? {
+                WorkerEvent::Completion(completion) => {
+                    self.pending_completions.push_back(completion);
+                }
+                WorkerEvent::Compaction(completion) => return Ok(Some(completion)),
                 WorkerEvent::Stopped => {
                     self.observed_stopped = self.observed_stopped.saturating_add(1);
                     if self.observed_stopped == self.workers.len() {
@@ -257,11 +398,14 @@ impl AsyncSaveService {
             worker.sender.take();
         }
 
-        let mut completions = Vec::new();
+        let mut completions: Vec<SaveCompletion> = self.pending_completions.drain(..).collect();
         if let Some(receiver) = self.completion_rx.take() {
             while self.observed_stopped < self.workers.len() {
                 match receiver.recv() {
                     Ok(WorkerEvent::Completion(completion)) => completions.push(completion),
+                    Ok(WorkerEvent::Compaction(completion)) => {
+                        self.pending_compactions.push_back(completion);
+                    }
                     Ok(WorkerEvent::Stopped) => {
                         self.observed_stopped = self.observed_stopped.saturating_add(1);
                     }
@@ -308,7 +452,10 @@ fn validate_config(config: &AsyncSaveConfig) -> Result<(), AsyncSaveBuildError> 
 }
 
 fn route_worker(position: ChunkCoord, workers: usize) -> usize {
-    let region = RegionCoord::for_chunk(position);
+    route_region_worker(RegionCoord::for_chunk(position), workers)
+}
+
+fn route_region_worker(region: RegionCoord, workers: usize) -> usize {
     let x = region.x as i64 as u64;
     let z = region.z as i64 as u64;
     let mixed = x.wrapping_mul(0x9e37_79b9_7f4a_7c15).rotate_left(17)
@@ -330,39 +477,66 @@ fn save_worker_main(
 ) {
     let mut regions = HashMap::<RegionCoord, RegionFile>::new();
 
-    while let Ok(SaveCommand::Save(snapshot)) = command_rx.recv() {
-        let position = snapshot.position();
-        let terrain_revision = snapshot.terrain_revision();
-        let light_revision = snapshot.light_revision();
-        let lifecycle_flags = snapshot.lifecycle_flags();
+    while let Ok(command) = command_rx.recv() {
+        match command {
+            SaveCommand::Save(snapshot) => {
+                let position = snapshot.position();
+                let terrain_revision = snapshot.terrain_revision();
+                let light_revision = snapshot.light_revision();
+                let lifecycle_flags = snapshot.lifecycle_flags();
 
-        let outcome = catch_unwind(AssertUnwindSafe(|| {
-            save_snapshot(&root, world_uuid, compression, &mut regions, &snapshot)
-        }));
+                let outcome = catch_unwind(AssertUnwindSafe(|| {
+                    save_snapshot(&root, world_uuid, compression, &mut regions, &snapshot)
+                }));
 
-        let completion = match outcome {
-            Ok(Ok(receipt)) => SaveCompletion::Saved(receipt),
-            Ok(Err(error)) => SaveCompletion::Failed(SaveFailure {
-                position,
-                terrain_revision,
-                light_revision,
-                lifecycle_flags,
-                error: SaveWorkerError::Storage(error),
-            }),
-            Err(_) => SaveCompletion::Failed(SaveFailure {
-                position,
-                terrain_revision,
-                light_revision,
-                lifecycle_flags,
-                error: SaveWorkerError::Panic,
-            }),
-        };
+                let completion = match outcome {
+                    Ok(Ok(receipt)) => SaveCompletion::Saved(receipt),
+                    Ok(Err(error)) => SaveCompletion::Failed(SaveFailure {
+                        position,
+                        terrain_revision,
+                        light_revision,
+                        lifecycle_flags,
+                        error: SaveWorkerError::Storage(error),
+                    }),
+                    Err(_) => SaveCompletion::Failed(SaveFailure {
+                        position,
+                        terrain_revision,
+                        light_revision,
+                        lifecycle_flags,
+                        error: SaveWorkerError::Panic,
+                    }),
+                };
 
-        if completion_tx
-            .send(WorkerEvent::Completion(completion))
-            .is_err()
-        {
-            return;
+                if completion_tx
+                    .send(WorkerEvent::Completion(completion))
+                    .is_err()
+                {
+                    return;
+                }
+            }
+            SaveCommand::Compact(region) => {
+                let outcome = catch_unwind(AssertUnwindSafe(|| {
+                    compact_region(&root, world_uuid, &mut regions, region)
+                }));
+                let completion = match outcome {
+                    Ok(Ok(receipt)) => CompactionCompletion::Compacted(receipt),
+                    Ok(Err(error)) => CompactionCompletion::Failed(CompactionFailure {
+                        region,
+                        error: SaveWorkerError::Storage(error),
+                    }),
+                    Err(_) => CompactionCompletion::Failed(CompactionFailure {
+                        region,
+                        error: SaveWorkerError::Panic,
+                    }),
+                };
+
+                if completion_tx
+                    .send(WorkerEvent::Compaction(completion))
+                    .is_err()
+                {
+                    return;
+                }
+            }
         }
     }
 
@@ -400,6 +574,29 @@ fn save_snapshot(
     })
 }
 
+fn compact_region(
+    root: &Path,
+    world_uuid: [u8; 16],
+    regions: &mut HashMap<RegionCoord, RegionFile>,
+    region: RegionCoord,
+) -> Result<CompactionReceipt, StorageError> {
+    let file = match regions.entry(region) {
+        std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+        std::collections::hash_map::Entry::Vacant(entry) => {
+            let path = region_path(root, region);
+            let file = RegionFile::open_existing(path, world_uuid, region)?.ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "region disappeared before scheduled compaction",
+                )
+            })?;
+            entry.insert(file)
+        }
+    };
+    let result = file.compact()?;
+    Ok((region, result).into())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -411,7 +608,10 @@ mod tests {
         CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_POPULATED, ChunkCoord, ChunkPatch, WorldStore,
     };
 
-    use super::{AsyncSaveConfig, AsyncSaveService, SaveCompletion, region_path};
+    use super::{
+        AsyncSaveConfig, AsyncSaveService, CompactionCompletion, SaveCompletion, SaveWorkerError,
+        region_path,
+    };
     use crate::{CompressionPolicy, RegionCoord, RegionFile};
 
     static TEMP_ID: AtomicU64 = AtomicU64::new(1);
@@ -488,6 +688,92 @@ mod tests {
         assert_eq!(loaded.import.lifecycle_flags, expected.lifecycle_flags());
         assert_eq!(loaded.import.states[0], 0x32);
 
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn compaction_runs_on_the_region_sharded_storage_worker() {
+        let root = temp_root("compact");
+        let world_uuid = [0x39; 16];
+        let position = ChunkCoord::new(3, 7);
+        let region = RegionCoord::for_chunk(position);
+
+        let mut config = AsyncSaveConfig::new(&root, world_uuid);
+        config.workers = 2;
+        config.queue_capacity = 8;
+        config.completion_capacity = 8;
+
+        let mut service = AsyncSaveService::start(config).unwrap();
+        service.try_save(snapshot(position, 0x21)).unwrap();
+        service.try_save(snapshot(position, 0x45)).unwrap();
+
+        for _ in 0..2 {
+            let completion = service
+                .recv_completion_timeout(Duration::from_secs(5))
+                .unwrap()
+                .expect("save completion");
+            assert!(matches!(completion, SaveCompletion::Saved(_)));
+        }
+
+        service.try_compact(region).unwrap();
+        let completion = service
+            .recv_compaction_timeout(Duration::from_secs(5))
+            .unwrap()
+            .expect("compaction completion");
+        let CompactionCompletion::Compacted(receipt) = completion else {
+            panic!("scheduled compaction failed");
+        };
+        assert_eq!(receipt.region, region);
+        assert!(receipt.bytes_reclaimed > 0);
+        assert!(receipt.before.dead_bytes > 0);
+        assert_eq!(receipt.after.dead_bytes, 0);
+        assert_eq!(receipt.after.record_bytes, receipt.after.live_bytes);
+
+        let mut reopened =
+            RegionFile::open_existing(region_path(&root, region), world_uuid, region)
+                .unwrap()
+                .expect("compacted region");
+        let loaded = reopened
+            .load_chunk(position)
+            .unwrap()
+            .expect("stored chunk");
+        assert_eq!(loaded.import.states[0], 0x45);
+
+        assert!(service.shutdown().is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn compaction_failure_is_reported_without_stopping_the_storage_worker() {
+        let root = temp_root("compact-failure");
+        let world_uuid = [0x27; 16];
+        let missing_region = RegionCoord::new(9, -4);
+
+        let mut config = AsyncSaveConfig::new(&root, world_uuid);
+        config.queue_capacity = 4;
+        config.completion_capacity = 4;
+        let mut service = AsyncSaveService::start(config).unwrap();
+
+        service.try_compact(missing_region).unwrap();
+        let completion = service
+            .recv_compaction_timeout(Duration::from_secs(5))
+            .unwrap()
+            .expect("compaction failure completion");
+        let CompactionCompletion::Failed(failure) = completion else {
+            panic!("missing region unexpectedly compacted");
+        };
+        assert_eq!(failure.region, missing_region);
+        assert!(matches!(failure.error, SaveWorkerError::Storage(_)));
+
+        let position = ChunkCoord::new(0, 0);
+        service.try_save(snapshot(position, 0x56)).unwrap();
+        let completion = service
+            .recv_completion_timeout(Duration::from_secs(5))
+            .unwrap()
+            .expect("save completion after compaction failure");
+        assert!(matches!(completion, SaveCompletion::Saved(_)));
+
+        assert!(service.shutdown().is_empty());
         fs::remove_dir_all(root).unwrap();
     }
 

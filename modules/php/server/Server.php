@@ -239,7 +239,18 @@ final class Server
 
         $nativeStore = $this->world->nativeStore();
         if ($nativeStore !== null && $nativeStore->hasStorage()) {
-            $nativeStore->storageTick(64);
+            $storageTick = $nativeStore->storageTick(64);
+            if ($storageTick['compaction_failed'] > 0) {
+                $storageStats = $nativeStore->storageStats();
+                $this->logger->warning(
+                    'Persistent region compaction failed; automatic retry is blocked for this process',
+                    [
+                        'failures' => $storageTick['compaction_failed'],
+                        'blocked_regions' => $storageStats['compaction_blocked_regions'],
+                        'last_error' => $storageStats['compaction_last_error'],
+                    ],
+                );
+            }
         }
 
         foreach ($this->join->tick() as $completion) {

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
@@ -9,9 +9,9 @@ use cobblestone_core::{
     RuntimeId, WorldStore,
 };
 use cobblestone_storage::{
-    AsyncLoadConfig, AsyncLoadService, AsyncSaveConfig, AsyncSaveService, LoadCompletion,
-    LoadRequestState, RegionCoord, RegionStats, SaveCompletion, SaveSubmitError,
-    WORLD_METADATA_FILENAME, WorldDirectory, WorldMetadata,
+    AsyncLoadConfig, AsyncLoadService, AsyncSaveConfig, AsyncSaveService, CompactionCompletion,
+    CompactionSubmitError, LoadCompletion, LoadRequestState, RegionCoord, RegionStats,
+    SaveCompletion, SaveSubmitError, WORLD_METADATA_FILENAME, WorldDirectory, WorldMetadata,
 };
 use ext_php_rs::binary::Binary;
 use ext_php_rs::convert::IntoZval;
@@ -23,6 +23,7 @@ use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 
 const MAX_PROTOCOL84_CACHE_ENTRIES: usize = 4096;
+const MAX_COMPACTION_CANDIDATES: usize = 4096;
 
 static WORLD_ARENA: Mutex<Arena<NativeWorld>> = Mutex::new(Arena::new());
 
@@ -37,6 +38,26 @@ struct NativeWorldState {
     persistence: Mutex<Option<NativeWorldPersistence>>,
 }
 
+#[derive(Clone, Copy)]
+struct NativeCompactionPolicy {
+    min_dead_bytes: u64,
+    min_dead_percent: u8,
+}
+
+impl NativeCompactionPolicy {
+    fn matches(self, stats: RegionStats) -> bool {
+        if stats.dead_bytes == 0 || stats.record_bytes == 0 {
+            return false;
+        }
+
+        let bytes_match = self.min_dead_bytes == 0 || stats.dead_bytes >= self.min_dead_bytes;
+        let percent_match = self.min_dead_percent == 0
+            || u128::from(stats.dead_bytes) * 100
+                >= u128::from(stats.record_bytes) * u128::from(self.min_dead_percent);
+        bytes_match && percent_match
+    }
+}
+
 struct NativeWorldPersistence {
     directory: WorldDirectory,
     saves: AsyncSaveService,
@@ -45,6 +66,15 @@ struct NativeWorldPersistence {
     load_missing: HashSet<ChunkCoord>,
     save_bytes_appended: u64,
     region_stats: HashMap<RegionCoord, RegionStats>,
+    compaction_policy: Option<NativeCompactionPolicy>,
+    compaction_queue: VecDeque<RegionCoord>,
+    compaction_queued: HashSet<RegionCoord>,
+    compaction_in_flight: HashSet<RegionCoord>,
+    compaction_blocked: HashSet<RegionCoord>,
+    compactions_completed: u64,
+    compactions_failed: u64,
+    compaction_bytes_reclaimed: u64,
+    compaction_last_error: String,
 }
 
 struct CachedProtocol84Chunk {
@@ -358,6 +388,27 @@ fn metadata_values(created: bool, metadata: &WorldMetadata) -> PhpResult<Vec<Zva
     ])
 }
 
+fn maybe_queue_compaction(
+    persistence: &mut NativeWorldPersistence,
+    region: RegionCoord,
+    stats: RegionStats,
+) {
+    let Some(policy) = persistence.compaction_policy else {
+        return;
+    };
+    if !policy.matches(stats)
+        || persistence.compaction_blocked.contains(&region)
+        || persistence.compaction_in_flight.contains(&region)
+        || persistence.compaction_queued.contains(&region)
+        || persistence.compaction_queue.len() >= MAX_COMPACTION_CANDIDATES
+    {
+        return;
+    }
+
+    persistence.compaction_queued.insert(region);
+    persistence.compaction_queue.push_back(region);
+}
+
 fn apply_save_completion(
     store: &WorldStore,
     persistence: &mut NativeWorldPersistence,
@@ -383,6 +434,7 @@ fn apply_save_completion(
             persistence
                 .region_stats
                 .insert(receipt.region, receipt.region_stats);
+            maybe_queue_compaction(persistence, receipt.region, receipt.region_stats);
             Ok(())
         }
         SaveCompletion::Failed(failure) => Err(php_error(format!(
@@ -391,6 +443,42 @@ fn apply_save_completion(
             failure.position.z(),
             failure.error
         ))),
+    }
+}
+
+fn apply_compaction_completion(
+    persistence: &mut NativeWorldPersistence,
+    completion: CompactionCompletion,
+) -> PhpResult<bool> {
+    match completion {
+        CompactionCompletion::Compacted(receipt) => {
+            persistence.compaction_in_flight.remove(&receipt.region);
+            persistence
+                .region_stats
+                .insert(receipt.region, receipt.after);
+            persistence.compactions_completed = persistence
+                .compactions_completed
+                .checked_add(1)
+                .ok_or_else(|| php_error("world storage compaction completion count overflow"))?;
+            persistence.compaction_bytes_reclaimed = persistence
+                .compaction_bytes_reclaimed
+                .checked_add(receipt.bytes_reclaimed)
+                .ok_or_else(|| php_error("world storage reclaimed byte count overflow"))?;
+            Ok(false)
+        }
+        CompactionCompletion::Failed(failure) => {
+            persistence.compaction_in_flight.remove(&failure.region);
+            persistence.compaction_blocked.insert(failure.region);
+            persistence.compactions_failed = persistence
+                .compactions_failed
+                .checked_add(1)
+                .ok_or_else(|| php_error("world storage compaction failure count overflow"))?;
+            persistence.compaction_last_error = format!(
+                "region {}:{}: {}",
+                failure.region.x, failure.region.z, failure.error
+            );
+            Ok(true)
+        }
     }
 }
 
@@ -430,28 +518,49 @@ fn poll_load_completions(
     Ok(completed)
 }
 
+struct PersistenceTickResult {
+    save_completed: usize,
+    save_scheduled: usize,
+    compaction_completed: usize,
+    compaction_failed: usize,
+    compaction_scheduled: usize,
+}
+
 fn tick_persistence(
     store: &WorldStore,
     persistence: &mut NativeWorldPersistence,
     budget: usize,
-) -> PhpResult<(usize, usize)> {
-    let mut completed = 0;
-    while completed < budget {
+) -> PhpResult<PersistenceTickResult> {
+    let mut compaction_completed = 0;
+    let mut compaction_failed = 0;
+    while compaction_completed + compaction_failed < budget {
+        let Some(completion) = persistence.saves.try_recv_compaction() else {
+            break;
+        };
+        if apply_compaction_completion(persistence, completion)? {
+            compaction_failed += 1;
+        } else {
+            compaction_completed += 1;
+        }
+    }
+
+    let mut save_completed = 0;
+    while save_completed < budget {
         let Some(completion) = persistence.saves.try_recv_completion() else {
             break;
         };
         apply_save_completion(store, persistence, completion)?;
-        completed += 1;
+        save_completed += 1;
     }
 
     let snapshots = store.dirty_snapshots_excluding(budget, &persistence.save_in_flight);
-    let mut scheduled = 0;
+    let mut save_scheduled = 0;
     for snapshot in snapshots {
         let position = snapshot.position();
         match persistence.saves.try_save(snapshot) {
             Ok(()) => {
                 persistence.save_in_flight.insert(position);
-                scheduled += 1;
+                save_scheduled += 1;
             }
             Err(SaveSubmitError::Backpressure(_)) => break,
             Err(SaveSubmitError::Closed(_)) => {
@@ -460,7 +569,51 @@ fn tick_persistence(
         }
     }
 
-    Ok((completed, scheduled))
+    let mut compaction_scheduled = 0;
+    while compaction_scheduled < budget {
+        let Some(region) = persistence.compaction_queue.pop_front() else {
+            break;
+        };
+        persistence.compaction_queued.remove(&region);
+
+        if persistence.compaction_blocked.contains(&region)
+            || persistence.compaction_in_flight.contains(&region)
+        {
+            continue;
+        }
+        let Some(stats) = persistence.region_stats.get(&region).copied() else {
+            continue;
+        };
+        let Some(policy) = persistence.compaction_policy else {
+            continue;
+        };
+        if !policy.matches(stats) {
+            continue;
+        }
+
+        match persistence.saves.try_compact(region) {
+            Ok(()) => {
+                persistence.compaction_in_flight.insert(region);
+                compaction_scheduled += 1;
+            }
+            Err(CompactionSubmitError::Backpressure(region)) => {
+                persistence.compaction_queued.insert(region);
+                persistence.compaction_queue.push_front(region);
+                break;
+            }
+            Err(CompactionSubmitError::Closed(_)) => {
+                return Err(php_error("native world storage worker is closed"));
+            }
+        }
+    }
+
+    Ok(PersistenceTickResult {
+        save_completed,
+        save_scheduled,
+        compaction_completed,
+        compaction_failed,
+        compaction_scheduled,
+    })
 }
 
 fn flush_persistence(
@@ -471,6 +624,9 @@ fn flush_persistence(
     const COMPLETION_TIMEOUT: Duration = Duration::from_secs(30);
 
     loop {
+        while let Some(completion) = persistence.saves.try_recv_compaction() {
+            let _ = apply_compaction_completion(persistence, completion)?;
+        }
         while let Some(completion) = persistence.saves.try_recv_completion() {
             apply_save_completion(store, persistence, completion)?;
         }
@@ -648,6 +804,8 @@ pub fn cobblestone_world_storage_attach(
     creation: &ZendHashTable,
     save_workers: i64,
     load_workers: i64,
+    compaction_min_dead_bytes: i64,
+    compaction_min_dead_percent: i64,
 ) -> PhpResult<Vec<Zval>> {
     php_boundary(|| {
         if root.is_empty() {
@@ -682,6 +840,22 @@ pub fn cobblestone_world_storage_attach(
             }
         };
 
+        let compaction_min_dead_bytes = u64::try_from(compaction_min_dead_bytes)
+            .map_err(|_| php_error("compaction minimum dead bytes must be nonnegative"))?;
+        let compaction_min_dead_percent = u8::try_from(compaction_min_dead_percent)
+            .ok()
+            .filter(|&value| value <= 100)
+            .ok_or_else(|| php_error("compaction minimum dead percent must be in range 0..100"))?;
+        let compaction_policy =
+            if compaction_min_dead_bytes == 0 && compaction_min_dead_percent == 0 {
+                None
+            } else {
+                Some(NativeCompactionPolicy {
+                    min_dead_bytes: compaction_min_dead_bytes,
+                    min_dead_percent: compaction_min_dead_percent,
+                })
+            };
+
         let workers = usize::try_from(save_workers)
             .map_err(|_| php_error("save worker count must be positive"))?;
         let mut save_config = AsyncSaveConfig::new(directory.root(), directory.world_uuid());
@@ -705,6 +879,15 @@ pub fn cobblestone_world_storage_attach(
             load_missing: HashSet::new(),
             save_bytes_appended: 0,
             region_stats: HashMap::new(),
+            compaction_policy,
+            compaction_queue: VecDeque::new(),
+            compaction_queued: HashSet::new(),
+            compaction_in_flight: HashSet::new(),
+            compaction_blocked: HashSet::new(),
+            compactions_completed: 0,
+            compactions_failed: 0,
+            compaction_bytes_reclaimed: 0,
+            compaction_last_error: String::new(),
         });
         Ok(values)
     })
@@ -810,14 +993,19 @@ pub fn cobblestone_world_storage_tick(handle_value: i64, budget: i64) -> PhpResu
                 zval(0_i64)?,
                 zval(0_i64)?,
                 zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
             ]);
         };
 
         let load_completed = poll_load_completions(&state.store, persistence, budget)?;
-        let (save_completed, save_scheduled) = tick_persistence(&state.store, persistence, budget)?;
+        let tick = tick_persistence(&state.store, persistence, budget)?;
         Ok(vec![
-            zval(i64::try_from(save_completed).unwrap_or(i64::MAX))?,
-            zval(i64::try_from(save_scheduled).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(tick.save_completed).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(tick.save_scheduled).unwrap_or(i64::MAX))?,
             zval(i64::try_from(persistence.save_in_flight.len()).unwrap_or(i64::MAX))?,
             zval(
                 i64::try_from(persistence.directory.metadata().generation).map_err(|_| {
@@ -827,6 +1015,11 @@ pub fn cobblestone_world_storage_tick(handle_value: i64, budget: i64) -> PhpResu
             zval(i64::try_from(load_completed).unwrap_or(i64::MAX))?,
             zval(i64::try_from(persistence.loads.in_flight()).unwrap_or(i64::MAX))?,
             zval(i64::try_from(persistence.load_missing.len()).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(tick.compaction_completed).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(tick.compaction_failed).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(tick.compaction_scheduled).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(persistence.compaction_in_flight.len()).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(persistence.compaction_queue.len()).unwrap_or(i64::MAX))?,
         ])
     })
 }
@@ -846,6 +1039,11 @@ pub fn cobblestone_world_storage_stats(handle_value: i64) -> PhpResult<Vec<Zval>
                 zval(0_i64)?,
                 zval(0_i64)?,
                 zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(String::new())?,
             ]);
         };
 
@@ -888,6 +1086,20 @@ pub fn cobblestone_world_storage_stats(handle_value: i64) -> PhpResult<Vec<Zval>
             zval(as_php_int(record_bytes, "record byte count")?)?,
             zval(as_php_int(live_bytes, "live byte count")?)?,
             zval(as_php_int(dead_bytes, "dead byte count")?)?,
+            zval(as_php_int(
+                persistence.compactions_completed,
+                "compaction completion count",
+            )?)?,
+            zval(as_php_int(
+                persistence.compactions_failed,
+                "compaction failure count",
+            )?)?,
+            zval(as_php_int(
+                persistence.compaction_bytes_reclaimed,
+                "compaction reclaimed byte count",
+            )?)?,
+            zval(i64::try_from(persistence.compaction_blocked.len()).unwrap_or(i64::MAX))?,
+            zval(persistence.compaction_last_error.clone())?,
         ])
     })
 }

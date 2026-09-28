@@ -14,9 +14,10 @@ pub use async_load::{
     MAX_ASYNC_LOAD_QUEUE_CAPACITY, MAX_ASYNC_LOAD_WORKERS,
 };
 pub use async_save::{
-    AsyncSaveBuildError, AsyncSaveConfig, AsyncSaveService, MAX_ASYNC_SAVE_COMPLETION_CAPACITY,
-    MAX_ASYNC_SAVE_QUEUE_CAPACITY, MAX_ASYNC_SAVE_WORKERS, SaveCompletion, SaveFailure,
-    SaveReceipt, SaveSubmitError, SaveWorkerError,
+    AsyncSaveBuildError, AsyncSaveConfig, AsyncSaveService, CompactionCompletion,
+    CompactionFailure, CompactionReceipt, CompactionSubmitError,
+    MAX_ASYNC_SAVE_COMPLETION_CAPACITY, MAX_ASYNC_SAVE_QUEUE_CAPACITY, MAX_ASYNC_SAVE_WORKERS,
+    SaveCompletion, SaveFailure, SaveReceipt, SaveSubmitError, SaveWorkerError,
 };
 pub use metadata::{
     MAX_GENERATOR_SETTINGS_BYTES, MAX_WORLD_METADATA_PAYLOAD_BYTES, MAX_WORLD_NAME_BYTES,

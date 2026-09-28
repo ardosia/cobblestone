@@ -62,6 +62,7 @@ try {
         '2;7,2x3,2;1;',
         new BlockPos(128, 4, 128),
         saveWorkers: 2,
+        compactionMinDeadBytes: 1,
         createUuid: str_repeat("Z", 16),
     );
     nativeStorageExpect($metadata->created, 'first native storage attach did not create world.cwm');
@@ -109,8 +110,10 @@ try {
 
     $store->setLifecycleFlags($position, Chunk::LIFECYCLE_GENERATED);
     nativeStorageExpect($store->chunkDirty($position), 'rewrite probe did not become dirty');
+    $compactionScheduled = false;
     for ($attempt = 0; $attempt < 500; ++$attempt) {
         $tick = $store->storageTick(64);
+        $compactionScheduled = $compactionScheduled || $tick['compaction_scheduled'] > 0;
         if (!$store->chunkDirty($position) && $tick['in_flight'] === 0) {
             break;
         }
@@ -129,6 +132,38 @@ try {
     nativeStorageExpect(
         $rewriteStats['record_bytes'] === $rewriteStats['live_bytes'] + $rewriteStats['dead_bytes'],
         'storage stats byte accounting does not balance',
+    );
+    nativeStorageExpect($compactionScheduled, 'native maintenance scheduler did not queue compaction');
+
+    for ($attempt = 0; $attempt < 500; ++$attempt) {
+        $tick = $store->storageTick(64);
+        if ($tick['compaction_completed'] > 0) {
+            break;
+        }
+        usleep(1_000);
+    }
+    $compactedStats = $store->storageStats();
+    nativeStorageExpect(
+        $compactedStats['compactions_completed'] === 1,
+        'native maintenance scheduler did not complete compaction',
+    );
+    nativeStorageExpect($compactedStats['compactions_failed'] === 0, 'native compaction unexpectedly failed');
+    nativeStorageExpect(
+        $compactedStats['compaction_last_error'] === '',
+        'successful native compaction unexpectedly retained an error',
+    );
+    nativeStorageExpect(
+        $compactedStats['compaction_blocked_regions'] === 0,
+        'successful compaction left the region retry-blocked',
+    );
+    nativeStorageExpect(
+        $compactedStats['compaction_bytes_reclaimed'] >= $rewriteStats['dead_bytes'],
+        'native compaction did not report reclaimed region bytes',
+    );
+    nativeStorageExpect($compactedStats['dead_bytes'] === 0, 'native compaction left reclaimable dead bytes');
+    nativeStorageExpect(
+        $compactedStats['record_bytes'] === $compactedStats['live_bytes'],
+        'native compaction did not collapse region storage to live records',
     );
 
     $regionPath = $root . '/regions/r.0.0.cwr';
@@ -234,6 +269,29 @@ try {
         nativeStorageExpect(
             !$reopened->chunkDirty($position),
             'loaded persistent chunk did not enter residency clean',
+        );
+
+        $reopened->setLifecycleFlags(
+            $position,
+            Chunk::LIFECYCLE_GENERATED | Chunk::LIFECYCLE_POPULATED,
+        );
+        nativeStorageExpect($reopened->chunkDirty($position), 'disabled-compaction rewrite did not become dirty');
+        for ($attempt = 0; $attempt < 500; ++$attempt) {
+            $tick = $reopened->storageTick(64);
+            if (!$reopened->chunkDirty($position) && $tick['in_flight'] === 0) {
+                break;
+            }
+            usleep(1_000);
+        }
+        $disabledStats = $reopened->storageStats();
+        nativeStorageExpect(
+            $disabledStats['dead_bytes'] > 0,
+            'disabled compaction probe did not create reclaimable region bytes',
+        );
+        nativeStorageExpect(
+            $disabledStats['compactions_completed'] === 0
+                && $disabledStats['compactions_failed'] === 0,
+            'default native compaction policy was not disabled',
         );
 
         $missing = new ChunkPos(50, -50);

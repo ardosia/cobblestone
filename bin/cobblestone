@@ -44,6 +44,8 @@ $worldSeedText = getenv('COBBLESTONE_WORLD_SEED') ?: '-1';
 $flatPreset = getenv('COBBLESTONE_FLAT_PRESET') ?: '2;7,2x3,2;1;';
 $saveWorkers = (int) (getenv('COBBLESTONE_SAVE_WORKERS') ?: '2');
 $loadWorkers = (int) (getenv('COBBLESTONE_LOAD_WORKERS') ?: '2');
+$compactionMinDeadBytesText = getenv('COBBLESTONE_COMPACTION_MIN_DEAD_BYTES') ?: '0';
+$compactionMinDeadPercentText = getenv('COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT') ?: '0';
 
 if ($maxConnections <= 0) {
     $logger->error('COBBLESTONE_MAX_CONNECTIONS must be positive');
@@ -65,6 +67,28 @@ if ($loadWorkers <= 0 || $loadWorkers > 32) {
     $logger->error('COBBLESTONE_LOAD_WORKERS must be between 1 and 32');
     exit(1);
 }
+if (!preg_match('/^\d+$/', $compactionMinDeadBytesText)) {
+    $logger->error('COBBLESTONE_COMPACTION_MIN_DEAD_BYTES must be a nonnegative integer');
+    exit(1);
+}
+$compactionMinDeadBytes = filter_var(
+    $compactionMinDeadBytesText,
+    FILTER_VALIDATE_INT,
+    ['options' => ['min_range' => 0, 'max_range' => PHP_INT_MAX]],
+);
+if ($compactionMinDeadBytes === false) {
+    $logger->error('COBBLESTONE_COMPACTION_MIN_DEAD_BYTES exceeds the supported integer range');
+    exit(1);
+}
+if (!preg_match('/^\d+$/', $compactionMinDeadPercentText)) {
+    $logger->error('COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT must be an integer between 0 and 100');
+    exit(1);
+}
+$compactionMinDeadPercent = (int) $compactionMinDeadPercentText;
+if ($compactionMinDeadPercent < 0 || $compactionMinDeadPercent > 100) {
+    $logger->error('COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT must be between 0 and 100');
+    exit(1);
+}
 
 try {
     $world = WorldFactory::persistentFlat(
@@ -74,6 +98,8 @@ try {
         $flatPreset,
         saveWorkers: $saveWorkers,
         loadWorkers: $loadWorkers,
+        compactionMinDeadBytes: $compactionMinDeadBytes,
+        compactionMinDeadPercent: $compactionMinDeadPercent,
     );
     $server = Server::start(
         $bind,
@@ -106,6 +132,8 @@ $logger->info(
         'tick_rate' => $tickRate,
         'world' => $server->world()->name(),
         'world_dir' => $worldDir,
+        'compaction_min_dead_bytes' => $compactionMinDeadBytes,
+        'compaction_min_dead_percent' => $compactionMinDeadPercent,
     ],
 );
 

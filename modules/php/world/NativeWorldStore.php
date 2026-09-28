@@ -102,6 +102,8 @@ final class NativeWorldStore
         bool $createTimeRunning = true,
         int $saveWorkers = 2,
         int $loadWorkers = 2,
+        int $compactionMinDeadBytes = 0,
+        int $compactionMinDeadPercent = 0,
         ?string $createUuid = null,
     ): NativeWorldMetadata {
         if ($root === '') {
@@ -112,6 +114,12 @@ final class NativeWorldStore
         }
         if ($loadWorkers <= 0 || $loadWorkers > 32) {
             throw new \ValueError('native world load worker count must be in range 1..32');
+        }
+        if ($compactionMinDeadBytes < 0) {
+            throw new \ValueError('native world compaction minimum dead bytes must be nonnegative');
+        }
+        if ($compactionMinDeadPercent < 0 || $compactionMinDeadPercent > 100) {
+            throw new \ValueError('native world compaction minimum dead percent must be in range 0..100');
         }
 
         $createUuid ??= random_bytes(16);
@@ -137,6 +145,8 @@ final class NativeWorldStore
             ],
             $saveWorkers,
             $loadWorkers,
+            $compactionMinDeadBytes,
+            $compactionMinDeadPercent,
         );
 
         $this->storageAttached = true;
@@ -238,7 +248,12 @@ final class NativeWorldStore
      *   metadata_generation: int,
      *   load_completed: int,
      *   load_in_flight: int,
-     *   load_missing: int
+     *   load_missing: int,
+     *   compaction_completed: int,
+     *   compaction_failed: int,
+     *   compaction_scheduled: int,
+     *   compaction_in_flight: int,
+     *   compaction_queued: int
      * }
      */
     public function storageTick(int $budget = 64): array
@@ -248,7 +263,7 @@ final class NativeWorldStore
         }
 
         $values = cobblestone_world_storage_tick($this->requireHandle(), $budget);
-        if (count($values) !== 7) {
+        if (count($values) !== 12) {
             throw new \UnexpectedValueException('native world storage tick projection has wrong width');
         }
 
@@ -260,6 +275,11 @@ final class NativeWorldStore
             'load_completed' => (int) $values[4],
             'load_in_flight' => (int) $values[5],
             'load_missing' => (int) $values[6],
+            'compaction_completed' => (int) $values[7],
+            'compaction_failed' => (int) $values[8],
+            'compaction_scheduled' => (int) $values[9],
+            'compaction_in_flight' => (int) $values[10],
+            'compaction_queued' => (int) $values[11],
         ];
     }
 
@@ -269,13 +289,18 @@ final class NativeWorldStore
      *   regions_observed: int,
      *   record_bytes: int,
      *   live_bytes: int,
-     *   dead_bytes: int
+     *   dead_bytes: int,
+     *   compactions_completed: int,
+     *   compactions_failed: int,
+     *   compaction_bytes_reclaimed: int,
+     *   compaction_blocked_regions: int,
+     *   compaction_last_error: string
      * }
      */
     public function storageStats(): array
     {
         $values = cobblestone_world_storage_stats($this->requireHandle());
-        if (count($values) !== 5) {
+        if (count($values) !== 10) {
             throw new \UnexpectedValueException('native world storage stats projection has wrong width');
         }
 
@@ -285,6 +310,11 @@ final class NativeWorldStore
             'record_bytes' => (int) $values[2],
             'live_bytes' => (int) $values[3],
             'dead_bytes' => (int) $values[4],
+            'compactions_completed' => (int) $values[5],
+            'compactions_failed' => (int) $values[6],
+            'compaction_bytes_reclaimed' => (int) $values[7],
+            'compaction_blocked_regions' => (int) $values[8],
+            'compaction_last_error' => (string) $values[9],
         ];
     }
 
