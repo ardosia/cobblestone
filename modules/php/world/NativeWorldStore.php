@@ -501,16 +501,6 @@ final class NativeWorldStore
         );
     }
 
-    public function fillBiome(ChunkPos $position, int $biome): void
-    {
-        cobblestone_world_fill_biome(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $biome,
-        );
-    }
-
     public function skyLight(ChunkPos $position, int $x, int $y, int $z): int
     {
         return cobblestone_world_sky_light(
