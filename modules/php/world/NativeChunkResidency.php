@@ -15,6 +15,16 @@ final class NativeChunkResidency
     {
     }
 
+    public static function ensure(int $handle, ChunkPos $position, BiomeId $biome): bool
+    {
+        return cobblestone_world_ensure_chunk(
+            $handle,
+            $position->x,
+            $position->z,
+            $biome->value,
+        );
+    }
+
     public static function lifecycleFlags(int $handle, ChunkPos $position): int
     {
         return cobblestone_world_lifecycle_flags(

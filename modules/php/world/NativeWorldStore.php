@@ -212,12 +212,7 @@ final class NativeWorldStore
 
     public function ensureChunk(ChunkPos $position, BiomeId $biome): bool
     {
-        return cobblestone_world_ensure_chunk(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $biome->value,
-        );
+        return NativeChunkResidency::ensure($this->requireHandle(), $position, $biome);
     }
 
     public function lifecycleFlags(ChunkPos $position): int
