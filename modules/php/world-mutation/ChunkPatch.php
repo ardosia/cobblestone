@@ -52,11 +52,6 @@ final class ChunkPatch
         return $this->baseRevision;
     }
 
-    public function baseLightRevision(): int
-    {
-        return $this->baseLightRevision;
-    }
-
     public function blockStateId(int $x, int $y, int $z): int
     {
         $key = self::blockKey($x, $y, $z);
