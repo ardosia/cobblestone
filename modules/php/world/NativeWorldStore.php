@@ -29,6 +29,8 @@ final class NativeWorldStore
 
         foreach ([
             'cobblestone_world_create',
+            'cobblestone_world_storage_attach',
+            'cobblestone_world_storage_tick',
             'cobblestone_world_destroy',
             'cobblestone_world_ensure_chunk',
             'cobblestone_world_lifecycle_flags',
@@ -81,6 +83,77 @@ final class NativeWorldStore
     public function handle(): int
     {
         return $this->requireHandle();
+    }
+
+    public function attachStorage(
+        string $root,
+        string $createName,
+        int $createSeed,
+        int $createGeneratorId,
+        int $createGeneratorSettingsVersion,
+        string $createGeneratorSettings,
+        BlockPos $createSpawn,
+        int $createTime = 0,
+        bool $createTimeRunning = true,
+        int $saveWorkers = 2,
+        ?string $createUuid = null,
+    ): NativeWorldMetadata {
+        if ($root === '') {
+            throw new \ValueError('native world storage root cannot be empty');
+        }
+        if ($saveWorkers <= 0 || $saveWorkers > 32) {
+            throw new \ValueError('native world save worker count must be in range 1..32');
+        }
+
+        $createUuid ??= random_bytes(16);
+        if (strlen($createUuid) !== 16) {
+            throw new \ValueError('native world creation UUID must contain exactly 16 bytes');
+        }
+
+        $values = cobblestone_world_storage_attach(
+            $this->requireHandle(),
+            $root,
+            [
+                $createUuid,
+                $createName,
+                $createSeed,
+                $createGeneratorId,
+                $createGeneratorSettingsVersion,
+                $createGeneratorSettings,
+                $createSpawn->x,
+                $createSpawn->y,
+                $createSpawn->z,
+                $createTime,
+                $createTimeRunning,
+            ],
+            $saveWorkers,
+        );
+
+        return NativeWorldMetadata::fromNative($values);
+    }
+
+    /**
+     * Polls save completions and schedules dirty immutable snapshots entirely in Rust.
+     *
+     * @return array{completed: int, scheduled: int, in_flight: int, metadata_generation: int}
+     */
+    public function storageTick(int $budget = 64): array
+    {
+        if ($budget <= 0 || $budget > 4096) {
+            throw new \ValueError('native world storage tick budget must be in range 1..4096');
+        }
+
+        $values = cobblestone_world_storage_tick($this->requireHandle(), $budget);
+        if (count($values) !== 4) {
+            throw new \UnexpectedValueException('native world storage tick projection has wrong width');
+        }
+
+        return [
+            'completed' => (int) $values[0],
+            'scheduled' => (int) $values[1],
+            'in_flight' => (int) $values[2],
+            'metadata_generation' => (int) $values[3],
+        ];
     }
 
     public function ensureChunk(ChunkPos $position, BiomeId $biome): bool

@@ -29,6 +29,8 @@ $required = [
     'cobblestone_session_protocol84_send_native_chunks',
     'cobblestone_session_protocol84_flush_world_changes',
     'cobblestone_world_create',
+    'cobblestone_world_storage_attach',
+    'cobblestone_world_storage_tick',
     'cobblestone_world_destroy',
     'cobblestone_world_ensure_chunk',
     'cobblestone_world_lifecycle_flags',

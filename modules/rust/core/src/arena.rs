@@ -90,7 +90,17 @@ impl<T> Arena<T> {
         self.get(handle).is_some()
     }
 
-    /// Removes a live value, invalidating the handle before the slot can be reused.
+    /// Takes all live values and resets the arena to an empty generation space.
+    pub fn drain(&mut self) -> Vec<T> {
+        let previous = std::mem::take(self);
+        previous
+            .slots
+            .into_iter()
+            .filter_map(|slot| slot.value)
+            .collect()
+    }
+
+    /// Removes one live value, invalidating the handle before the slot can be reused.
     pub fn remove(&mut self, handle: Handle<T>) -> Option<T> {
         let slot = self.slots.get_mut(handle.index as usize)?;
         if slot.generation != handle.generation {
@@ -156,6 +166,23 @@ mod tests {
 
         assert_eq!(arena.remove(stale), None);
         assert_eq!(arena.get(live), Some(&Entity(9)));
+    }
+
+    #[test]
+    fn drain_takes_live_values_and_resets_arena() {
+        let mut arena = Arena::new();
+        arena.insert(Entity(1)).expect("slot available");
+        let removed = arena.insert(Entity(2)).expect("slot available");
+        arena.insert(Entity(3)).expect("slot available");
+        assert_eq!(arena.remove(removed), Some(Entity(2)));
+
+        let mut drained = arena.drain();
+        drained.sort_by_key(|entity| entity.0);
+        assert_eq!(drained, vec![Entity(1), Entity(3)]);
+        assert!(arena.is_empty());
+
+        let next = arena.insert(Entity(4)).expect("fresh slot available");
+        assert_eq!(next.index(), 0);
     }
 
     #[test]

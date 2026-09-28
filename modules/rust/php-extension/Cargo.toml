@@ -15,6 +15,7 @@ cobblestone-codec = { path = "../codec" }
 cobblestone-core = { path = "../core" }
 cobblestone-network = { path = "../network" }
 cobblestone-session = { path = "../session" }
+cobblestone-storage = { path = "../storage" }
 ext-php-rs = "=0.15.15"
 
 [workspace]

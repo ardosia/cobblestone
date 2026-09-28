@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -497,6 +497,38 @@ impl WorldStore {
 
     pub fn is_dirty(&self, position: ChunkCoord) -> Result<bool, WorldStoreError> {
         self.with_chunk(position, |chunk| Ok(chunk.is_dirty()))
+    }
+
+    pub fn dirty_snapshots_excluding(
+        &self,
+        limit: usize,
+        excluded: &HashSet<ChunkCoord>,
+    ) -> Vec<ChunkSnapshot> {
+        if limit == 0 {
+            return Vec::new();
+        }
+
+        let regions = read_lock(&self.regions);
+        let mut snapshots = Vec::with_capacity(limit);
+        for region in regions.values() {
+            let chunks = read_lock(&region.chunks);
+            for (&position, chunk) in chunks.iter() {
+                if chunk.is_dirty() && !excluded.contains(&position) {
+                    snapshots.push(ChunkSnapshot {
+                        position,
+                        terrain_revision: chunk.terrain_revision,
+                        light_revision: chunk.light_revision,
+                        lifecycle_flags: chunk.lifecycle_flags,
+                        data: Arc::clone(&chunk.data),
+                    });
+                    if snapshots.len() == limit {
+                        return snapshots;
+                    }
+                }
+            }
+        }
+
+        snapshots
     }
 
     pub fn persisted_revisions(

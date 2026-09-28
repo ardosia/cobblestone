@@ -1,14 +1,22 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Duration;
 
 use cobblestone_codec::{Protocol84ChunkSnapshot, RawPacket, encode_protocol84_full_chunk_data};
 use cobblestone_core::{
     Arena, CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkEviction, ChunkPatch as NativeChunkPatch, Handle,
     RuntimeId, WorldStore,
 };
+use cobblestone_storage::{
+    AsyncSaveConfig, AsyncSaveService, SaveCompletion, SaveSubmitError, WORLD_METADATA_FILENAME,
+    WorldDirectory, WorldMetadata,
+};
 use ext_php_rs::binary::Binary;
+use ext_php_rs::convert::IntoZval;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
+use ext_php_rs::types::{ZendHashTable, Zval};
 
 use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
@@ -25,6 +33,13 @@ struct NativeWorld {
 struct NativeWorldState {
     store: Arc<WorldStore>,
     protocol84_cache: Mutex<HashMap<ChunkCoord, CachedProtocol84Chunk>>,
+    persistence: Mutex<Option<NativeWorldPersistence>>,
+}
+
+struct NativeWorldPersistence {
+    directory: WorldDirectory,
+    saves: AsyncSaveService,
+    save_in_flight: HashSet<ChunkCoord>,
 }
 
 struct CachedProtocol84Chunk {
@@ -311,6 +326,205 @@ pub(crate) fn protocol84_chunk(handle_value: i64, position: ChunkCoord) -> PhpRe
     Ok(packet)
 }
 
+fn zval<T: IntoZval>(value: T) -> PhpResult<Zval> {
+    value
+        .into_zval(false)
+        .map_err(|error| php_error(error.to_string()))
+}
+
+fn metadata_values(created: bool, metadata: &WorldMetadata) -> PhpResult<Vec<Zval>> {
+    Ok(vec![
+        zval(created)?,
+        zval(Binary::new(metadata.world_uuid.to_vec()))?,
+        zval(metadata.name.clone())?,
+        zval(metadata.seed)?,
+        zval(i64::from(metadata.generator_id))?,
+        zval(i64::from(metadata.generator_settings_version))?,
+        zval(Binary::new(metadata.generator_settings.clone()))?,
+        zval(i64::from(metadata.spawn_x))?,
+        zval(i64::from(metadata.spawn_y))?,
+        zval(i64::from(metadata.spawn_z))?,
+        zval(metadata.time)?,
+        zval(metadata.time_running)?,
+        zval(
+            i64::try_from(metadata.generation)
+                .map_err(|_| php_error("world metadata generation exceeds PHP integer range"))?,
+        )?,
+    ])
+}
+
+fn apply_save_completion(
+    store: &WorldStore,
+    persistence: &mut NativeWorldPersistence,
+    completion: SaveCompletion,
+) -> PhpResult<()> {
+    let position = completion.position();
+    persistence.save_in_flight.remove(&position);
+
+    match completion {
+        SaveCompletion::Saved(receipt) => store
+            .mark_persisted(
+                receipt.position,
+                receipt.terrain_revision,
+                receipt.light_revision,
+                receipt.lifecycle_flags,
+            )
+            .map_err(|error| php_error(error.to_string())),
+        SaveCompletion::Failed(failure) => Err(php_error(format!(
+            "native world save failed for {}:{}: {}",
+            failure.position.x(),
+            failure.position.z(),
+            failure.error
+        ))),
+    }
+}
+
+fn tick_persistence(
+    store: &WorldStore,
+    persistence: &mut NativeWorldPersistence,
+    budget: usize,
+) -> PhpResult<(usize, usize)> {
+    let mut completed = 0;
+    while completed < budget {
+        let Some(completion) = persistence.saves.try_recv_completion() else {
+            break;
+        };
+        apply_save_completion(store, persistence, completion)?;
+        completed += 1;
+    }
+
+    let snapshots = store.dirty_snapshots_excluding(budget, &persistence.save_in_flight);
+    let mut scheduled = 0;
+    for snapshot in snapshots {
+        let position = snapshot.position();
+        match persistence.saves.try_save(snapshot) {
+            Ok(()) => {
+                persistence.save_in_flight.insert(position);
+                scheduled += 1;
+            }
+            Err(SaveSubmitError::Backpressure(_)) => break,
+            Err(SaveSubmitError::Closed(_)) => {
+                return Err(php_error("native world save worker is closed"));
+            }
+        }
+    }
+
+    Ok((completed, scheduled))
+}
+
+fn flush_persistence(
+    store: &WorldStore,
+    persistence: &mut NativeWorldPersistence,
+) -> PhpResult<()> {
+    const FLUSH_BATCH: usize = 256;
+    const COMPLETION_TIMEOUT: Duration = Duration::from_secs(30);
+
+    loop {
+        while let Some(completion) = persistence.saves.try_recv_completion() {
+            apply_save_completion(store, persistence, completion)?;
+        }
+
+        let snapshots = store.dirty_snapshots_excluding(FLUSH_BATCH, &persistence.save_in_flight);
+        let mut backpressured = false;
+        for snapshot in snapshots {
+            let position = snapshot.position();
+            match persistence.saves.try_save(snapshot) {
+                Ok(()) => {
+                    persistence.save_in_flight.insert(position);
+                }
+                Err(SaveSubmitError::Backpressure(_)) => {
+                    backpressured = true;
+                    break;
+                }
+                Err(SaveSubmitError::Closed(_)) => {
+                    return Err(php_error("native world save worker is closed"));
+                }
+            }
+        }
+
+        let remaining = store.dirty_snapshots_excluding(1, &persistence.save_in_flight);
+        if remaining.is_empty() && persistence.save_in_flight.is_empty() {
+            return Ok(());
+        }
+
+        if backpressured || !persistence.save_in_flight.is_empty() {
+            let completion = persistence
+                .saves
+                .recv_completion_timeout(COMPLETION_TIMEOUT)
+                .map_err(|_| php_error("timed out waiting for native world save completion"))?
+                .ok_or_else(|| php_error("native world save workers stopped before flush"))?;
+            apply_save_completion(store, persistence, completion)?;
+        }
+    }
+}
+
+fn creation_value<'a>(
+    values: &'a ZendHashTable,
+    index: i64,
+    field: &'static str,
+) -> PhpResult<&'a Zval> {
+    values.get_index(index).ok_or_else(|| {
+        php_error(format!(
+            "world storage creation metadata is missing {field}"
+        ))
+    })
+}
+
+fn creation_long(values: &ZendHashTable, index: i64, field: &'static str) -> PhpResult<i64> {
+    creation_value(values, index, field)?
+        .long()
+        .ok_or_else(|| php_error(format!("world storage creation {field} must be an integer")))
+}
+
+fn parse_creation_metadata(values: &ZendHashTable) -> PhpResult<WorldMetadata> {
+    if values.len() != 11 {
+        return Err(php_error(
+            "world storage creation metadata must contain exactly 11 values",
+        ));
+    }
+
+    let uuid = creation_value(values, 0, "UUID")?
+        .binary::<u8>()
+        .ok_or_else(|| php_error("world storage creation UUID must be binary"))?;
+    let world_uuid: [u8; 16] = uuid
+        .as_slice()
+        .try_into()
+        .map_err(|_| php_error("world UUID must contain exactly 16 bytes"))?;
+    let name = creation_value(values, 1, "name")?
+        .string()
+        .ok_or_else(|| php_error("world storage creation name must be a string"))?;
+    let seed = creation_long(values, 2, "seed")?;
+    let generator_id = u32::try_from(creation_long(values, 3, "generator id")?)
+        .map_err(|_| php_error("generator id must fit unsigned 32 bits"))?;
+    let generator_settings_version =
+        u16::try_from(creation_long(values, 4, "generator settings version")?)
+            .map_err(|_| php_error("generator settings version must fit unsigned 16 bits"))?;
+    let generator_settings = creation_value(values, 5, "generator settings")?
+        .binary::<u8>()
+        .ok_or_else(|| php_error("world storage creation generator settings must be binary"))?;
+
+    let mut metadata = WorldMetadata::new(
+        world_uuid,
+        name,
+        seed,
+        generator_id,
+        generator_settings_version,
+        generator_settings,
+    );
+    metadata.spawn_x = i32::try_from(creation_long(values, 6, "spawn x")?)
+        .map_err(|_| php_error("spawn x must fit signed 32 bits"))?;
+    metadata.spawn_y = i32::try_from(creation_long(values, 7, "spawn y")?)
+        .map_err(|_| php_error("spawn y must fit signed 32 bits"))?;
+    metadata.spawn_z = i32::try_from(creation_long(values, 8, "spawn z")?)
+        .map_err(|_| php_error("spawn z must fit signed 32 bits"))?;
+    metadata.time = creation_long(values, 9, "time")?;
+    metadata.time_running = creation_value(values, 10, "time-running flag")?
+        .bool()
+        .ok_or_else(|| php_error("world storage creation time-running flag must be boolean"))?;
+
+    Ok(metadata)
+}
+
 #[php_function]
 pub fn cobblestone_world_create() -> PhpResult<i64> {
     php_boundary(|| {
@@ -321,6 +535,7 @@ pub fn cobblestone_world_create() -> PhpResult<i64> {
                 state: Arc::new(NativeWorldState {
                     store: Arc::new(WorldStore::new()),
                     protocol84_cache: Mutex::new(HashMap::new()),
+                    persistence: Mutex::new(None),
                 }),
             })
             .map_err(|_| php_error("native world handle capacity exhausted"))?;
@@ -329,22 +544,130 @@ pub fn cobblestone_world_create() -> PhpResult<i64> {
 }
 
 #[php_function]
+pub fn cobblestone_world_storage_attach(
+    handle_value: i64,
+    root: String,
+    creation: &ZendHashTable,
+    save_workers: i64,
+) -> PhpResult<Vec<Zval>> {
+    php_boundary(|| {
+        if root.is_empty() {
+            return Err(php_error("native world storage root cannot be empty"));
+        }
+        let state = resolve_world_state(handle_value)?;
+        let mut persistence = match state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        if persistence.is_some() {
+            return Err(php_error("native world storage is already attached"));
+        }
+
+        let root = PathBuf::from(root);
+        let metadata_path = root.join(WORLD_METADATA_FILENAME);
+        let (directory, created) = if metadata_path.exists() {
+            (
+                WorldDirectory::open(&root).map_err(|error| php_error(error.to_string()))?,
+                false,
+            )
+        } else {
+            let metadata = parse_creation_metadata(creation)?;
+
+            match WorldDirectory::create(&root, metadata) {
+                Ok(directory) => (directory, true),
+                Err(cobblestone_storage::StorageError::WorldMetadataAlreadyExists) => (
+                    WorldDirectory::open(&root).map_err(|error| php_error(error.to_string()))?,
+                    false,
+                ),
+                Err(error) => return Err(php_error(error.to_string())),
+            }
+        };
+
+        let workers = usize::try_from(save_workers)
+            .map_err(|_| php_error("save worker count must be positive"))?;
+        let mut config = AsyncSaveConfig::new(directory.root(), directory.world_uuid());
+        config.workers = workers;
+        let saves =
+            AsyncSaveService::start(config).map_err(|error| php_error(error.to_string()))?;
+        let values = metadata_values(created, directory.metadata())?;
+
+        *persistence = Some(NativeWorldPersistence {
+            directory,
+            saves,
+            save_in_flight: HashSet::new(),
+        });
+        Ok(values)
+    })
+}
+
+#[php_function]
+pub fn cobblestone_world_storage_tick(handle_value: i64, budget: i64) -> PhpResult<Vec<Zval>> {
+    php_boundary(|| {
+        let budget = usize::try_from(budget)
+            .ok()
+            .filter(|&value| value > 0 && value <= 4096)
+            .ok_or_else(|| php_error("world storage tick budget must be in range 1..4096"))?;
+        let state = resolve_world_state(handle_value)?;
+        let mut persistence = match state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let Some(persistence) = persistence.as_mut() else {
+            return Ok(vec![zval(0_i64)?, zval(0_i64)?, zval(0_i64)?, zval(0_i64)?]);
+        };
+
+        let (completed, scheduled) = tick_persistence(&state.store, persistence, budget)?;
+        Ok(vec![
+            zval(i64::try_from(completed).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(scheduled).unwrap_or(i64::MAX))?,
+            zval(i64::try_from(persistence.save_in_flight.len()).unwrap_or(i64::MAX))?,
+            zval(
+                i64::try_from(persistence.directory.metadata().generation).map_err(|_| {
+                    php_error("world metadata generation exceeds PHP integer range")
+                })?,
+            )?,
+        ])
+    })
+}
+
+#[php_function]
 pub fn cobblestone_world_destroy(handle_value: i64) -> PhpResult<()> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
         let handle = handle(handle_value)?;
+        let state = {
+            let arena = world_arena();
+            let world = arena
+                .get(handle)
+                .ok_or_else(|| php_error("native world handle is stale or unknown"))?;
+            if world.owner != owner {
+                return Err(php_error("native world belongs to another PHP runtime"));
+            }
+            let pins = world.state.store.total_pin_count();
+            if pins != 0 {
+                return Err(php_error(format!(
+                    "native world cannot be destroyed while {pins} chunk pins are active"
+                )));
+            }
+            Arc::clone(&world.state)
+        };
+
+        {
+            let mut persistence = match state.persistence.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            if let Some(persistence) = persistence.as_mut() {
+                flush_persistence(&state.store, persistence)?;
+            }
+        }
+
         let mut arena = world_arena();
         let world = arena
             .get(handle)
-            .ok_or_else(|| php_error("native world handle is stale or unknown"))?;
+            .ok_or_else(|| php_error("native world handle disappeared during shutdown"))?;
         if world.owner != owner {
-            return Err(php_error("native world belongs to another PHP runtime"));
-        }
-        let pins = world.state.store.total_pin_count();
-        if pins != 0 {
-            return Err(php_error(format!(
-                "native world cannot be destroyed while {pins} chunk pins are active"
-            )));
+            return Err(php_error("native world owner changed during shutdown"));
         }
         arena
             .remove(handle)
@@ -1006,6 +1329,8 @@ pub fn cobblestone_world_snapshot(
 pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
         .function(wrap_function!(cobblestone_world_create))
+        .function(wrap_function!(cobblestone_world_storage_attach))
+        .function(wrap_function!(cobblestone_world_storage_tick))
         .function(wrap_function!(cobblestone_world_destroy))
         .function(wrap_function!(cobblestone_world_ensure_chunk))
         .function(wrap_function!(cobblestone_world_lifecycle_flags))
@@ -1040,5 +1365,15 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
 }
 
 pub(crate) fn shutdown() {
-    *world_arena() = Arena::new();
+    let worlds = world_arena().drain();
+
+    for world in worlds {
+        let mut persistence = match world.state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        if let Some(persistence) = persistence.as_mut() {
+            let _ = flush_persistence(&world.state.store, persistence);
+        }
+    }
 }

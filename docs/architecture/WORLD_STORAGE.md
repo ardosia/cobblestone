@@ -1,6 +1,6 @@
 # Cobblestone world storage v1 design
 
-Status: v1 world metadata, binary region/chunk format, and bounded native async save/load orchestration implemented in `cobblestone-storage`; WorldStore/server wiring and compaction remain pending.
+Status: v1 world metadata, binary region/chunk format, bounded native async save/load orchestration, and native WorldStore save/watermark attachment implemented; durable load/import, production server composition, and compaction remain pending.
 
 ## Goals
 
@@ -191,7 +191,7 @@ The service accepts 1..32 workers and bounded per-worker command plus shared com
 
 Compression, checksumming, append writes, both durability barriers, and inactive-index publication happen on the storage worker. Each completion carries the exact chunk coordinate, terrain revision, light revision, lifecycle flags, region generation, and bytes appended for the immutable snapshot that reached stable storage. Worker panics are contained per job and surfaced as failed completions.
 
-Shutdown closes command senders, drains every accepted save to a completion, and only then joins the workers. This keeps accepted durable work from disappearing merely because the server is stopping. Persisted watermarks are intentionally not advanced inside the storage crate; the owning world layer must apply successful completion receipts to the live `WorldStore`, where stale/newer live revisions remain dirty automatically.
+Shutdown closes command senders, drains every accepted save to a completion, and only then joins the workers. This keeps accepted durable work from disappearing merely because the server is stopping. Persisted watermarks are intentionally not advanced inside the storage crate. The native PHP extension now owns that composition seam: one coarse storage tick polls save receipts, applies their exact terrain/light/lifecycle watermarks directly to the live `WorldStore`, and schedules additional dirty immutable snapshots without exposing chunk planes to PHP. If the live chunk advanced while a save was running, it remains dirty and is selected again.
 
 Release measurement on the development host for 64 default-Flat snapshots spread across 16 storage regions measured:
 
@@ -238,7 +238,7 @@ The residency contract is now explicit and native-authoritative:
 
 Persistence-specific duplicate-load collapse is implemented in the native load service: exactly one disk request may be in flight per chunk coordinate, and duplicate requesters join that operation. World integration must treat only a successful durable `Missing` completion as permission to generate; failed/corrupt loads are errors and must never silently become empty/generated chunks.
 
-For unload with persistence, the intended path is snapshot handoff rather than blocking the gameplay runtime on disk: capture the immutable native snapshot, pin/retain that snapshot in the bounded storage job, publish it durably, advance persisted watermarks on completion, and evict only when the live chunk is still clean and unpinned. Shutdown must drain or explicitly fail accepted save jobs before destroying the world store. Exact save/load queue capacities and backpressure thresholds remain implementation-time measured constants.
+Save-side snapshot handoff is now implemented: the extension scans dirty native residency below Zend, submits immutable snapshots to the bounded save service, advances persisted watermarks only after durable receipts, and leaves newer live revisions dirty. Explicit world destruction additionally schedules every still-unsaved dirty snapshot and waits for completion before removing the native world handle. Safe eviction remains separately gated by clean + unpinned state; automatic eviction policy belongs with the upcoming load/residency integration rather than the save worker.
 
 ## Compaction
 
@@ -260,4 +260,4 @@ Checksums detect corruption; they do not authenticate data.
 
 Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, parent-directory fsync on first region creation, bounded region-sharded async saves, and deduplicated bounded async loads. Tests cover torn-index recovery, exact save receipts, save shutdown draining, durable misses without file creation, and one in-flight disk read per chunk.
 
-The next bounded milestone is wiring durable load/import and save-completion watermarks into `WorldStore`/server composition using `WorldDirectory` as the storage-root authority. Compaction follows once real save workloads provide dead-byte measurements.
+The next bounded milestone is durable load/import integration: request/join native loads from chunk acquisition, import successful `ChunkImport` records directly into `WorldStore`, permit generation only after a durable `Missing`, then wire one coarse storage tick into production server composition. Compaction follows once real save workloads provide dead-byte measurements.
