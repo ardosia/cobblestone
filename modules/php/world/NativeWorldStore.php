@@ -293,155 +293,67 @@ final class NativeWorldStore
 
     public function blockStateId(ChunkPos $position, int $x, int $y, int $z): int
     {
-        return cobblestone_world_block_state(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-        );
+        return NativeChunkData::blockStateId($this->requireHandle(), $position, $x, $y, $z);
     }
 
     public function setBlockStateId(ChunkPos $position, int $x, int $y, int $z, int $stateId): int
     {
-        return cobblestone_world_set_block_state(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-            $stateId,
-        );
+        return NativeChunkData::setBlockStateId($this->requireHandle(), $position, $x, $y, $z, $stateId);
     }
 
     public function fillLayers(ChunkPos $position, int $startY, int $count, int $stateId): void
     {
-        cobblestone_world_fill_layers(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $startY,
-            $count,
-            $stateId,
-        );
+        NativeChunkData::fillLayers($this->requireHandle(), $position, $startY, $count, $stateId);
     }
 
     public function biome(ChunkPos $position, int $x, int $z): int
     {
-        return cobblestone_world_biome(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $z,
-        );
+        return NativeChunkData::biome($this->requireHandle(), $position, $x, $z);
     }
 
     public function setBiome(ChunkPos $position, int $x, int $z, int $biome): int
     {
-        return cobblestone_world_set_biome(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $z,
-            $biome,
-        );
+        return NativeChunkData::setBiome($this->requireHandle(), $position, $x, $z, $biome);
     }
 
     public function skyLight(ChunkPos $position, int $x, int $y, int $z): int
     {
-        return cobblestone_world_sky_light(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-        );
+        return NativeChunkData::skyLight($this->requireHandle(), $position, $x, $y, $z);
     }
 
     public function setSkyLight(ChunkPos $position, int $x, int $y, int $z, int $level): int
     {
-        return cobblestone_world_set_sky_light(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-            $level,
-        );
+        return NativeChunkData::setSkyLight($this->requireHandle(), $position, $x, $y, $z, $level);
     }
 
     public function fillSkyLightFrom(ChunkPos $position, int $y, int $level): void
     {
-        cobblestone_world_fill_sky_light_from(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $y,
-            $level,
-        );
+        NativeChunkData::fillSkyLightFrom($this->requireHandle(), $position, $y, $level);
     }
 
     public function blockLight(ChunkPos $position, int $x, int $y, int $z): int
     {
-        return cobblestone_world_block_light(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-        );
+        return NativeChunkData::blockLight($this->requireHandle(), $position, $x, $y, $z);
     }
 
     public function setBlockLight(ChunkPos $position, int $x, int $y, int $z, int $level): int
     {
-        return cobblestone_world_set_block_light(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-            $level,
-        );
+        return NativeChunkData::setBlockLight($this->requireHandle(), $position, $x, $y, $z, $level);
     }
 
     public function heightMap(ChunkPos $position, int $x, int $z): int
     {
-        return cobblestone_world_height_map(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $z,
-        );
+        return NativeChunkData::heightMap($this->requireHandle(), $position, $x, $z);
     }
 
     public function recalculateHeightMap(ChunkPos $position): void
     {
-        cobblestone_world_recalculate_height_map(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        NativeChunkData::recalculateHeightMap($this->requireHandle(), $position);
     }
 
     public function blockExtraData(ChunkPos $position, int $x, int $y, int $z): int
     {
-        return cobblestone_world_block_extra_data(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-        );
+        return NativeChunkData::blockExtraData($this->requireHandle(), $position, $x, $y, $z);
     }
 
     public function setBlockExtraData(
@@ -451,15 +363,7 @@ final class NativeWorldStore
         int $z,
         int $data,
     ): int {
-        return cobblestone_world_set_block_extra_data(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $x,
-            $y,
-            $z,
-            $data,
-        );
+        return NativeChunkData::setBlockExtraData($this->requireHandle(), $position, $x, $y, $z, $data);
     }
 
 
