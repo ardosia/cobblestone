@@ -30,7 +30,7 @@ compositionExpect(
     'base world package must not depend on sibling Cobblestone packages',
 );
 
-foreach (['world-generation', 'world-light', 'world-mutation', 'world-region'] as $package) {
+foreach (['world-generation', 'world-light', 'world-mutation'] as $package) {
     $manifest = json_decode(
         (string) file_get_contents($root . "/modules/php/{$package}/composer.json"),
         true,

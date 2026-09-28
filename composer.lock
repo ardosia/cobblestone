@@ -144,7 +144,7 @@
             "dist": {
                 "type": "path",
                 "url": "modules/php/server",
-                "reference": "5fd14bc7ab152cb85ce6675d56bd2bd06fe781dc"
+                "reference": "860b84268a6638d01c01cfc670c09a13afabbabf"
             },
             "require": {
                 "ardosia/cobblestone-command": "dev-main",
@@ -158,7 +158,6 @@
                 "ardosia/cobblestone-world-generation": "dev-main",
                 "ardosia/cobblestone-world-light": "dev-main",
                 "ardosia/cobblestone-world-mutation": "dev-main",
-                "ardosia/cobblestone-world-region": "dev-main",
                 "php": ">=8.5",
                 "psr/log": "^3.0"
             },
@@ -328,32 +327,6 @@
                 "MIT OR Apache-2.0"
             ],
             "description": "Cobblestone staged world-mutation mechanism.",
-            "transport-options": {
-                "relative": true
-            }
-        },
-        {
-            "name": "ardosia/cobblestone-world-region",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "modules/php/world-region",
-                "reference": "0501b2040862026b74488d003414e70c499530ee"
-            },
-            "require": {
-                "ardosia/cobblestone-world": "dev-main",
-                "php": ">=8.5"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Cobblestone\\World\\Region\\": ""
-                }
-            },
-            "license": [
-                "MIT OR Apache-2.0"
-            ],
-            "description": "Cobblestone execution-region mapping mechanism.",
             "transport-options": {
                 "relative": true
             }

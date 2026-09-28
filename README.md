@@ -28,8 +28,7 @@ modules/
 │   ├── world/
 │   ├── world-generation/
 │   ├── world-light/
-│   ├── world-mutation/
-│   └── world-region/
+│   └── world-mutation/
 └── rust/
     ├── core/
     ├── codec/
@@ -66,7 +65,7 @@ The root Composer project consumes these packages through a `modules/php/*` path
 
 Native Zend exports are registered by `modules/rust/php-extension`; Composer package layout cannot rename them.
 
-The base gameplay package is `modules/php/world`: it owns the fixed 0.15.10 16×16×128 world/chunk semantics plus the generator, mutation, lighting, residency, and execution-region contracts/value types exposed by `World`. Concrete Flat generation, fixed-target light propagation, staged mutation, and execution-region mapping live in `world-generation`, `world-light`, `world-mutation`, and `world-region`, each depending one-way on the base world package. The server composition root creates a region-sharded native `WorldStore` when the extension is available; PHP `Chunk` objects then act as owner-runtime semantic facades over native terrain/light planes, revisions, lifecycle metadata, immutable snapshots, pin counts, dirty watermarks, and atomic patches. Scalar `BlockStateId` values are the hot-path state currency; `BlockState` is the ergonomic wrapper. `docs/provenance/WORLD_API_PARITY.md` tracks semantic parity against the pinned Ardosia world substrate and records the deliberate runtime adaptations.
+The base gameplay package is `modules/php/world`: it owns the fixed 0.15.10 16×16×128 world/chunk semantics plus the generator, mutation, lighting, residency, and execution-region contracts/value types exposed by `World`. Concrete Flat generation, fixed-target light propagation, and staged mutation live in `world-generation`, `world-light`, and `world-mutation`, each depending one-way on the base world package; execution-region mapping now lives with its `RegionMapInterface`/`RegionId` contracts in `world`. The server composition root creates a region-sharded native `WorldStore` when the extension is available; PHP `Chunk` objects then act as owner-runtime semantic facades over native terrain/light planes, revisions, lifecycle metadata, immutable snapshots, pin counts, dirty watermarks, and atomic patches. Scalar `BlockStateId` values are the hot-path state currency; `BlockState` is the ergonomic wrapper. `docs/provenance/WORLD_API_PARITY.md` tracks semantic parity against the pinned Ardosia world substrate and records the deliberate runtime adaptations.
 
 `modules/php/command` owns command registration/dispatch, while `modules/php/event` owns owner-runtime event dispatch; plugins and the server consume both directly. `modules/php/log` provides the PSR-3/Monolog logging implementation with a Spring Boot-inspired console layout and no banner. Monotonic tick pacing and overload warnings live with the server package that exclusively owns that lifecycle mechanism. The owner-runtime task scheduler keeps scheduled tasks and `TickSleep` Fibers in stable due-time min-heaps, so dormant work does not get scanned every tick; only currently outstanding native awaits still require per-task polling. The server runner handles graceful stop requests/signals instead of leaving a raw infinite loop in the executable.
 
