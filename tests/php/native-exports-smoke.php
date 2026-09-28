@@ -27,6 +27,8 @@ $required = [
     'cobblestone_session_protocol84_request_chunk_radius',
     'cobblestone_session_protocol84_send_initial_chunks',
     'cobblestone_session_protocol84_send_native_chunks',
+    'cobblestone_session_protocol84_player_spawned',
+    'cobblestone_session_protocol84_track_move_player',
     'cobblestone_session_protocol84_flush_world_changes',
     'cobblestone_world_create',
     'cobblestone_world_storage_attach',

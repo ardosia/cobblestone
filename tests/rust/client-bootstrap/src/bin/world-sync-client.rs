@@ -15,6 +15,17 @@ use tokio::time::timeout;
 const REQUEST_CHUNK_RADIUS_ID: u8 = 0x3d;
 const UPDATE_BLOCK_ID: u8 = 0x13;
 
+fn move_player_body(position: [f32; 3]) -> NativeBuffer {
+    let mut body = Vec::with_capacity(34);
+    body.extend_from_slice(&0_i64.to_be_bytes());
+    for value in [position[0], position[1], position[2], 0.0, 0.0, 0.0] {
+        body.extend_from_slice(&value.to_bits().to_be_bytes());
+    }
+    body.push(0);
+    body.push(1);
+    NativeBuffer::from_vec(body)
+}
+
 fn limits() -> CodecLimits {
     CodecLimits::new(
         2 * 1024 * 1024,
@@ -76,6 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .nth(1)
         .ok_or("missing server address")?
         .parse()?;
+    let send_movement = std::env::args().any(|argument| argument == "--move-after-update");
     let limits = limits();
 
     let mut client = RaknetClient::connect_with_config(
@@ -142,6 +154,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     packet.body().as_slice()
                 )
                 .into());
+            }
+
+            if send_movement {
+                let movement = RawPacket::new(
+                    packet_id::MOVE_PLAYER,
+                    move_player_body([129.0, 64.0, 129.0]),
+                );
+                let movement_frame = encode_game_frame(&movement, limits)?;
+                client
+                    .send_with_options(
+                        Bytes::copy_from_slice(movement_frame.as_slice()),
+                        ClientSendOptions {
+                            reliability: Reliability::UnreliableSequenced,
+                            ..ClientSendOptions::default()
+                        },
+                    )
+                    .await?;
+                tokio::time::sleep(Duration::from_millis(100)).await;
             }
 
             println!("world-sync-client: update=verified packet=0x13 x=128 y=5 z=128 state=0x010");

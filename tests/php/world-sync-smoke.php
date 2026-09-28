@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use Cobblestone\Native\Session\Packet;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionSpawned;
@@ -33,7 +34,17 @@ if (!is_string($bind) || $bind === '') {
     throw new RuntimeException('failed to resolve loopback UDP address');
 }
 
-$server = Server::start($bind, 4, 'Cobblestone World Sync Test');
+$movementHandled = false;
+$server = Server::start(
+    $bind,
+    4,
+    'Cobblestone World Sync Test',
+    static function (Packet $packet) use (&$movementHandled): void {
+        if ($packet->packetId === 0x10) {
+            $movementHandled = true;
+        }
+    },
+);
 $spawned = false;
 $mutated = false;
 $server->events()->listen(
@@ -70,6 +81,7 @@ $command = [
     'world-sync-client',
     '--',
     $bind,
+    '--move-after-update',
 ];
 $descriptors = [
     0 => ['pipe', 'r'],
@@ -118,6 +130,7 @@ try {
     worldSyncExpect($exitCode === 0, "world-sync client failed: {$stderr}");
     worldSyncExpect($spawned, 'world-sync session never reached spawned state');
     worldSyncExpect($mutated, 'world-sync mutation was not applied');
+    worldSyncExpect($movementHandled, 'world-sync MovePlayer never reached post-spawn gameplay handling');
     worldSyncExpect(
         str_contains($stdout, 'world-sync-client: update=verified'),
         "world-sync client did not observe UpdateBlock\nstdout={$stdout}\nstderr={$stderr}",

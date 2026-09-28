@@ -20,6 +20,7 @@ use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionLoginAccepted;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\Session\SessionBootstrap;
+use Cobblestone\Session\SessionGameplay;
 use Cobblestone\Session\BootstrapUpdate;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\World\ChunkLoadPending;
@@ -38,6 +39,7 @@ final class Server
     private readonly Scheduler $scheduler;
     private readonly PluginManager $plugins;
     private readonly SessionBootstrap $bootstrap;
+    private readonly SessionGameplay $gameplay;
     private readonly WorldMaintenance $worldMaintenance;
     private readonly LoggerInterface $logger;
 
@@ -64,6 +66,7 @@ final class Server
             $this->logs,
         );
         $this->bootstrap = new SessionBootstrap($this->sessions, $this->world, $initialChunkRadius);
+        $this->gameplay = new SessionGameplay($this->sessions, $this->world);
         $this->worldMaintenance = new WorldMaintenance($this->sessions, $this->world, $this->logger);
 
         $this->state = ServerState::Running;
@@ -231,6 +234,31 @@ final class Server
                     continue;
                 }
 
+                try {
+                    $this->gameplay->handle($event);
+                } catch (Throwable $error) {
+                    $this->logger->error(
+                        'Session gameplay packet failed',
+                        [
+                            'session' => $event->sessionId,
+                            'packet' => $event->packetId,
+                            'exception' => $error,
+                        ],
+                    );
+                    try {
+                        $this->sessions->disconnect($event->sessionId);
+                    } catch (Throwable $disconnectError) {
+                        $this->logger->warning(
+                            'Session disconnect after gameplay failure failed',
+                            [
+                                'session' => $event->sessionId,
+                                'exception' => $disconnectError,
+                            ],
+                        );
+                    }
+                    continue;
+                }
+
                 if ($this->packetHandler !== null) {
                     ($this->packetHandler)($event);
                 }
@@ -291,6 +319,7 @@ final class Server
 
     private function dispatchSpawned(int $sessionId, BootstrapUpdate $update): void
     {
+        $this->gameplay->spawned($sessionId);
         $effectiveRadius = $update->effectiveRadius ?? 0;
         $this->logger->info(
             'Session spawned',

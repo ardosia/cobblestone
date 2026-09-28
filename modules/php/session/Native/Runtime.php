@@ -37,6 +37,8 @@ final class Runtime
             'cobblestone_session_protocol84_request_chunk_radius',
             'cobblestone_session_protocol84_send_initial_chunks',
             'cobblestone_session_protocol84_send_native_chunks',
+            'cobblestone_session_protocol84_player_spawned',
+            'cobblestone_session_protocol84_track_move_player',
             'cobblestone_session_protocol84_flush_world_changes',
             'cobblestone_session_disconnect',
             'cobblestone_session_stop',
@@ -128,6 +130,20 @@ final class Runtime
     {
         $this->assertRunning();
         return cobblestone_session_protocol84_request_chunk_radius($body);
+    }
+
+    /** @internal */
+    public function initializePlayerPosition(int $sessionId, int $spawnX, int $spawnY, int $spawnZ): void
+    {
+        $this->assertRunning();
+        cobblestone_session_protocol84_player_spawned($sessionId, $spawnX, $spawnY, $spawnZ);
+    }
+
+    /** @internal */
+    public function trackPlayerMovement(int $sessionId, string $body): void
+    {
+        $this->assertRunning();
+        cobblestone_session_protocol84_track_move_player($sessionId, $body);
     }
 
     /** @internal */
