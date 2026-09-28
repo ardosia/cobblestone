@@ -10,8 +10,8 @@ use cobblestone_core::{
 };
 use cobblestone_storage::{
     AsyncLoadConfig, AsyncLoadService, AsyncSaveConfig, AsyncSaveService, LoadCompletion,
-    LoadRequestState, SaveCompletion, SaveSubmitError, WORLD_METADATA_FILENAME, WorldDirectory,
-    WorldMetadata,
+    LoadRequestState, RegionCoord, RegionStats, SaveCompletion, SaveSubmitError,
+    WORLD_METADATA_FILENAME, WorldDirectory, WorldMetadata,
 };
 use ext_php_rs::binary::Binary;
 use ext_php_rs::convert::IntoZval;
@@ -43,6 +43,8 @@ struct NativeWorldPersistence {
     loads: AsyncLoadService,
     save_in_flight: HashSet<ChunkCoord>,
     load_missing: HashSet<ChunkCoord>,
+    save_bytes_appended: u64,
+    region_stats: HashMap<RegionCoord, RegionStats>,
 }
 
 struct CachedProtocol84Chunk {
@@ -365,14 +367,24 @@ fn apply_save_completion(
     persistence.save_in_flight.remove(&position);
 
     match completion {
-        SaveCompletion::Saved(receipt) => store
-            .mark_persisted(
-                receipt.position,
-                receipt.terrain_revision,
-                receipt.light_revision,
-                receipt.lifecycle_flags,
-            )
-            .map_err(|error| php_error(error.to_string())),
+        SaveCompletion::Saved(receipt) => {
+            store
+                .mark_persisted(
+                    receipt.position,
+                    receipt.terrain_revision,
+                    receipt.light_revision,
+                    receipt.lifecycle_flags,
+                )
+                .map_err(|error| php_error(error.to_string()))?;
+            persistence.save_bytes_appended = persistence
+                .save_bytes_appended
+                .checked_add(receipt.bytes_appended)
+                .ok_or_else(|| php_error("world storage append byte count overflow"))?;
+            persistence
+                .region_stats
+                .insert(receipt.region, receipt.region_stats);
+            Ok(())
+        }
         SaveCompletion::Failed(failure) => Err(php_error(format!(
             "native world save failed for {}:{}: {}",
             failure.position.x(),
@@ -691,6 +703,8 @@ pub fn cobblestone_world_storage_attach(
             loads,
             save_in_flight: HashSet::new(),
             load_missing: HashSet::new(),
+            save_bytes_appended: 0,
+            region_stats: HashMap::new(),
         });
         Ok(values)
     })
@@ -813,6 +827,67 @@ pub fn cobblestone_world_storage_tick(handle_value: i64, budget: i64) -> PhpResu
             zval(i64::try_from(load_completed).unwrap_or(i64::MAX))?,
             zval(i64::try_from(persistence.loads.in_flight()).unwrap_or(i64::MAX))?,
             zval(i64::try_from(persistence.load_missing.len()).unwrap_or(i64::MAX))?,
+        ])
+    })
+}
+
+#[php_function]
+pub fn cobblestone_world_storage_stats(handle_value: i64) -> PhpResult<Vec<Zval>> {
+    php_boundary(|| {
+        let state = resolve_world_state(handle_value)?;
+        let persistence = match state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let Some(persistence) = persistence.as_ref() else {
+            return Ok(vec![
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+                zval(0_i64)?,
+            ]);
+        };
+
+        let record_bytes = persistence
+            .region_stats
+            .values()
+            .try_fold(0_u64, |total, stats| {
+                total
+                    .checked_add(stats.record_bytes)
+                    .ok_or_else(|| php_error("world storage record byte count overflow"))
+            })?;
+        let live_bytes = persistence
+            .region_stats
+            .values()
+            .try_fold(0_u64, |total, stats| {
+                total
+                    .checked_add(stats.live_bytes)
+                    .ok_or_else(|| php_error("world storage live byte count overflow"))
+            })?;
+        let dead_bytes = persistence
+            .region_stats
+            .values()
+            .try_fold(0_u64, |total, stats| {
+                total
+                    .checked_add(stats.dead_bytes)
+                    .ok_or_else(|| php_error("world storage dead byte count overflow"))
+            })?;
+
+        let as_php_int = |value: u64, field: &'static str| {
+            i64::try_from(value)
+                .map_err(|_| php_error(format!("world storage {field} exceeds PHP integer range")))
+        };
+
+        Ok(vec![
+            zval(as_php_int(
+                persistence.save_bytes_appended,
+                "append byte count",
+            )?)?,
+            zval(i64::try_from(persistence.region_stats.len()).unwrap_or(i64::MAX))?,
+            zval(as_php_int(record_bytes, "record byte count")?)?,
+            zval(as_php_int(live_bytes, "live byte count")?)?,
+            zval(as_php_int(dead_bytes, "dead byte count")?)?,
         ])
     })
 }
@@ -1546,6 +1621,7 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_storage_prepare_loads))
         .function(wrap_function!(cobblestone_world_storage_request_load))
         .function(wrap_function!(cobblestone_world_storage_tick))
+        .function(wrap_function!(cobblestone_world_storage_stats))
         .function(wrap_function!(cobblestone_world_storage_flush))
         .function(wrap_function!(cobblestone_world_destroy))
         .function(wrap_function!(cobblestone_world_ensure_chunk))

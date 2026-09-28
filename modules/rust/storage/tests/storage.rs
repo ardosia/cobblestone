@@ -224,6 +224,50 @@ fn region_commit_reopens_and_latest_valid_index_wins() {
 }
 
 #[test]
+fn region_stats_measure_live_and_reclaimable_record_bytes() {
+    let (_store, position, first, second) = world_and_snapshots();
+    let path = temp_region_path("stats");
+    let root = path
+        .parent()
+        .and_then(|regions| regions.parent())
+        .unwrap()
+        .to_path_buf();
+    let world_uuid = [0x73; 16];
+    let coord = RegionCoord::for_chunk(position);
+
+    let mut region = RegionFile::open_or_create(&path, world_uuid, coord).unwrap();
+    let empty = region.stats().unwrap();
+    assert_eq!(empty.record_bytes, 0);
+    assert_eq!(empty.live_bytes, 0);
+    assert_eq!(empty.dead_bytes, 0);
+
+    let first_save = region
+        .save_chunk(&first, CompressionPolicy::Adaptive)
+        .unwrap();
+    assert_eq!(first_save.stats.record_bytes, first_save.bytes_appended);
+    assert_eq!(first_save.stats.live_bytes, first_save.bytes_appended);
+    assert_eq!(first_save.stats.dead_bytes, 0);
+    assert_eq!(first_save.stats.indexed_chunks, 1);
+
+    let second_save = region
+        .save_chunk(&second, CompressionPolicy::Adaptive)
+        .unwrap();
+    assert_eq!(
+        second_save.stats.record_bytes,
+        first_save.bytes_appended + second_save.bytes_appended,
+    );
+    assert_eq!(second_save.stats.live_bytes, second_save.bytes_appended);
+    assert_eq!(second_save.stats.dead_bytes, first_save.bytes_appended);
+    assert_eq!(
+        second_save.stats.record_bytes,
+        second_save.stats.live_bytes + second_save.stats.dead_bytes,
+    );
+
+    drop(region);
+    remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn torn_newest_index_falls_back_to_previous_valid_generation() {
     let (_store, position, first, second) = world_and_snapshots();
     let path = temp_region_path("fallback");

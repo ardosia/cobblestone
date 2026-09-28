@@ -134,9 +134,17 @@ fn bench_region(label: &str, snapshot: &cobblestone_core::ChunkSnapshot, iterati
             .bytes_appended;
     }
     let ns = start.elapsed().as_secs_f64() * 1e9 / iterations as f64;
+    let stats = region.stats().unwrap();
     println!(
-        "storage_bench kind=durable_commit terrain={label} iterations={iterations} avg_record_bytes={} ns_per_commit={ns:.0}",
-        appended / iterations as u64
+        "storage_bench kind=durable_commit terrain={label} iterations={iterations} avg_record_bytes={} ns_per_commit={ns:.0} live_bytes={} dead_bytes={} dead_ratio={:.3}",
+        appended / iterations as u64,
+        stats.live_bytes,
+        stats.dead_bytes,
+        if stats.record_bytes == 0 {
+            0.0
+        } else {
+            stats.dead_bytes as f64 / stats.record_bytes as f64
+        },
     );
 
     drop(region);

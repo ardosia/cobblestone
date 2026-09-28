@@ -81,10 +81,20 @@ impl RegionIndex {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct RegionStats {
+    pub file_bytes: u64,
+    pub record_bytes: u64,
+    pub live_bytes: u64,
+    pub dead_bytes: u64,
+    pub indexed_chunks: usize,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct RegionSaveResult {
     pub generation: u64,
     pub records: usize,
     pub bytes_appended: u64,
+    pub stats: RegionStats,
 }
 
 pub struct RegionFile {
@@ -201,6 +211,37 @@ impl RegionFile {
             .count()
     }
 
+    pub fn stats(&self) -> Result<RegionStats, StorageError> {
+        let file_bytes = self.file.metadata()?.len();
+        if file_bytes < RECORD_AREA_OFFSET {
+            return Err(StorageError::InvalidRegionHeader(
+                "record area starts before fixed offset",
+            ));
+        }
+
+        let record_bytes = file_bytes - RECORD_AREA_OFFSET;
+        let live_bytes = self
+            .index
+            .entries
+            .iter()
+            .flatten()
+            .map(|entry| u64::from(entry.record_len))
+            .sum::<u64>();
+        if live_bytes > record_bytes {
+            return Err(StorageError::CorruptChunkRecord(
+                "indexed live bytes exceed record area",
+            ));
+        }
+
+        Ok(RegionStats {
+            file_bytes,
+            record_bytes,
+            live_bytes,
+            dead_bytes: record_bytes - live_bytes,
+            indexed_chunks: self.indexed_chunks(),
+        })
+    }
+
     pub fn load_chunk(
         &mut self,
         position: ChunkCoord,
@@ -271,6 +312,7 @@ impl RegionFile {
                 generation: self.index.generation,
                 records: 0,
                 bytes_appended: 0,
+                stats: self.stats()?,
             });
         }
 
@@ -347,6 +389,7 @@ impl RegionFile {
             generation: self.index.generation,
             records: snapshots.len(),
             bytes_appended: end - start,
+            stats: self.stats()?,
         })
     }
 

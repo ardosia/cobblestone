@@ -97,6 +97,40 @@ try {
 
     nativeStorageExpect($scheduled, 'native storage tick never scheduled the dirty chunk');
     nativeStorageExpect(!$store->chunkDirty($position), 'durable save receipt did not clear dirty watermark');
+
+    $initialStats = $store->storageStats();
+    nativeStorageExpect($initialStats['regions_observed'] === 1, 'storage stats missed written region');
+    nativeStorageExpect($initialStats['record_bytes'] > 0, 'storage stats reported no record bytes');
+    nativeStorageExpect(
+        $initialStats['live_bytes'] === $initialStats['record_bytes'],
+        'first region save should contain only live record bytes',
+    );
+    nativeStorageExpect($initialStats['dead_bytes'] === 0, 'first region save unexpectedly had dead bytes');
+
+    $store->setLifecycleFlags($position, Chunk::LIFECYCLE_GENERATED);
+    nativeStorageExpect($store->chunkDirty($position), 'rewrite probe did not become dirty');
+    for ($attempt = 0; $attempt < 500; ++$attempt) {
+        $tick = $store->storageTick(64);
+        if (!$store->chunkDirty($position) && $tick['in_flight'] === 0) {
+            break;
+        }
+        usleep(1_000);
+    }
+    nativeStorageExpect(!$store->chunkDirty($position), 'rewrite probe did not become durable');
+    $rewriteStats = $store->storageStats();
+    nativeStorageExpect(
+        $rewriteStats['save_bytes_appended'] > $initialStats['save_bytes_appended'],
+        'storage stats did not accumulate append volume',
+    );
+    nativeStorageExpect(
+        $rewriteStats['dead_bytes'] >= $initialStats['live_bytes'],
+        'storage stats did not expose superseded record bytes as reclaimable',
+    );
+    nativeStorageExpect(
+        $rewriteStats['record_bytes'] === $rewriteStats['live_bytes'] + $rewriteStats['dead_bytes'],
+        'storage stats byte accounting does not balance',
+    );
+
     $regionPath = $root . '/regions/r.0.0.cwr';
     nativeStorageExpect(is_file($regionPath), 'native storage did not create region file');
     clearstatcache(true, $regionPath);

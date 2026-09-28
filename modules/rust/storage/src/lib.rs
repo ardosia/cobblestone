@@ -31,7 +31,7 @@ pub use record::{
 };
 pub use region::{
     INDEX_PAGE_BYTES, RECORD_AREA_OFFSET, REGION_HEADER_BYTES, RegionCoord, RegionFile,
-    RegionSaveResult, STORAGE_REGION_EDGE,
+    RegionSaveResult, RegionStats, STORAGE_REGION_EDGE,
 };
 
 pub const STORAGE_FORMAT_VERSION: u16 = 1;

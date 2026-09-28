@@ -11,7 +11,7 @@ use std::time::Duration;
 use cobblestone_core::{ChunkCoord, ChunkSnapshot};
 use thiserror::Error;
 
-use crate::{CompressionPolicy, RegionCoord, RegionFile, StorageError};
+use crate::{CompressionPolicy, RegionCoord, RegionFile, RegionStats, StorageError};
 
 pub const MAX_ASYNC_SAVE_WORKERS: usize = 32;
 pub const MAX_ASYNC_SAVE_QUEUE_CAPACITY: usize = 65_536;
@@ -73,6 +73,7 @@ pub struct SaveReceipt {
     pub region: RegionCoord,
     pub region_generation: u64,
     pub bytes_appended: u64,
+    pub region_stats: RegionStats,
 }
 
 #[derive(Debug, Error)]
@@ -395,6 +396,7 @@ fn save_snapshot(
         region,
         region_generation: result.generation,
         bytes_appended: result.bytes_appended,
+        region_stats: result.stats,
     })
 }
 
@@ -470,6 +472,10 @@ mod tests {
         assert_eq!(receipt.light_revision, 0);
         assert_eq!(receipt.lifecycle_flags, expected.lifecycle_flags());
         assert!(receipt.bytes_appended > 0);
+        assert_eq!(receipt.region_stats.record_bytes, receipt.bytes_appended);
+        assert_eq!(receipt.region_stats.live_bytes, receipt.bytes_appended);
+        assert_eq!(receipt.region_stats.dead_bytes, 0);
+        assert_eq!(receipt.region_stats.indexed_chunks, 1);
 
         assert!(service.shutdown().is_empty());
 

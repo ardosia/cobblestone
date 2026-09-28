@@ -34,6 +34,7 @@ final class NativeWorldStore
             'cobblestone_world_storage_prepare_loads',
             'cobblestone_world_storage_request_load',
             'cobblestone_world_storage_tick',
+            'cobblestone_world_storage_stats',
             'cobblestone_world_storage_flush',
             'cobblestone_world_destroy',
             'cobblestone_world_ensure_chunk',
@@ -259,6 +260,31 @@ final class NativeWorldStore
             'load_completed' => (int) $values[4],
             'load_in_flight' => (int) $values[5],
             'load_missing' => (int) $values[6],
+        ];
+    }
+
+    /**
+     * @return array{
+     *   save_bytes_appended: int,
+     *   regions_observed: int,
+     *   record_bytes: int,
+     *   live_bytes: int,
+     *   dead_bytes: int
+     * }
+     */
+    public function storageStats(): array
+    {
+        $values = cobblestone_world_storage_stats($this->requireHandle());
+        if (count($values) !== 5) {
+            throw new \UnexpectedValueException('native world storage stats projection has wrong width');
+        }
+
+        return [
+            'save_bytes_appended' => (int) $values[0],
+            'regions_observed' => (int) $values[1],
+            'record_bytes' => (int) $values[2],
+            'live_bytes' => (int) $values[3],
+            'dead_bytes' => (int) $values[4],
         ];
     }
 
