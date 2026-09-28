@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
@@ -19,6 +20,15 @@ function persistentJoinExpect(bool $condition, string $message): void
 {
     if (!$condition) {
         throw new RuntimeException($message);
+    }
+}
+
+function persistentJoinPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+{
+    try {
+        return $store->chunkPinCount($position);
+    } catch (Throwable) {
+        return 0;
     }
 }
 
@@ -72,7 +82,8 @@ persistentJoinExpect($seedStore !== null, 'persistent join requires native world
 $center = $seedWorld->spawn()->chunk();
 $evictAfterDisconnectPosition = new ChunkPos($center->x - 2, $center->z - 2);
 $fiberPersistedPosition = new ChunkPos($center->x + 4, $center->z);
-$fiberMissingPosition = new ChunkPos($center->x + 5, $center->z);
+$streamingMissingPosition = new ChunkPos($center->x + 5, $center->z);
+$fiberMissingPosition = new ChunkPos($center->x + 6, $center->z);
 $positions = [
     ...persistentJoinPositions($center, 2),
     $fiberPersistedPosition,
@@ -139,6 +150,20 @@ persistentJoinExpect(
     'stored world spawn did not override conflicting creation preset',
 );
 
+$missingProjection = NativeWorldStore::encodeStorageLoadBatch([$streamingMissingPosition]);
+$missingStatus = null;
+for ($attempt = 0; $attempt < 1000; ++$attempt) {
+    $missingStatus = $store->prepareStorageLoadBatch($missingProjection);
+    if ($missingStatus === chr(NativeChunkLoadStatus::Missing->value)) {
+        break;
+    }
+    usleep(1_000);
+}
+persistentJoinExpect(
+    $missingStatus === chr(NativeChunkLoadStatus::Missing->value),
+    'streaming generation target was not a durable storage miss before movement',
+);
+
 $probe = stream_socket_server(
     'udp://127.0.0.1:0',
     $errorCode,
@@ -161,6 +186,7 @@ $server = Server::start(
     world: $world,
 );
 $spawned = false;
+$spawnedSessionId = null;
 $disconnected = false;
 $mutated = false;
 $stopFlushDirty = false;
@@ -178,9 +204,11 @@ $server->events()->listen(
         $center,
         $evictAfterDisconnectPosition,
         &$spawned,
+        &$spawnedSessionId,
         &$mutated,
     ): void {
         $spawned = true;
+        $spawnedSessionId = $event->sessionId;
         persistentJoinExpect($event->chunksSent === 25, 'persistent join sent wrong initial chunk count');
         persistentJoinExpect(
             $server->world()->chunks()->count() === 25,
@@ -222,6 +250,7 @@ $command = [
     'world-sync-client',
     '--',
     $bind,
+    '--persistent-stream',
 ];
 $descriptors = [
     0 => ['pipe', 'r'],
@@ -244,12 +273,36 @@ $stdout = '';
 $stderr = '';
 $exitCode = null;
 $deadline = hrtime(true) + 20_000_000_000;
+$persistentStreamVerified = false;
 
 try {
     while (hrtime(true) < $deadline) {
         $server->tick(256);
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
+
+        if (
+            !$persistentStreamVerified
+            && str_contains($stdout, 'world-sync-client: persistent-stream generated=verified')
+        ) {
+            persistentJoinExpect(
+                $store->chunkPinCount($fiberPersistedPosition) > 0,
+                'streamed persisted chunk was not pinned by the moved session',
+            );
+            persistentJoinExpect(
+                !$store->chunkDirty($fiberPersistedPosition),
+                'streamed persisted chunk was regenerated instead of loaded from storage',
+            );
+            persistentJoinExpect(
+                $store->chunkPinCount($streamingMissingPosition) > 0,
+                'streamed durable-miss chunk was not pinned by the moved session',
+            );
+            persistentJoinExpect(
+                $store->blockStateId($streamingMissingPosition, 0, 0, 0) === BlockStateId::fromLegacy(7),
+                'streamed durable-miss chunk did not contain generated flat-world bedrock',
+            );
+            $persistentStreamVerified = true;
+        }
 
         $status = proc_get_status($process);
         if (!$status['running']) {
@@ -276,6 +329,18 @@ try {
         str_contains($stdout, 'world-sync-client: update=verified'),
         "persistent-join client did not observe UpdateBlock\nstdout={$stdout}\nstderr={$stderr}",
     );
+    persistentJoinExpect($persistentStreamVerified, 'persistent streaming path was not verified while connected');
+    persistentJoinExpect(
+        str_contains($stdout, 'world-sync-client: persistent-stream persisted=verified')
+            && str_contains($stdout, 'world-sync-client: persistent-stream generated=verified'),
+        "persistent-join client did not observe persisted/generated streamed chunks\nstdout={$stdout}\nstderr={$stderr}",
+    );
+    persistentJoinExpect(is_int($spawnedSessionId), 'persistent session id was not captured');
+
+    $sessionsProperty = new ReflectionProperty(Server::class, 'sessions');
+    $runtime = $sessionsProperty->getValue($server);
+    persistentJoinExpect($runtime instanceof Runtime, 'persistent server session runtime was unavailable');
+    $runtime->disconnect($spawnedSessionId);
 
     for ($attempt = 0; $attempt < 1000; ++$attempt) {
         if (
@@ -395,7 +460,7 @@ try {
     }
 
     persistentJoinExpect(
-        $store->chunkPinCount($center) === 0,
+        persistentJoinPinCountOrZero($store, $center) === 0,
         'persistent session shutdown did not release streamed chunk pins',
     );
     $store->destroy();

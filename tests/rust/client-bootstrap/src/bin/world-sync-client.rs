@@ -284,10 +284,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .nth(1)
         .ok_or("missing server address")?
         .parse()?;
-    let send_movement = std::env::args().any(|argument| argument == "--move-after-update");
+    let send_movement_after_update =
+        std::env::args().any(|argument| argument == "--move-after-update");
     let transition_only = std::env::args().any(|argument| argument == "--transition-only");
     let radius_cycle = std::env::args().any(|argument| argument == "--radius-cycle");
     let stream_torture = std::env::args().any(|argument| argument == "--stream-torture");
+    let persistent_stream = std::env::args().any(|argument| argument == "--persistent-stream");
     let limits = limits();
 
     let mut client = RaknetClient::connect_with_config(
@@ -377,26 +379,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .into());
             }
 
-            if send_movement {
-                let movement = RawPacket::new(
-                    packet_id::MOVE_PLAYER,
-                    move_player_body([145.0, 64.0, 129.0]),
-                );
-                let movement_frame = encode_game_frame(&movement, limits)?;
-                client
-                    .send_with_options(
-                        Bytes::copy_from_slice(movement_frame.as_slice()),
-                        ClientSendOptions {
-                            reliability: Reliability::UnreliableSequenced,
-                            ..ClientSendOptions::default()
-                        },
-                    )
-                    .await?;
+            if send_movement_after_update {
+                send_movement(&mut client, limits, [145.0, 64.0, 129.0]).await?;
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
 
             println!("world-sync-client: update=verified packet=0x13 x=128 y=5 z=128 state=0x010");
+
+            if persistent_stream {
+                send_movement(&mut client, limits, [161.0, 64.0, 129.0]).await?;
+                wait_for_chunk(&mut client, limits, (12, 8), "persisted streaming").await?;
+                println!("world-sync-client: persistent-stream persisted=verified");
+
+                send_movement(&mut client, limits, [177.0, 64.0, 129.0]).await?;
+                wait_for_chunk(&mut client, limits, (13, 8), "missing streaming").await?;
+                println!("world-sync-client: persistent-stream generated=verified");
+                std::io::stdout().flush()?;
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+
             client.disconnect(None).await?;
+            tokio::time::sleep(Duration::from_millis(100)).await;
             return Ok(());
         }
     }
