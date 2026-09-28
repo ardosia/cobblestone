@@ -387,30 +387,18 @@ final class NativeWorldStore
         array $skyLight,
         array $blockLight,
     ): void {
-        $payload = pack('P4', $expectedTerrainRevision, $nextTerrainRevision, $expectedLightRevision, $nextLightRevision)
-            . pack('V5', count($blocks), count($biomes), count($extraData), count($skyLight), count($blockLight));
-
-        foreach ($blocks as $index => $stateId) {
-            $payload .= pack('vv', $index, $stateId);
-        }
-        foreach ($biomes as $index => $biome) {
-            $payload .= pack('CC', $index, $biome->value);
-        }
-        foreach ($extraData as $index => $value) {
-            $payload .= pack('vv', $index, $value);
-        }
-        foreach ($skyLight as $index => $level) {
-            $payload .= pack('vC', $index, $level);
-        }
-        foreach ($blockLight as $index => $level) {
-            $payload .= pack('vC', $index, $level);
-        }
-
-        cobblestone_world_apply_patch(
+        NativeChunkPatch::apply(
             $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $payload,
+            $position,
+            $expectedTerrainRevision,
+            $nextTerrainRevision,
+            $expectedLightRevision,
+            $nextLightRevision,
+            $blocks,
+            $biomes,
+            $extraData,
+            $skyLight,
+            $blockLight,
         );
     }
 
