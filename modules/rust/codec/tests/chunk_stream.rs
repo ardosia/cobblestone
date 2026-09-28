@@ -1,6 +1,7 @@
 use cobblestone_codec::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, CHUNK_ORDER_LAYERED, CodecError,
-    FULL_CHUNK_DATA_ID, Protocol84ChunkSnapshot, encode_protocol84_full_chunk_data,
+    FULL_CHUNK_DATA_ID, Protocol84ChunkSnapshot, encode_protocol84_chunk_unload,
+    encode_protocol84_full_chunk_data,
 };
 
 struct FlatChunkFixture {
@@ -58,6 +59,12 @@ impl FlatChunkFixture {
             extra_data,
         }
     }
+}
+
+#[test]
+fn protocol84_chunk_unload_is_client_managed_without_wire_packet() {
+    assert!(encode_protocol84_chunk_unload(8, -3).is_none());
+    assert!(encode_protocol84_chunk_unload(i32::MIN, i32::MAX).is_none());
 }
 
 fn set_nibble(bytes: &mut [u8], index: usize, value: u8) {

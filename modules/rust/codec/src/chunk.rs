@@ -39,6 +39,15 @@ pub struct Protocol84ChunkSnapshot<'a> {
     pub extra_data: &'a [(u32, u16)],
 }
 
+/// Encodes the protocol-84 client-side chunk-unload action.
+pub fn encode_protocol84_chunk_unload(_chunk_x: i32, _chunk_z: i32) -> Option<RawPacket> {
+    // MCPE 0.15.10 / protocol 84 has no dedicated chunk-unload packet.
+    // The client evicts terrain outside its negotiated view distance as the
+    // player moves; the historical server only forgets the chunk locally
+    // (and separately despawns entities) instead of sending a terrain packet.
+    None
+}
+
 /// Encodes one semantic chunk snapshot as protocol-84 FullChunkData using layered order.
 ///
 /// Protocol-84 ORDER_LAYERED consumes the same Y/Z/X block and nibble plane order used by the
