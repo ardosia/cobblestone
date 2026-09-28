@@ -120,6 +120,47 @@ final class ChunkFallbackState
         }
     }
 
+    public function skyLight(int $x, int $y, int $z): int
+    {
+        $section = intdiv($y, WorldBounds::SECTION_EDGE);
+
+        return $this->sections[$section]->skyLight($x, $y & 0x0f, $z);
+    }
+
+    public function setSkyLight(int $x, int $y, int $z, int $level): int
+    {
+        $section = intdiv($y, WorldBounds::SECTION_EDGE);
+
+        return $this->sections[$section]->setSkyLight($x, $y & 0x0f, $z, $level);
+    }
+
+    public function fillSkyLightFrom(int $y, int $level): void
+    {
+        foreach ($this->sections as $index => $section) {
+            $sectionStart = $index * WorldBounds::SECTION_EDGE;
+            $sectionEnd = $sectionStart + WorldBounds::SECTION_EDGE;
+            if ($y >= $sectionEnd) {
+                continue;
+            }
+
+            $section->fillSkyLightFrom(max(0, $y - $sectionStart), $level);
+        }
+    }
+
+    public function blockLight(int $x, int $y, int $z): int
+    {
+        $section = intdiv($y, WorldBounds::SECTION_EDGE);
+
+        return $this->sections[$section]->blockLight($x, $y & 0x0f, $z);
+    }
+
+    public function setBlockLight(int $x, int $y, int $z, int $level): int
+    {
+        $section = intdiv($y, WorldBounds::SECTION_EDGE);
+
+        return $this->sections[$section]->setBlockLight($x, $y & 0x0f, $z, $level);
+    }
+
     public function biome(int $index): BiomeId
     {
         return new BiomeId(ord($this->biomes[$index]));

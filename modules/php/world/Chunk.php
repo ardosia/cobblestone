@@ -151,9 +151,7 @@ final class Chunk
             return $this->nativeStore->skyLight($this->position, $x, $y, $z);
         }
 
-        $section = intdiv($y, WorldBounds::SECTION_EDGE);
-
-        return $this->fallbackState()->section($section)->skyLight($x, $y & 0x0f, $z);
+        return $this->fallbackState()->skyLight($x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -164,9 +162,7 @@ final class Chunk
             return $this->nativeStore->setSkyLight($this->position, $x, $y, $z, $level);
         }
 
-        $section = intdiv($y, WorldBounds::SECTION_EDGE);
-
-        return $this->fallbackState()->section($section)->setSkyLight($x, $y & 0x0f, $z, $level);
+        return $this->fallbackState()->setSkyLight($x, $y, $z, $level);
     }
 
     /**
@@ -187,15 +183,7 @@ final class Chunk
             return;
         }
 
-        foreach ($this->fallbackState()->sections() as $index => $section) {
-            $sectionStart = $index * WorldBounds::SECTION_EDGE;
-            $sectionEnd = $sectionStart + WorldBounds::SECTION_EDGE;
-            if ($y >= $sectionEnd) {
-                continue;
-            }
-
-            $section->fillSkyLightFrom(max(0, $y - $sectionStart), $level);
-        }
+        $this->fallbackState()->fillSkyLightFrom($y, $level);
     }
 
     public function blockLight(int $x, int $y, int $z): int
@@ -205,9 +193,7 @@ final class Chunk
             return $this->nativeStore->blockLight($this->position, $x, $y, $z);
         }
 
-        $section = intdiv($y, WorldBounds::SECTION_EDGE);
-
-        return $this->fallbackState()->section($section)->blockLight($x, $y & 0x0f, $z);
+        return $this->fallbackState()->blockLight($x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -218,9 +204,7 @@ final class Chunk
             return $this->nativeStore->setBlockLight($this->position, $x, $y, $z, $level);
         }
 
-        $section = intdiv($y, WorldBounds::SECTION_EDGE);
-
-        return $this->fallbackState()->section($section)->setBlockLight($x, $y & 0x0f, $z, $level);
+        return $this->fallbackState()->setBlockLight($x, $y, $z, $level);
     }
 
     public function biome(int $x, int $z): BiomeId
