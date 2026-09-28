@@ -273,42 +273,22 @@ final class NativeWorldStore
 
     public function terrainRevision(ChunkPos $position): int
     {
-        return cobblestone_world_terrain_revision(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkRevision::terrain($this->requireHandle(), $position);
     }
 
     public function lightRevision(ChunkPos $position): int
     {
-        return cobblestone_world_light_revision(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-        );
+        return NativeChunkRevision::light($this->requireHandle(), $position);
     }
 
     public function commitTerrainRevision(ChunkPos $position, int $expected, int $next): void
     {
-        cobblestone_world_commit_terrain_revision(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $expected,
-            $next,
-        );
+        NativeChunkRevision::commitTerrain($this->requireHandle(), $position, $expected, $next);
     }
 
     public function commitLightRevision(ChunkPos $position, int $expected, int $next): void
     {
-        cobblestone_world_commit_light_revision(
-            $this->requireHandle(),
-            $position->x,
-            $position->z,
-            $expected,
-            $next,
-        );
+        NativeChunkRevision::commitLight($this->requireHandle(), $position, $expected, $next);
     }
 
     public function blockStateId(ChunkPos $position, int $x, int $y, int $z): int
