@@ -8,6 +8,7 @@ use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSnapshot;
+use Cobblestone\World\NativeChunkLoadStatus;
 use Cobblestone\World\World;
 use LogicException;
 use ValueError;
@@ -19,11 +20,23 @@ final class JoinFlow
     private const REQUEST_CHUNK_RADIUS_PACKET = 0x3d;
     private const WAIT_LOGIN = 0;
     private const WAIT_CHUNK_RADIUS = 1;
-    private const SPAWNED = 2;
+    private const WAIT_CHUNK_LOAD = 2;
+    private const SPAWNED = 3;
     private const MAX_INITIAL_CHUNK_RADIUS = 3;
 
     /** @var array<int, int> */
     private array $states = [];
+
+    /**
+     * @var array<int, array{
+     *   requested: int,
+     *   effective: int,
+     *   center: ChunkPos,
+     *   positions: list<ChunkPos>,
+     *   projection: string
+     * }>
+     */
+    private array $pendingSpawns = [];
 
     public function __construct(
         private readonly Runtime $sessions,
@@ -42,7 +55,42 @@ final class JoinFlow
 
     public function disconnected(int $sessionId): void
     {
-        unset($this->states[$sessionId]);
+        unset($this->states[$sessionId], $this->pendingSpawns[$sessionId]);
+    }
+
+    /**
+     * Advances persistent chunk loads without blocking the owner runtime.
+     *
+     * @return list<array{sessionId: int, result: JoinResult}>
+     */
+    public function tick(): array
+    {
+        $completed = [];
+
+        foreach ($this->pendingSpawns as $sessionId => $pending) {
+            if (($this->states[$sessionId] ?? null) !== self::WAIT_CHUNK_LOAD) {
+                unset($this->pendingSpawns[$sessionId]);
+                continue;
+            }
+
+            if (!$this->preparePersistentChunks($pending['positions'], $pending['projection'])) {
+                continue;
+            }
+
+            unset($this->pendingSpawns[$sessionId]);
+            $completed[] = [
+                'sessionId' => $sessionId,
+                'result' => $this->finishSpawn(
+                    $sessionId,
+                    $pending['requested'],
+                    $pending['effective'],
+                    $pending['center'],
+                    count($pending['positions']),
+                ),
+            ];
+        }
+
+        return $completed;
     }
 
     public function handle(Packet $packet): JoinResult
@@ -86,39 +134,166 @@ final class JoinFlow
             $requestedRadius = $this->sessions->requestedChunkRadius($packet->body);
             $effectiveRadius = min($requestedRadius, $this->initialChunkRadius);
             $center = $this->world->spawn()->chunk();
-            $chunkCount = $this->ensureInitialChunks($effectiveRadius, $center);
 
-            $encodeStarted = hrtime(true);
-            $nativeStore = $this->world->nativeStore();
-            if ($nativeStore !== null) {
-                $encodedBytes = $this->sessions->sendInitialWorldChunks(
-                    $packet->sessionId,
-                    $effectiveRadius,
-                    $nativeStore->handle(),
-                    $center->x,
-                    $center->z,
-                );
-            } else {
-                $snapshots = $this->initialChunkSnapshots($effectiveRadius, $center);
-                $encodedBytes = $this->sessions->sendInitialChunks(
-                    $packet->sessionId,
-                    $effectiveRadius,
-                    self::nativeProjection($snapshots),
-                );
-            }
-            $encodeNanos = hrtime(true) - $encodeStarted;
-
-            $this->states[$packet->sessionId] = self::SPAWNED;
-            return JoinResult::spawned(
+            return $this->startSpawn(
+                $packet->sessionId,
                 $requestedRadius,
                 $effectiveRadius,
-                $chunkCount,
-                $encodedBytes,
-                $encodeNanos,
+                $center,
+            );
+        }
+
+        if ($state === self::WAIT_CHUNK_LOAD) {
+            $pending = $this->pendingSpawns[$packet->sessionId]
+                ?? throw new LogicException("missing pending spawn state for session {$packet->sessionId}");
+
+            if ($packet->packetId === self::REQUEST_CHUNK_RADIUS_PACKET) {
+                return JoinResult::chunksLoading(
+                    $pending['requested'],
+                    $pending['effective'],
+                );
+            }
+
+            throw new LogicException(
+                "initial chunks are still loading for session {$packet->sessionId}",
             );
         }
 
         return JoinResult::gameplay();
+    }
+
+    private function startSpawn(
+        int $sessionId,
+        int $requestedRadius,
+        int $effectiveRadius,
+        ChunkPos $center,
+    ): JoinResult {
+        $nativeStore = $this->world->nativeStore();
+        if ($nativeStore === null || !$nativeStore->hasStorage()) {
+            $chunkCount = $this->ensureInitialChunks($effectiveRadius, $center);
+
+            return $this->finishSpawn(
+                $sessionId,
+                $requestedRadius,
+                $effectiveRadius,
+                $center,
+                $chunkCount,
+            );
+        }
+
+        $positions = $this->initialChunkPositions($effectiveRadius, $center);
+        $projection = $nativeStore::encodeStorageLoadBatch($positions);
+        if ($this->preparePersistentChunks($positions, $projection)) {
+            return $this->finishSpawn(
+                $sessionId,
+                $requestedRadius,
+                $effectiveRadius,
+                $center,
+                count($positions),
+            );
+        }
+
+        $this->pendingSpawns[$sessionId] = [
+            'requested' => $requestedRadius,
+            'effective' => $effectiveRadius,
+            'center' => $center,
+            'positions' => $positions,
+            'projection' => $projection,
+        ];
+        $this->states[$sessionId] = self::WAIT_CHUNK_LOAD;
+
+        return JoinResult::chunksLoading($requestedRadius, $effectiveRadius);
+    }
+
+    /**
+     * @param list<ChunkPos> $positions
+     */
+    private function preparePersistentChunks(array $positions, string $projection): bool
+    {
+        $nativeStore = $this->world->nativeStore()
+            ?? throw new LogicException('persistent chunk preparation requires native world storage');
+        if (!$nativeStore->hasStorage()) {
+            throw new LogicException('persistent chunk preparation lost its native storage attachment');
+        }
+
+        $statuses = $nativeStore->prepareStorageLoadBatch($projection);
+        if (strlen($statuses) !== count($positions)) {
+            throw new LogicException('persistent chunk preparation returned the wrong status width');
+        }
+
+        $pending = false;
+        foreach ($positions as $index => $position) {
+            $status = NativeChunkLoadStatus::from(ord($statuses[$index]));
+            if ($status === NativeChunkLoadStatus::Resident) {
+                if ($this->world->chunk($position, false) === null) {
+                    $this->world->adoptNativeChunk($position);
+                }
+                continue;
+            }
+            if ($status === NativeChunkLoadStatus::Missing) {
+                if ($this->world->chunk($position, true) === null) {
+                    throw new LogicException(
+                        "world failed to generate durably missing initial chunk {$position->x}:{$position->z}",
+                    );
+                }
+                continue;
+            }
+
+            $pending = true;
+        }
+
+        return !$pending;
+    }
+
+    private function finishSpawn(
+        int $sessionId,
+        int $requestedRadius,
+        int $effectiveRadius,
+        ChunkPos $center,
+        int $chunkCount,
+    ): JoinResult {
+        $encodeStarted = hrtime(true);
+        $nativeStore = $this->world->nativeStore();
+        if ($nativeStore !== null) {
+            $encodedBytes = $this->sessions->sendInitialWorldChunks(
+                $sessionId,
+                $effectiveRadius,
+                $nativeStore->handle(),
+                $center->x,
+                $center->z,
+            );
+        } else {
+            $snapshots = $this->initialChunkSnapshots($effectiveRadius, $center);
+            $encodedBytes = $this->sessions->sendInitialChunks(
+                $sessionId,
+                $effectiveRadius,
+                self::nativeProjection($snapshots),
+            );
+        }
+        $encodeNanos = hrtime(true) - $encodeStarted;
+
+        $this->states[$sessionId] = self::SPAWNED;
+
+        return JoinResult::spawned(
+            $requestedRadius,
+            $effectiveRadius,
+            $chunkCount,
+            $encodedBytes,
+            $encodeNanos,
+        );
+    }
+
+    /** @return list<ChunkPos> */
+    private function initialChunkPositions(int $radius, ChunkPos $center): array
+    {
+        $positions = [];
+        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
+            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
+                $positions[] = new ChunkPos($x, $z);
+            }
+        }
+
+        return $positions;
     }
 
     private function ensureInitialChunks(int $radius, ChunkPos $center): int

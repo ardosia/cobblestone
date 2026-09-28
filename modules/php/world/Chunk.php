@@ -33,10 +33,13 @@ final class Chunk
         private readonly ChunkPos $position,
         ?BiomeId $biome = null,
         private readonly ?NativeWorldStore $nativeStore = null,
+        bool $nativeResident = false,
     ) {
         $biome ??= new BiomeId(1);
         if ($this->nativeStore !== null) {
-            $this->nativeStore->ensureChunk($this->position, $biome);
+            if (!$nativeResident) {
+                $this->nativeStore->ensureChunk($this->position, $biome);
+            }
             return;
         }
 

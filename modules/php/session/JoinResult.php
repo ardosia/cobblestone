@@ -7,6 +7,7 @@ namespace Cobblestone\Session;
 final readonly class JoinResult
 {
     public const LOGIN_ACCEPTED = 'login-accepted';
+    public const CHUNKS_LOADING = 'chunks-loading';
     public const SPAWNED = 'spawned';
     public const GAMEPLAY = 'gameplay';
 
@@ -23,6 +24,17 @@ final readonly class JoinResult
     public static function loginAccepted(): self
     {
         return new self(self::LOGIN_ACCEPTED);
+    }
+
+    public static function chunksLoading(
+        int $requestedRadius,
+        int $effectiveRadius,
+    ): self {
+        return new self(
+            self::CHUNKS_LOADING,
+            $requestedRadius,
+            $effectiveRadius,
+        );
     }
 
     public static function spawned(

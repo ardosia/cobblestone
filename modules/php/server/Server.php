@@ -195,28 +195,11 @@ final class Server
                     $this->events->dispatch(new SessionLoginAccepted($event->sessionId));
                     continue;
                 }
+                if ($result->kind === JoinResult::CHUNKS_LOADING) {
+                    continue;
+                }
                 if ($result->kind === JoinResult::SPAWNED) {
-                    $effectiveRadius = $result->effectiveRadius ?? 0;
-                    $this->logger->info(
-                        'Session spawned',
-                        [
-                            'session' => $event->sessionId,
-                            'requested_radius' => $result->requestedRadius ?? 0,
-                            'initial_radius' => $effectiveRadius,
-                            'chunks_sent' => $result->chunksSent,
-                            'encoded_bytes' => $result->encodedBytes,
-                            'chunk_encode_ms' => round($result->chunkEncodeNanos / 1_000_000, 3),
-                        ],
-                    );
-                    $this->events->dispatch(
-                        new SessionSpawned(
-                            $event->sessionId,
-                            $result->requestedRadius ?? 0,
-                            $effectiveRadius,
-                            $result->chunksSent,
-                            $result->encodedBytes,
-                        ),
-                    );
+                    $this->dispatchSpawned($event->sessionId, $result);
                     continue;
                 }
 
@@ -227,6 +210,14 @@ final class Server
         }
 
         $nativeStore = $this->world->nativeStore();
+        if ($nativeStore !== null && $nativeStore->hasStorage()) {
+            $nativeStore->storageTick(64);
+        }
+
+        foreach ($this->join->tick() as $completion) {
+            $this->dispatchSpawned($completion['sessionId'], $completion['result']);
+        }
+
         if ($nativeStore !== null) {
             $this->sessions->flushWorldChanges($nativeStore->handle());
         }
@@ -267,6 +258,31 @@ final class Server
         if ($failure !== null) {
             throw $failure;
         }
+    }
+
+    private function dispatchSpawned(int $sessionId, JoinResult $result): void
+    {
+        $effectiveRadius = $result->effectiveRadius ?? 0;
+        $this->logger->info(
+            'Session spawned',
+            [
+                'session' => $sessionId,
+                'requested_radius' => $result->requestedRadius ?? 0,
+                'initial_radius' => $effectiveRadius,
+                'chunks_sent' => $result->chunksSent,
+                'encoded_bytes' => $result->encodedBytes,
+                'chunk_encode_ms' => round($result->chunkEncodeNanos / 1_000_000, 3),
+            ],
+        );
+        $this->events->dispatch(
+            new SessionSpawned(
+                $sessionId,
+                $result->requestedRadius ?? 0,
+                $effectiveRadius,
+                $result->chunksSent,
+                $result->encodedBytes,
+            ),
+        );
     }
 
     private function assertRunning(): void

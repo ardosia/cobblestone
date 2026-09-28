@@ -76,6 +76,12 @@ final class World implements BlockSource
         return $this->chunks->resident($position, $generate);
     }
 
+    /** @internal Adopts a chunk already loaded into the authoritative native store. */
+    public function adoptNativeChunk(ChunkPos $position): Chunk
+    {
+        return $this->chunks->adoptNativeResident($position);
+    }
+
     /**
      * Runs one replayable, atomic semantic world mutation.
      *

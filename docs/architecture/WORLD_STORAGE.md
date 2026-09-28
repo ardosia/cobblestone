@@ -1,6 +1,6 @@
 # Cobblestone world storage v1 design
 
-Status: v1 world metadata, binary region/chunk format, bounded native async save/load orchestration, and native WorldStore save/load attachment implemented; production chunk-acquisition/server composition and compaction remain pending.
+Status: v1 world metadata, binary region/chunk format, bounded native async save/load orchestration, native WorldStore attachment, and deferred persistent initial-view acquisition implemented; production world-directory selection/configuration, general Fiber-friendly chunk acquisition, automatic clean eviction, and compaction remain pending.
 
 ## Goals
 
@@ -240,6 +240,8 @@ The residency contract is now explicit and native-authoritative:
 
 Persistence-specific duplicate-load collapse is implemented end-to-end in the native world bridge: exactly one disk request may be in flight per chunk coordinate, and duplicate requesters join that operation. The coarse request state is `Resident`, `Queued`, `Joined`, or durable `Missing`. Storage ticks consume load completions below Zend and import decoded `ChunkImport` records directly into `WorldStore` with an atomic import-if-absent rule, so a late disk completion cannot overwrite live residency. Imported records enter clean at their durable terrain/light/lifecycle revisions. A failed/corrupt load makes the storage tick fail; it is never converted into generation. Only a durable `Missing` result is permission to generate, and native generation clears the remembered miss and starts the new chunk dirty.
 
+Initial client join uses that contract asynchronously. `JoinFlow` pre-encodes the requested chunk view once, parks the session in a chunk-loading state, and advances the reusable native load batch once per server tick. Resident native chunks are adopted into `MainChunkSource` as PHP facades without calling `ensureChunk` or rewriting terrain; durable misses alone run the PHP generator. The client is spawned only after every requested position is resident. Synchronous gameplay access follows the same safety rule: an unresolved persistent chunk raises `ChunkLoadPending` instead of silently generating over unknown disk state.
+
 Save-side snapshot handoff is now implemented: the extension scans dirty native residency below Zend, submits immutable snapshots to the bounded save service, advances persisted watermarks only after durable receipts, and leaves newer live revisions dirty. Explicit world destruction additionally schedules every still-unsaved dirty snapshot and waits for completion before removing the native world handle. Safe eviction remains separately gated by clean + unpinned state; automatic eviction policy belongs with the upcoming load/residency integration rather than the save worker.
 
 ## Compaction
@@ -262,4 +264,4 @@ Checksums detect corruption; they do not authenticate data.
 
 Live synchronization and chunk residency fix the authoritative revision/snapshot, pinning, lifecycle, dirty-watermark, and safe-unload contracts. The `cobblestone-storage` crate implements the v1 chunk-record codec, bounded decompression, CRC32C validation, adaptive zstd policy, 16×16 region addressing, dual-index recovery, append + `sync_data` + inactive-index commit ordering, parent-directory fsync on first region creation, bounded region-sharded async saves, and deduplicated bounded async loads. Tests cover torn-index recovery, exact save receipts, save shutdown draining, durable misses without file creation, and one in-flight disk read per chunk.
 
-The next bounded milestone is production chunk acquisition/server composition: persistent worlds must request/join native loads without blocking the PHP owner runtime, expose a Fiber-friendly resident-or-miss continuation, generate only after durable `Missing`, and call one coarse native storage tick from the server loop. After that, clean unpinned eviction policy can be enabled around player/view residency. Compaction follows once real save workloads provide dead-byte measurements.
+The next bounded milestone is production world selection/configuration plus the general gameplay continuation: application composition should open/create a configured world directory from `world.cwm`, construct the matching generator/seed/spawn/time semantics, and expose a Fiber-friendly resident-or-miss continuation for gameplay code beyond the initial join path. After that, clean unpinned eviction policy can be enabled around player/view residency. Compaction follows once real save workloads provide dead-byte measurements.

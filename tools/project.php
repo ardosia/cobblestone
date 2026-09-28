@@ -168,6 +168,7 @@ function testPhp(): void
         'native-world-smoke.php',
         'native-storage-smoke.php',
         'world-sync-smoke.php',
+        'persistent-join-smoke.php',
         'fiber-smoke.php',
         'session-runtime-smoke.php',
         'server-smoke.php',

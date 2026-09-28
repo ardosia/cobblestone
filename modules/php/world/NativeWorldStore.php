@@ -15,6 +15,7 @@ namespace Cobblestone\World;
 final class NativeWorldStore
 {
     private ?int $handle;
+    private bool $storageAttached = false;
 
     private function __construct(int $handle)
     {
@@ -136,7 +137,14 @@ final class NativeWorldStore
             $loadWorkers,
         );
 
+        $this->storageAttached = true;
+
         return NativeWorldMetadata::fromNative($values);
+    }
+
+    public function hasStorage(): bool
+    {
+        return $this->storageAttached;
     }
 
     /**
@@ -637,6 +645,7 @@ final class NativeWorldStore
         $handle = $this->handle;
         cobblestone_world_destroy($handle);
         $this->handle = null;
+        $this->storageAttached = false;
     }
 
     public function __destruct()

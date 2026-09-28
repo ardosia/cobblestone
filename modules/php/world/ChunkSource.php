@@ -10,6 +10,9 @@ interface ChunkSource
 
     public function getOrGenerate(ChunkPos $position): Chunk;
 
+    /** @internal Adopts a chunk already resident in the authoritative native store. */
+    public function adoptNativeResident(ChunkPos $position): Chunk;
+
     public function put(Chunk $chunk): void;
 
     /**

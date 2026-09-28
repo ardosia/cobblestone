@@ -36,6 +36,16 @@ final class MainChunkSource implements ChunkSource
             return $existing;
         }
 
+        if ($this->nativeStore !== null && $this->nativeStore->hasStorage()) {
+            $status = $this->nativeStore->requestStorageLoad($position);
+            if ($status === NativeChunkLoadStatus::Resident) {
+                return $this->adoptNativeResident($position);
+            }
+            if ($status !== NativeChunkLoadStatus::Missing) {
+                throw new ChunkLoadPending($position, $status);
+            }
+        }
+
         $key = $position->key();
         if (isset($this->loading[$key])) {
             throw new \LogicException("chunk {$key} is already being loaded or generated");
@@ -57,6 +67,26 @@ final class MainChunkSource implements ChunkSource
         } finally {
             unset($this->loading[$key]);
         }
+    }
+
+    public function adoptNativeResident(ChunkPos $position): Chunk
+    {
+        $existing = $this->get($position);
+        if ($existing !== null) {
+            return $existing;
+        }
+        if ($this->nativeStore === null) {
+            throw new \LogicException('cannot adopt native residency without a native world store');
+        }
+
+        $chunk = new Chunk(
+            $position,
+            nativeStore: $this->nativeStore,
+            nativeResident: true,
+        );
+        $this->put($chunk);
+
+        return $chunk;
     }
 
     /** @internal */
