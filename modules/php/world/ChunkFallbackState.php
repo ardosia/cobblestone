@@ -205,11 +205,6 @@ final class ChunkFallbackState
         return $previous;
     }
 
-    public function biomes(): string
-    {
-        return $this->biomes;
-    }
-
     public function heightAt(int $index): int
     {
         return ord($this->heightMap[$index]);
@@ -218,11 +213,6 @@ final class ChunkFallbackState
     public function setHeight(int $index, int $height): void
     {
         $this->heightMap[$index] = chr($height);
-    }
-
-    public function heightMap(): string
-    {
-        return $this->heightMap;
     }
 
     public function revision(): int
