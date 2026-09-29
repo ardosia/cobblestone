@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
 
 use cobblestone_codec::{BatchPacket, BootstrapPacket, RawPacket};

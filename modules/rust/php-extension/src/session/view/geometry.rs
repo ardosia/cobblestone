@@ -1,7 +1,5 @@
 use cobblestone_core::ChunkCoord;
 
-use cobblestone_core::ChunkCoord;
-
 pub(super) fn view_contains(center: ChunkCoord, radius: i32, position: ChunkCoord) -> bool {
     position.x() >= center.x().saturating_sub(radius)
         && position.x() <= center.x().saturating_add(radius)
