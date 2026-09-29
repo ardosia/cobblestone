@@ -225,7 +225,7 @@ pub fn cobblestone_session_poll_event() -> PhpResult<Option<Vec<Zval>>> {
         let event = with_runtime(owner, SessionHost::try_recv_event)?;
         if let Some(SessionHostEvent::Disconnected { session_id, .. }) = &event {
             crate::session::gameplay::forget_session(owner, *session_id);
-            crate::session::join::forget_session(owner, *session_id);
+            crate::session::view::forget_session(owner, *session_id);
         }
         event.map(event_values).transpose()
     })
@@ -258,7 +258,7 @@ pub fn cobblestone_session_disconnect(session_id: i64) -> PhpResult<()> {
         let session_id = owner_session_id(session_id)?;
         with_runtime(owner, |host| host.try_disconnect(session_id))?;
         crate::session::gameplay::forget_session(owner, session_id);
-        crate::session::join::forget_session(owner, session_id);
+        crate::session::view::forget_session(owner, session_id);
         Ok(())
     })
 }
@@ -284,7 +284,7 @@ pub fn cobblestone_session_stop() -> PhpResult<()> {
         };
 
         crate::session::gameplay::forget_runtime(owner);
-        crate::session::join::forget_runtime(owner);
+        crate::session::view::forget_runtime(owner);
         runtime
             .host
             .shutdown()
@@ -306,7 +306,7 @@ pub(crate) fn shutdown() {
     let runtime = session_runtime().take();
     if let Some(runtime) = runtime {
         crate::session::gameplay::forget_runtime(runtime.owner);
-        crate::session::join::forget_runtime(runtime.owner);
+        crate::session::view::forget_runtime(runtime.owner);
         let _ = runtime.host.shutdown();
     }
 }

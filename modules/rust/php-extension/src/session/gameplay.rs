@@ -11,7 +11,7 @@ use ext_php_rs::prelude::*;
 use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 use crate::session::bridge::owner_session_id;
-use crate::session::join::{
+use crate::session::view::{
     ChunkViewDelta, ViewChunkQueueResult, commit_view_delta, plan_view_delta, plan_view_transition,
     queue_view_delta_chunks,
 };
