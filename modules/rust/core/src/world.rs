@@ -1,10 +1,11 @@
 mod change_log;
+mod chunk;
 mod patch;
 mod residency;
 mod revision;
 mod scalar;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -15,206 +16,13 @@ pub use change_log::{
     MAX_POINT_BLOCK_CHANGES, WORLD_CHANGE_LOG_CAPACITY, WorldChange, WorldChangeKind,
     WorldChangeLogSnapshot,
 };
-
-pub const CHUNK_EDGE: usize = 16;
-pub const WORLD_HEIGHT: usize = 128;
-pub const CHUNK_BLOCK_COUNT: usize = CHUNK_EDGE * CHUNK_EDGE * WORLD_HEIGHT;
-pub const CHUNK_NIBBLE_BYTES: usize = CHUNK_BLOCK_COUNT / 2;
-pub const CHUNK_COLUMN_COUNT: usize = CHUNK_EDGE * CHUNK_EDGE;
-pub const REGION_CHUNK_EDGE: i32 = 8;
-pub const MAX_LEGACY_STATE_ID: u16 = 0x0fff;
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct ChunkCoord {
-    x: i32,
-    z: i32,
-}
-
-impl ChunkCoord {
-    pub const fn new(x: i32, z: i32) -> Self {
-        Self { x, z }
-    }
-
-    pub const fn x(self) -> i32 {
-        self.x
-    }
-
-    pub const fn z(self) -> i32 {
-        self.z
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ChunkData {
-    states: Vec<u16>,
-    sky_light: Vec<u8>,
-    block_light: Vec<u8>,
-    biomes: Vec<u8>,
-    height_map: Vec<u8>,
-    extra_data: BTreeMap<u16, u16>,
-}
-
-impl ChunkData {
-    fn empty(biome: u8) -> Self {
-        Self {
-            states: vec![0; CHUNK_BLOCK_COUNT],
-            sky_light: vec![0; CHUNK_NIBBLE_BYTES],
-            block_light: vec![0; CHUNK_NIBBLE_BYTES],
-            biomes: vec![biome; CHUNK_COLUMN_COUNT],
-            height_map: vec![0; CHUNK_COLUMN_COUNT],
-            extra_data: BTreeMap::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ChunkRecord {
-    terrain_revision: u64,
-    light_revision: u64,
-    persisted_terrain_revision: Option<u64>,
-    persisted_light_revision: Option<u64>,
-    persisted_lifecycle_flags: Option<u8>,
-    pin_count: u32,
-    lifecycle_flags: u8,
-    data: Arc<ChunkData>,
-}
-
-impl ChunkRecord {
-    fn empty(biome: u8) -> Self {
-        Self {
-            terrain_revision: 0,
-            light_revision: 0,
-            persisted_terrain_revision: None,
-            persisted_light_revision: None,
-            persisted_lifecycle_flags: None,
-            pin_count: 0,
-            lifecycle_flags: 0,
-            data: Arc::new(ChunkData::empty(biome)),
-        }
-    }
-
-    fn from_import(import: ChunkImport) -> Self {
-        Self {
-            terrain_revision: import.terrain_revision,
-            light_revision: import.light_revision,
-            persisted_terrain_revision: Some(import.terrain_revision),
-            persisted_light_revision: Some(import.light_revision),
-            persisted_lifecycle_flags: Some(import.lifecycle_flags),
-            pin_count: 0,
-            lifecycle_flags: import.lifecycle_flags,
-            data: Arc::new(ChunkData {
-                states: import.states,
-                sky_light: import.sky_light,
-                block_light: import.block_light,
-                biomes: import.biomes,
-                height_map: import.height_map,
-                extra_data: import.extra_data,
-            }),
-        }
-    }
-
-    fn is_dirty(&self) -> bool {
-        self.persisted_terrain_revision != Some(self.terrain_revision)
-            || self.persisted_light_revision != Some(self.light_revision)
-            || self.persisted_lifecycle_flags != Some(self.lifecycle_flags)
-    }
-}
-
-#[derive(Debug, Default)]
-struct RegionShard {
-    chunks: RwLock<HashMap<ChunkCoord, ChunkRecord>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ChunkSnapshot {
-    position: ChunkCoord,
-    terrain_revision: u64,
-    light_revision: u64,
-    lifecycle_flags: u8,
-    data: Arc<ChunkData>,
-}
-
-impl ChunkSnapshot {
-    pub const fn position(&self) -> ChunkCoord {
-        self.position
-    }
-
-    pub const fn terrain_revision(&self) -> u64 {
-        self.terrain_revision
-    }
-
-    pub const fn light_revision(&self) -> u64 {
-        self.light_revision
-    }
-
-    pub const fn lifecycle_flags(&self) -> u8 {
-        self.lifecycle_flags
-    }
-
-    pub fn states(&self) -> &[u16] {
-        &self.data.states
-    }
-
-    pub fn sky_light(&self) -> &[u8] {
-        &self.data.sky_light
-    }
-
-    pub fn block_light(&self) -> &[u8] {
-        &self.data.block_light
-    }
-
-    pub fn biomes(&self) -> &[u8] {
-        &self.data.biomes
-    }
-
-    pub fn height_map(&self) -> &[u8] {
-        &self.data.height_map
-    }
-
-    pub fn extra_data(&self) -> &BTreeMap<u16, u16> {
-        &self.data.extra_data
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ChunkImport {
-    pub terrain_revision: u64,
-    pub light_revision: u64,
-    pub lifecycle_flags: u8,
-    pub states: Vec<u16>,
-    pub sky_light: Vec<u8>,
-    pub block_light: Vec<u8>,
-    pub biomes: Vec<u8>,
-    pub height_map: Vec<u8>,
-    pub extra_data: BTreeMap<u16, u16>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ChunkPatch {
-    pub expected_terrain_revision: u64,
-    pub next_terrain_revision: u64,
-    pub expected_light_revision: u64,
-    pub next_light_revision: u64,
-    pub blocks: Vec<(u16, u16)>,
-    pub biomes: Vec<(u8, u8)>,
-    pub extra_data: Vec<(u16, u16)>,
-    pub sky_light: Vec<(u16, u8)>,
-    pub block_light: Vec<(u16, u8)>,
-}
-
-pub const CHUNK_LIFECYCLE_GENERATED: u8 = 0x01;
-pub const CHUNK_LIFECYCLE_POPULATED: u8 = 0x02;
-pub const CHUNK_LIFECYCLE_LIGHT_POPULATED: u8 = 0x04;
-pub const CHUNK_LIFECYCLE_MASK: u8 =
-    CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED | CHUNK_LIFECYCLE_LIGHT_POPULATED;
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum ChunkEviction {
-    Missing,
-    Pinned { pins: u32 },
-    Dirty,
-    Evicted,
-}
+pub use chunk::{
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_EDGE, CHUNK_LIFECYCLE_GENERATED,
+    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_MASK, CHUNK_LIFECYCLE_POPULATED,
+    CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkEviction, ChunkImport, ChunkPatch, ChunkSnapshot,
+    MAX_LEGACY_STATE_ID, REGION_CHUNK_EDGE, WORLD_HEIGHT,
+};
+use chunk::{ChunkData, ChunkRecord, RegionShard};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WorldStoreError {
