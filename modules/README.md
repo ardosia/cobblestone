@@ -1,5 +1,3 @@
-# Modules
-
 Cobblestone uses one repository-level product boundary:
 
 ```text
@@ -22,15 +20,9 @@ modules/php/
 │   └── EventBus.php
 ├── log/
 │   ├── composer.json
-│   ├── LoggerFactory.php
+│   ├── ConsoleFormatter.php
 │   ├── ContextLogger.php
-│   └── SpringBootFormatter.php
-├── native-session/
-│   ├── composer.json
-│   ├── Runtime.php
-│   ├── Connected.php
-│   ├── Disconnected.php
-│   └── Packet.php
+│   └── LoggerFactory.php
 ├── plugin/
 │   ├── composer.json
 │   ├── Plugin.php
@@ -39,54 +31,72 @@ modules/php/
 ├── server/
 │   ├── composer.json
 │   ├── Server.php
-│   └── Event/
+│   ├── ServerRunner.php
+│   ├── WorldFactory.php
+│   ├── WorldMaintenance.php
+│   ├── Event/
+│   └── Tick/
 ├── session/
 │   ├── composer.json
-│   ├── JoinFlow.php
-│   ├── JoinResult.php
-│   └── Event/
+│   ├── SessionBootstrap.php
+│   ├── SessionGameplay.php
+│   ├── InitialChunkView.php
+│   ├── ChunkViewPreparation.php
+│   ├── Event/
+│   └── Native/
 ├── task/
 │   ├── composer.json
 │   ├── Scheduler.php
+│   ├── DueQueue.php
 │   ├── NativeTaskAwait.php
 │   └── TickSleep.php
-├── tick/
+├── world/
 │   ├── composer.json
-│   ├── TickLoop.php
-│   ├── TickLoopConfig.php
-│   └── Clock.php
-└── world/
+│   ├── World.php
+│   ├── Chunk.php
+│   ├── MainChunkSource.php
+│   ├── NativeWorldStore.php
+│   ├── Generator/
+│   ├── Mutation/
+│   └── Region/
+├── world-generation/
+│   ├── composer.json
+│   ├── FlatGenerator.php
+│   ├── FlatLayer.php
+│   └── FlatPreset.php
+├── world-light/
+│   ├── composer.json
+│   ├── LightEngine.php
+│   ├── LightPropagator.php
+│   └── WorldLightAccess.php
+└── world-mutation/
     ├── composer.json
-    ├── World.php
-    ├── Chunk.php
-    ├── ChunkSection.php
-    ├── BlockSource.php
-    ├── ChunkSource.php
-    ├── MainChunkSource.php
-    ├── Generator/
-    ├── Mutation/
-    └── Region/
+    ├── MutationCoordinator.php
+    ├── ChunkPatch.php
+    └── StagedWorldMutation.php
 ```
 
-Package roots are their PSR-4 roots; do not add package-local `src/` wrappers.
+Package roots are their PSR-4 roots; do not add package-local `src/` wrappers. The session package also maps `Cobblestone\Native\Session\` to `session/Native/`, while the server package maps `Cobblestone\Tick\` to `server/Tick/`.
 
 Current dependency direction:
 
 ```text
 command ──────────────┐
 event ────────────────┤
-log ──────────────────┼──> plugin ──┐
-task ─────────────────┘             │
-native-session ──> session ─────────┼──> server
-log ────────────────────────────────┤
-tick ───────────────────────────────┤
-native-session ─────────────────────┤
-world ──────────────────────────────┘
+log ──────────────────┼──> plugin ───────────────┐
+task ─────────────────┘                          │
+                                                │
+world ──> session ──────────────────────────────┤
+  ├────> world-generation ──────────────────────┤
+  ├────> world-light ───────────────────────────┤──> server
+  └────> world-mutation ────────────────────────┤
+                                                │
+command/event/log/plugin/session/task/world ─────┘
 ```
 
-The root Composer application consumes `modules/php/*` through path repositories and requires the server composition package.
+The root Composer application consumes `modules/php/*` through path repositories and requires only the server composition package directly.
 
-`world/` is active. It owns fixed-target coordinates/chunks/world semantics, Flat generation, and the functional mutation surface. Region mapping exists only as internal execution/ownership plumbing. `log/` owns PSR-3/Monolog application logging, while `tick/` owns monotonic pacing and lag detection. Later gameplay packages such as `player/`, `entity/`, `block/`, and `inventory/` are still created only when their implementation begins.
+`world/` owns fixed-target coordinates/chunks/world semantics and the native-world facade. `world-generation/`, `world-light/`, and `world-mutation/` own generation, lighting, and staged mutation behavior respectively. Region mapping remains internal execution/ownership plumbing. `log/` owns PSR-3/Monolog application logging. Tick pacing lives under the server composition package, and native session transport lives under the session package. Later gameplay packages such as `player/`, `entity/`, `block/`, and `inventory/` should still be created only when their implementation begins.
 
 ## Rust
 
@@ -96,6 +106,7 @@ modules/rust/
 ├── codec/
 ├── network/
 ├── session/
+├── storage/
 └── php-extension/
 ```
 
