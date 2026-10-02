@@ -2,14 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\World;
+namespace Cobblestone\Native\World;
+
+use Cobblestone\World\ChunkPos;
 
 /**
  * Encodes and decodes the private PHP/native storage projections.
  *
  * @internal
  */
-final class NativeWorldStorageProjection
+final class StorageProjection
 {
     /**
      * @param list<ChunkPos> $positions

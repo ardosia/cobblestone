@@ -14,8 +14,8 @@ use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\NativeChunkLoadStatus;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World\LoadStatus;
+use Cobblestone\Native\World as NativeWorld;
 
 function persistentJoinExpect(bool $condition, string $message): void
 {
@@ -24,7 +24,7 @@ function persistentJoinExpect(bool $condition, string $message): void
     }
 }
 
-function persistentJoinPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+function persistentJoinPinCountOrZero(NativeWorld $store, ChunkPos $position): int
 {
     try {
         return $store->chunkPinCount($position);
@@ -89,18 +89,18 @@ $positions = [
     ...persistentJoinPositions($center, 2),
     $fiberPersistedPosition,
 ];
-$projection = NativeWorldStore::encodeStorageLoadBatch($positions);
+$projection = NativeWorld::encodeStorageLoadBatch($positions);
 
 try {
     for ($attempt = 0; $attempt < 1000; ++$attempt) {
         $statuses = $seedStore->prepareStorageLoadBatch($projection);
-        if ($statuses === str_repeat(chr(NativeChunkLoadStatus::Missing->value), count($positions))) {
+        if ($statuses === str_repeat(chr(LoadStatus::Missing->value), count($positions))) {
             break;
         }
         usleep(1_000);
     }
     persistentJoinExpect(
-        $statuses === str_repeat(chr(NativeChunkLoadStatus::Missing->value), count($positions)),
+        $statuses === str_repeat(chr(LoadStatus::Missing->value), count($positions)),
         'new persistent world did not resolve initial chunks as durable misses',
     );
 
@@ -151,17 +151,17 @@ persistentJoinExpect(
     'stored world spawn did not override conflicting creation preset',
 );
 
-$missingProjection = NativeWorldStore::encodeStorageLoadBatch([$streamingMissingPosition]);
+$missingProjection = NativeWorld::encodeStorageLoadBatch([$streamingMissingPosition]);
 $missingStatus = null;
 for ($attempt = 0; $attempt < 1000; ++$attempt) {
     $missingStatus = $store->prepareStorageLoadBatch($missingProjection);
-    if ($missingStatus === chr(NativeChunkLoadStatus::Missing->value)) {
+    if ($missingStatus === chr(LoadStatus::Missing->value)) {
         break;
     }
     usleep(1_000);
 }
 persistentJoinExpect(
-    $missingStatus === chr(NativeChunkLoadStatus::Missing->value),
+    $missingStatus === chr(LoadStatus::Missing->value),
     'streaming generation target was not a durable storage miss before movement',
 );
 

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Cobblestone\World;
 
+use Cobblestone\Native\World as NativeWorld;
+use Cobblestone\Native\World\SnapshotDecoder;
+
 use ValueError;
 
 final class Chunk
@@ -17,7 +20,7 @@ final class Chunk
     public function __construct(
         private readonly ChunkPos $position,
         ?BiomeId $biome = null,
-        private readonly ?NativeWorldStore $nativeStore = null,
+        private readonly ?NativeWorld $nativeStore = null,
         bool $nativeResident = false,
     ) {
         $biome ??= new BiomeId(1);
@@ -352,7 +355,7 @@ final class Chunk
     }
 
     /** @internal */
-    public function nativeStore(): ?NativeWorldStore
+    public function nativeStore(): ?NativeWorld
     {
         return $this->nativeStore;
     }
@@ -475,7 +478,7 @@ final class Chunk
         $projection = $this->nativeStore?->snapshotProjection($this->position)
             ?? throw new \LogicException('native chunk snapshot requested without a native store');
 
-        return NativeChunkSnapshotDecoder::decode($this->position, $projection);
+        return SnapshotDecoder::decode($this->position, $projection);
     }
 
     private static function assertBlockCoordinates(int $x, int $y, int $z): void

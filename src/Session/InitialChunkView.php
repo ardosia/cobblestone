@@ -6,7 +6,7 @@ namespace Cobblestone\Session;
 
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSnapshot;
-use Cobblestone\World\NativeChunkLoadStatus;
+use Cobblestone\Native\World\LoadStatus;
 use Cobblestone\World\World;
 use LogicException;
 use ValueError;
@@ -64,10 +64,10 @@ final class InitialChunkView
 
         $resolved = [];
         foreach ($positions as $index => $position) {
-            $status = NativeChunkLoadStatus::from(ord($statuses[$index]));
+            $status = LoadStatus::from(ord($statuses[$index]));
             if (
-                $status !== NativeChunkLoadStatus::Resident
-                && $status !== NativeChunkLoadStatus::Missing
+                $status !== LoadStatus::Resident
+                && $status !== LoadStatus::Missing
             ) {
                 return false;
             }
@@ -75,7 +75,7 @@ final class InitialChunkView
         }
 
         foreach ($positions as $index => $position) {
-            if ($resolved[$index] === NativeChunkLoadStatus::Resident) {
+            if ($resolved[$index] === LoadStatus::Resident) {
                 if ($this->world->chunk($position, false) === null) {
                     $this->world->adoptNativeChunk($position);
                 }

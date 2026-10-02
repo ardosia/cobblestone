@@ -242,13 +242,13 @@ native/world
 
 Target design: API_STYLE.md, RUNTIME_API.md, TRANSPORT_API.md, DATA_API.md, WORLD_API.md.
 
-Target direction:
+Current direction:
 
-- coarse semantic native calls;
-- one ABI/capability contract instead of a growing function_exists list;
-- centralized native result mapping;
-- owner-safe handles;
-- batched completions/session/world operations;
+- the PHP world FFI boundary is centralized in `Cobblestone\Native\World`; semantic World code contains no raw `cobblestone_world_*` calls;
+- ABI v1 replaces per-export capability probing for the native world adapter;
+- typed projections/results stay under `Cobblestone\Native\World\*` while 1:1 forwarding classes are removed;
+- owner-safe handles remain native implementation detail;
+- further batching and export-count reduction remain separate performance/API work;
 - no arbitrary Zend calls from worker threads.
 
 ### Worker/completion runtime

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\World;
+namespace Cobblestone\Native\World;
 
 /** @internal Native durable chunk-load state. */
-enum NativeChunkLoadStatus: int
+enum LoadStatus: int
 {
     case Resident = 0;
     case Queued = 1;

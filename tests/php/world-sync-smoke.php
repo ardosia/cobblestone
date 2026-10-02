@@ -16,7 +16,7 @@ use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World as NativeWorld;
 
 function worldSyncExpect(bool $condition, string $message): void
 {
@@ -25,7 +25,7 @@ function worldSyncExpect(bool $condition, string $message): void
     }
 }
 
-function worldSyncPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+function worldSyncPinCountOrZero(NativeWorld $store, ChunkPos $position): int
 {
     try {
         return $store->chunkPinCount($position);

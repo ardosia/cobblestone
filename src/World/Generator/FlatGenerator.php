@@ -7,7 +7,7 @@ namespace Cobblestone\World\Generator;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\World\WorldBounds;
 
 final class FlatGenerator implements Generator
@@ -47,7 +47,7 @@ final class FlatGenerator implements Generator
     public function generate(
         ChunkPos $position,
         int $seed,
-        ?NativeWorldStore $nativeStore = null,
+        ?NativeWorld $nativeStore = null,
     ): Chunk {
         $chunk = new Chunk($position, $this->preset->biome(), $nativeStore);
         $y = 0;

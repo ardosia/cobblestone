@@ -17,7 +17,7 @@ use Cobblestone\Session\SessionGameplay;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\ChunkLease;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World as NativeWorld;
 
 function pendingDisconnectExpect(bool $condition, string $message): void
 {
@@ -26,7 +26,7 @@ function pendingDisconnectExpect(bool $condition, string $message): void
     }
 }
 
-function pendingDisconnectPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+function pendingDisconnectPinCountOrZero(NativeWorld $store, ChunkPos $position): int
 {
     try {
         return $store->chunkPinCount($position);

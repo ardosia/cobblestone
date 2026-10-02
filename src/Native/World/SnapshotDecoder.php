@@ -2,14 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\World;
+namespace Cobblestone\Native\World;
+
+use Cobblestone\World\ChunkPos;
+use Cobblestone\World\ChunkSnapshot;
 
 /**
  * Decodes the fixed native chunk snapshot projection into the PHP semantic snapshot.
  *
  * @internal
  */
-final class NativeChunkSnapshotDecoder
+final class SnapshotDecoder
 {
     public static function decode(ChunkPos $position, string $projection): ChunkSnapshot
     {

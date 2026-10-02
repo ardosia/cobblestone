@@ -74,7 +74,7 @@ Measurements on the Fedora development machine, PHP 8.5.11 ZTS and Rust 1.98 rel
 | empty-ish PHP/native runtime-id crossing | ~147 ns |
 | native terrain revision through FFI | ~362 ns |
 | direct native block-state read through FFI | ~463 ns |
-| PHP NativeWorldStore block-state wrapper | ~577 ns |
+| PHP `Native\World` block-state adapter | ~577 ns |
 | full native chunk snapshot projection | ~105 us |
 | complete PHP Chunk::snapshot() on native chunk | ~115 us |
 | PHP-local scalar snapshot state read | ~417 ns |

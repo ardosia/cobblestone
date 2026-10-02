@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cobblestone\World;
 
+use Cobblestone\Native\World as NativeWorld;
+
 use Closure;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
@@ -22,7 +24,7 @@ final class World implements BlockSource
         private readonly Generator $generator,
         private readonly ChunkSource $chunks,
         private readonly MutationCoordinatorInterface $mutations,
-        private readonly ?NativeWorldStore $nativeStore = null,
+        private readonly ?NativeWorld $nativeStore = null,
     ) {
         if ($name === '') {
             throw new ValueError('world name cannot be empty');
@@ -58,7 +60,7 @@ final class World implements BlockSource
     }
 
     /** @internal */
-    public function nativeStore(): ?NativeWorldStore
+    public function nativeStore(): ?NativeWorld
     {
         return $this->nativeStore;
     }

@@ -8,8 +8,8 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\NativeChunkLoadStatus;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World\LoadStatus;
+use Cobblestone\Native\World as NativeWorld;
 
 function nativeStorageExpect(bool $condition, string $message): void
 {
@@ -50,7 +50,7 @@ $root = sys_get_temp_dir()
     . '-'
     . bin2hex(random_bytes(4));
 
-$store = NativeWorldStore::create();
+$store = NativeWorld::create();
 
 try {
     $metadata = $store->attachStorage(
@@ -208,7 +208,7 @@ try {
         'world destroy did not preserve its fallback dirty-chunk flush',
     );
 
-    $reopened = NativeWorldStore::create();
+    $reopened = NativeWorld::create();
     try {
         $metadata = $reopened->attachStorage(
             $root,
@@ -228,38 +228,38 @@ try {
         nativeStorageExpect($metadata->uuid === str_repeat("Z", 16), 'reopen UUID mismatch');
 
         $bulkMissing = new ChunkPos(60, -60);
-        $bulkProjection = NativeWorldStore::encodeStorageLoadBatch([$position, $bulkMissing]);
+        $bulkProjection = NativeWorld::encodeStorageLoadBatch([$position, $bulkMissing]);
         $bulk = $reopened->prepareStorageLoadBatch($bulkProjection);
         nativeStorageExpect(
-            $bulk === chr(NativeChunkLoadStatus::Queued->value) . chr(NativeChunkLoadStatus::Queued->value),
+            $bulk === chr(LoadStatus::Queued->value) . chr(LoadStatus::Queued->value),
             'bulk native load preparation did not queue both unresolved chunks',
         );
         for ($attempt = 0; $attempt < 500; ++$attempt) {
             $bulk = $reopened->prepareStorageLoadBatch($bulkProjection);
-            $persistedStatus = NativeChunkLoadStatus::from(ord($bulk[0]));
-            $missingStatus = NativeChunkLoadStatus::from(ord($bulk[1]));
+            $persistedStatus = LoadStatus::from(ord($bulk[0]));
+            $missingStatus = LoadStatus::from(ord($bulk[1]));
             if (
-                $persistedStatus === NativeChunkLoadStatus::Resident
-                && $missingStatus === NativeChunkLoadStatus::Missing
+                $persistedStatus === LoadStatus::Resident
+                && $missingStatus === LoadStatus::Missing
             ) {
                 break;
             }
             nativeStorageExpect(
-                $persistedStatus !== NativeChunkLoadStatus::Missing,
+                $persistedStatus !== LoadStatus::Missing,
                 'persisted chunk unexpectedly became a durable miss',
             );
             nativeStorageExpect(
-                $missingStatus !== NativeChunkLoadStatus::Resident,
+                $missingStatus !== LoadStatus::Resident,
                 'durably missing bulk chunk unexpectedly became resident',
             );
             usleep(1_000);
         }
         nativeStorageExpect(
-            $bulk === chr(NativeChunkLoadStatus::Resident->value) . chr(NativeChunkLoadStatus::Missing->value),
+            $bulk === chr(LoadStatus::Resident->value) . chr(LoadStatus::Missing->value),
             'bulk native load preparation did not converge to resident/missing states',
         );
         nativeStorageExpect(
-            $reopened->requestStorageLoad($position) === NativeChunkLoadStatus::Resident,
+            $reopened->requestStorageLoad($position) === LoadStatus::Resident,
             'persisted chunk was not imported into WorldStore',
         );
         nativeStorageExpect(
@@ -296,23 +296,23 @@ try {
 
         $missing = new ChunkPos(50, -50);
         nativeStorageExpect(
-            $reopened->requestStorageLoad($missing) === NativeChunkLoadStatus::Queued,
+            $reopened->requestStorageLoad($missing) === LoadStatus::Queued,
             'missing chunk load was not queued',
         );
         for ($attempt = 0; $attempt < 500; ++$attempt) {
             $reopened->storageTick(64);
             $status = $reopened->requestStorageLoad($missing);
-            if ($status === NativeChunkLoadStatus::Missing) {
+            if ($status === LoadStatus::Missing) {
                 break;
             }
             nativeStorageExpect(
-                $status !== NativeChunkLoadStatus::Resident,
+                $status !== LoadStatus::Resident,
                 'durably missing chunk became resident before generation',
             );
             usleep(1_000);
         }
         nativeStorageExpect(
-            $reopened->requestStorageLoad($missing) === NativeChunkLoadStatus::Missing,
+            $reopened->requestStorageLoad($missing) === LoadStatus::Missing,
             'durable missing chunk did not expose Missing state',
         );
         nativeStorageExpect(
@@ -320,7 +320,7 @@ try {
             'generation after durable miss did not create native chunk',
         );
         nativeStorageExpect(
-            $reopened->requestStorageLoad($missing) === NativeChunkLoadStatus::Resident,
+            $reopened->requestStorageLoad($missing) === LoadStatus::Resident,
             'generated chunk did not clear durable-miss state',
         );
         nativeStorageExpect(

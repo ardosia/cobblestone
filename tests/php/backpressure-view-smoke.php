@@ -15,7 +15,7 @@ use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\Session\SessionGameplay;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World as NativeWorld;
 
 function backpressureViewExpect(bool $condition, string $message): void
 {
@@ -24,7 +24,7 @@ function backpressureViewExpect(bool $condition, string $message): void
     }
 }
 
-function backpressureViewPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+function backpressureViewPinCountOrZero(NativeWorld $store, ChunkPos $position): int
 {
     try {
         return $store->chunkPinCount($position);

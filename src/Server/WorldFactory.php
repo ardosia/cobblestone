@@ -9,7 +9,7 @@ use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
 use Cobblestone\World\MainChunkSource;
 use Cobblestone\World\Mutation\MutationCoordinator;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\World\Region\RegionMap;
 use Cobblestone\World\World;
 use Throwable;
@@ -35,7 +35,7 @@ final class WorldFactory
         int $compactionMinDeadBytes = self::DEFAULT_COMPACTION_MIN_DEAD_BYTES,
         int $compactionMinDeadPercent = self::DEFAULT_COMPACTION_MIN_DEAD_PERCENT,
     ): World {
-        if (!NativeWorldStore::available()) {
+        if (!NativeWorld::available()) {
             throw new \RuntimeException('persistent worlds require cobblestone_core_php native world storage');
         }
 
@@ -48,7 +48,7 @@ final class WorldFactory
             throw new \LogicException('Flat generator did not expose its canonical preset');
         }
 
-        $nativeStore = NativeWorldStore::create();
+        $nativeStore = NativeWorld::create();
         try {
             $metadata = $nativeStore->attachStorage(
                 $root,
@@ -97,7 +97,7 @@ final class WorldFactory
 
     public static function create(string $name, int $seed, Generator $generator): World
     {
-        $nativeStore = NativeWorldStore::available() ? NativeWorldStore::create() : null;
+        $nativeStore = NativeWorld::available() ? NativeWorld::create() : null;
 
         return self::compose($name, $seed, $generator, $nativeStore);
     }
@@ -106,7 +106,7 @@ final class WorldFactory
         string $name,
         int $seed,
         Generator $generator,
-        ?NativeWorldStore $nativeStore,
+        ?NativeWorld $nativeStore,
     ): World {
         $chunks = new MainChunkSource($generator, $seed, $nativeStore);
         $regions = new RegionMap();

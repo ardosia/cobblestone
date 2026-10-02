@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\World;
+namespace Cobblestone\Native\World;
+
+use Cobblestone\World\BlockPos;
 
 /** @internal Authoritative world.cwm projection returned once when native storage is attached. */
-final readonly class NativeWorldMetadata
+final readonly class Metadata
 {
     public function __construct(
         public bool $created,

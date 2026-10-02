@@ -11,7 +11,7 @@ use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\NativeWorldStore;
+use Cobblestone\Native\World as NativeWorld;
 
 function multiViewExpect(bool $condition, string $message): void
 {
@@ -20,7 +20,7 @@ function multiViewExpect(bool $condition, string $message): void
     }
 }
 
-function multiViewPinCountOrZero(NativeWorldStore $store, ChunkPos $position): int
+function multiViewPinCountOrZero(NativeWorld $store, ChunkPos $position): int
 {
     try {
         return $store->chunkPinCount($position);

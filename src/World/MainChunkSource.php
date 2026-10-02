@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Cobblestone\World;
 
+use Cobblestone\Native\World as NativeWorld;
+use Cobblestone\Native\World\LoadStatus;
+
 use Cobblestone\World\Generator\Generator;
 
 final class MainChunkSource implements ChunkSource
@@ -26,7 +29,7 @@ final class MainChunkSource implements ChunkSource
     public function __construct(
         private readonly Generator $generator,
         private readonly int $seed,
-        private readonly ?NativeWorldStore $nativeStore = null,
+        private readonly ?NativeWorld $nativeStore = null,
     ) {
         $this->evictionQueue = new \SplQueue();
     }
@@ -45,10 +48,10 @@ final class MainChunkSource implements ChunkSource
 
         if ($this->nativeStore !== null && $this->nativeStore->hasStorage()) {
             $status = $this->nativeStore->requestStorageLoad($position);
-            if ($status === NativeChunkLoadStatus::Resident) {
+            if ($status === LoadStatus::Resident) {
                 return $this->adoptNativeResident($position);
             }
-            if ($status !== NativeChunkLoadStatus::Missing) {
+            if ($status !== LoadStatus::Missing) {
                 throw new ChunkLoadPending($position, $status);
             }
         }
@@ -97,7 +100,7 @@ final class MainChunkSource implements ChunkSource
     }
 
     /** @internal */
-    public function nativeStore(): ?NativeWorldStore
+    public function nativeStore(): ?NativeWorld
     {
         return $this->nativeStore;
     }
