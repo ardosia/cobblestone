@@ -226,7 +226,7 @@ final class CommandRegistry
             $type = $parameter->getType();
             if (!$type instanceof ReflectionNamedType) {
                 throw new CommandDefinitionException(
-                    "handler parameter ${$parameter->getName()} must have one named type",
+                    'handler parameter $' . $parameter->getName() . ' must have one named type',
                 );
             }
 
@@ -240,7 +240,7 @@ final class CommandRegistry
             $produced = $argumentTypes[$argumentName] ?? null;
             if ($produced === null) {
                 throw new CommandDefinitionException(
-                    "handler parameter ${$argumentName} has no command argument",
+                    'handler parameter $' . $argumentName . ' has no command argument',
                 );
             }
             if (!$this->parameterAccepts($parameter, $produced)) {

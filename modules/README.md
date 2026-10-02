@@ -26,11 +26,12 @@ modules/php/
 ├── plugin/
 │   ├── composer.json
 │   ├── Plugin.php
-│   ├── PluginContext.php
+│   ├── PluginScope.php
 │   └── PluginManager.php
 ├── server/
 │   ├── composer.json
 │   ├── Server.php
+│   ├── ServerConfig.php
 │   ├── ServerRunner.php
 │   ├── WorldFactory.php
 │   ├── WorldMaintenance.php
@@ -47,13 +48,16 @@ modules/php/
 ├── task/
 │   ├── composer.json
 │   ├── Scheduler.php
+│   ├── TaskHandle.php
 │   ├── DueQueue.php
 │   ├── NativeTaskAwait.php
 │   └── TickSleep.php
 ├── world/
 │   ├── composer.json
 │   ├── World.php
+│   ├── WorldEdit.php
 │   ├── Chunk.php
+│   ├── ChunkLease.php
 │   ├── MainChunkSource.php
 │   ├── NativeWorldStore.php
 │   ├── Generator/

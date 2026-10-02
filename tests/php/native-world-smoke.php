@@ -13,7 +13,7 @@ use Cobblestone\World\ChunkUnloadStatus;
 use Cobblestone\World\Light\LightEngine;
 use Cobblestone\World\LightLayer;
 use Cobblestone\World\LightUpdate;
-use Cobblestone\World\Mutation\WorldMutation;
+use Cobblestone\World\WorldEdit;
 
 function nativeWorldExpect(bool $condition, string $message): void
 {
@@ -57,9 +57,9 @@ nativeWorldExpect($evictChunk !== null, 'native eviction probe chunk was not res
 nativeWorldExpect($evictChunk->isGenerated(), 'native generated lifecycle flag missing');
 nativeWorldExpect($evictChunk->isPopulated(), 'native populated lifecycle flag missing');
 nativeWorldExpect($evictChunk->isDirty(), 'new native generated chunk must start dirty');
-$evictHandle = $world->residentChunk($evictPosition, false);
-nativeWorldExpect($evictHandle !== null, 'native resident handle missing');
-nativeWorldExpect($store->chunkPinCount($evictPosition) === 1, 'native resident handle did not pin');
+$evictHandle = $world->pinChunk($evictPosition, false);
+nativeWorldExpect($evictHandle !== null, 'native chunk lease missing');
+nativeWorldExpect($store->chunkPinCount($evictPosition) === 1, 'native chunk lease did not pin');
 nativeWorldExpect(
     $world->chunks()->unload($evictPosition) === ChunkUnloadStatus::Pinned,
     'native pin did not block safe unload',
@@ -140,13 +140,12 @@ nativeWorldExpect(
 );
 
 $second = new BlockPos(9, 20, 8);
-$compound = $world->mutate(
-    static function (WorldMutation $mutation) use ($second): void {
-        $mutation->setBlockStateId($second, BlockStateId::fromLegacy(2));
-        $mutation->setBlockExtraData($second, 0x1234);
+$world->edit(
+    static function (WorldEdit $edit) use ($second): void {
+        $edit->setBlockStateId($second, BlockStateId::fromLegacy(2));
+        $edit->setBlockExtraData($second, 0x1234);
     },
 );
-nativeWorldExpect($compound->changed(), 'native compound scalar mutation reported no change');
 nativeWorldExpect($world->blockStateId($second) === BlockStateId::fromLegacy(2), 'compound scalar state mismatch');
 nativeWorldExpect($world->blockExtraData($second) === 0x1234, 'compound native extra-data mismatch');
 nativeWorldExpect($chunk->revision() === 2, 'compound native mutation did not advance terrain revision once');
@@ -155,8 +154,8 @@ nativeWorldExpect(
     'terrain-only compound mutation changed native light revision',
 );
 
-$bulk = $world->mutate(
-    static function (WorldMutation $mutation): void {
+$world->edit(
+    static function (WorldEdit $edit): void {
         for ($index = 0; $index < 800; ++$index) {
             $column = $index & 0xff;
             $position = new BlockPos(
@@ -165,13 +164,12 @@ $bulk = $world->mutate(
                 ($column >> 4) & 0x0f,
             );
             nativeWorldExpect(
-                $mutation->setBlockStateId($position, BlockStateId::fromLegacy(5)) === BlockStateId::fromLegacy(0),
+                $edit->setBlockStateId($position, BlockStateId::fromLegacy(5)) === BlockStateId::fromLegacy(0),
                 'bulk native mutation previous state mismatch',
             );
         }
     },
 );
-nativeWorldExpect($bulk->changed(), 'bulk native mutation reported no change');
 nativeWorldExpect($chunk->revision() === 3, 'bulk native mutation did not advance terrain revision once');
 foreach ([0, 255, 256, 767, 799] as $index) {
     $column = $index & 0xff;

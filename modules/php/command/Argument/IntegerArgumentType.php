@@ -24,7 +24,7 @@ final readonly class IntegerArgumentType implements ArgumentType
         $cursor = $reader->cursor();
         $token = $reader->readWord();
         if (preg_match('/^-?\d+$/D', $token) !== 1) {
-            throw new CommandParseException("expected integer, got "{$token}"", $cursor);
+            throw new CommandParseException("expected integer, got \"{$token}\"", $cursor);
         }
 
         $value = filter_var($token, FILTER_VALIDATE_INT);
