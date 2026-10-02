@@ -1,4 +1,4 @@
-use cobblestone_core::ChunkPatch as NativeChunkPatch;
+use cobblestone_world::ChunkPatch as NativeChunkPatch;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;

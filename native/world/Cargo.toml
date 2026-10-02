@@ -1,5 +1,5 @@
 [package]
-name = "cobblestone-storage"
+name = "cobblestone-world"
 version = "0.0.1"
 edition.workspace = true
 rust-version.workspace = true
@@ -7,11 +7,12 @@ license.workspace = true
 repository.workspace = true
 publish = false
 
+[[bench]]
+name = "world"
+harness = false
+
 [dependencies]
-cobblestone-world = { path = "../world" }
-crc32c.workspace = true
-thiserror.workspace = true
-zstd.workspace = true
+cobblestone-runtime = { path = "../runtime" }
 
 [lints.rust]
 unsafe_code = "forbid"

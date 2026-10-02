@@ -9,7 +9,7 @@ publish = false
 
 [dependencies]
 bitflags.workspace = true
-cobblestone-core = { path = "../core" }
+cobblestone-runtime = { path = "../runtime" }
 flate2.workspace = true
 thiserror.workspace = true
 

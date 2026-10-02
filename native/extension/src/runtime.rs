@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use cobblestone_core::RuntimeId;
+use cobblestone_runtime::RuntimeId;
 
 static NEXT_RUNTIME_ID: AtomicU32 = AtomicU32::new(1);
 

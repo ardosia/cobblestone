@@ -13,7 +13,8 @@ mod storage;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use cobblestone_core::{Arena, ChunkCoord, Handle, RuntimeId, WorldStore};
+use cobblestone_runtime::{Arena, Handle, RuntimeId};
+use cobblestone_world::{ChunkCoord, WorldStore};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 

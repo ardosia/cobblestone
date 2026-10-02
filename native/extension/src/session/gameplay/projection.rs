@@ -31,7 +31,7 @@ pub(super) fn encode_view_delta(
 
 #[cfg(test)]
 mod tests {
-    use cobblestone_core::ChunkCoord;
+    use cobblestone_world::ChunkCoord;
 
     use super::*;
 

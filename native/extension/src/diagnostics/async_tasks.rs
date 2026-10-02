@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::mpsc::TryRecvError;
 
-use cobblestone_core::{Completion, RuntimeId, WorkerPool};
+use cobblestone_runtime::{Completion, RuntimeId, WorkerPool};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 

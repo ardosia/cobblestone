@@ -1,8 +1,8 @@
 mod projection;
 mod state;
 
-use cobblestone_core::ChunkCoord;
 use cobblestone_protocol84::decode_protocol84_move_player;
+use cobblestone_world::ChunkCoord;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;

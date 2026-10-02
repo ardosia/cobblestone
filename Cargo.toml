@@ -1,7 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
-    "native/core",
+    "native/runtime",
+    "native/world",
     "native/protocol84",
     "native/transport",
     "native/session",

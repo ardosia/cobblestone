@@ -5,7 +5,7 @@ use std::sync::mpsc::{TryRecvError, TrySendError};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use cobblestone_core::RuntimeId;
+use cobblestone_runtime::RuntimeId;
 use cobblestone_runtime_probe::{RoutedMessage, RuntimeCommand, RuntimeCompletion, RuntimeProcess};
 
 const TOTAL_MESSAGES: u64 = 1_000_000;

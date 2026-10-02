@@ -1,5 +1,5 @@
-use cobblestone_core::NativeBuffer;
 use cobblestone_protocol84::RawPacket;
+use cobblestone_runtime::NativeBuffer;
 
 /// One decoded fixed-target packet delivered to the owning runtime.
 ///

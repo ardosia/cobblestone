@@ -197,21 +197,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
-name = "cobblestone-core"
-version = "0.0.1"
-dependencies = [
- "crossbeam-channel",
-]
-
-[[package]]
 name = "cobblestone-extension"
 version = "0.0.1"
 dependencies = [
- "cobblestone-core",
  "cobblestone-protocol84",
+ "cobblestone-runtime",
  "cobblestone-session",
  "cobblestone-storage",
  "cobblestone-transport",
+ "cobblestone-world",
  "ext-php-rs",
 ]
 
@@ -220,9 +214,16 @@ name = "cobblestone-protocol84"
 version = "0.0.1"
 dependencies = [
  "bitflags",
- "cobblestone-core",
+ "cobblestone-runtime",
  "flate2",
  "thiserror",
+]
+
+[[package]]
+name = "cobblestone-runtime"
+version = "0.0.1"
+dependencies = [
+ "crossbeam-channel",
 ]
 
 [[package]]
@@ -230,8 +231,8 @@ name = "cobblestone-session"
 version = "0.0.1"
 dependencies = [
  "bytes",
- "cobblestone-core",
  "cobblestone-protocol84",
+ "cobblestone-runtime",
  "cobblestone-transport",
  "crossbeam-channel",
  "thiserror",
@@ -243,7 +244,7 @@ dependencies = [
 name = "cobblestone-storage"
 version = "0.0.1"
 dependencies = [
- "cobblestone-core",
+ "cobblestone-world",
  "crc32c",
  "thiserror",
  "zstd",
@@ -258,6 +259,13 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "cobblestone-world"
+version = "0.0.1"
+dependencies = [
+ "cobblestone-runtime",
 ]
 
 [[package]]

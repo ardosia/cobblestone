@@ -32,8 +32,8 @@ pub(crate) fn decode_connected_payload(
 
 #[cfg(test)]
 mod tests {
-    use cobblestone_core::NativeBuffer;
     use cobblestone_protocol84::{BatchPacket, CodecLimits, RawPacket, encode_bootstrap_frame};
+    use cobblestone_runtime::NativeBuffer;
 
     use super::decode_connected_payload;
     use crate::SessionPacket;

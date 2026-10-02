@@ -3,8 +3,8 @@ use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use bytes::Bytes;
-use cobblestone_core::NativeBuffer;
 use cobblestone_protocol84::{CodecLimits, RawPacket, encode_game_frame};
+use cobblestone_runtime::NativeBuffer;
 use cobblestone_session::{SessionDelivery, SessionError, SessionPacket, SessionServer};
 use cobblestone_transport::NetworkConfig;
 use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};

@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use cobblestone_core::NativeBuffer;
+use cobblestone_runtime::NativeBuffer;
 
 use crate::batch::BatchPacket;
 

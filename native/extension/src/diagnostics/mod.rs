@@ -1,7 +1,7 @@
 mod async_tasks;
 mod probes;
 
-use cobblestone_core::NativeBuffer;
+use cobblestone_runtime::NativeBuffer;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 
@@ -33,7 +33,7 @@ pub fn cobblestone_core_buffer_copy_len(value: String) -> PhpResult<i64> {
 pub fn cobblestone_core_runtime_id() -> PhpResult<u32> {
     php_boundary(|| {
         current_runtime_id()
-            .map(cobblestone_core::RuntimeId::get)
+            .map(cobblestone_runtime::RuntimeId::get)
             .map_err(php_error)
     })
 }

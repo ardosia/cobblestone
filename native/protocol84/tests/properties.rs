@@ -1,9 +1,9 @@
-use cobblestone_core::NativeBuffer;
 use cobblestone_protocol84::{
     BatchPacket, BootstrapPacket, CodecLimits, NamedNbt, NbtDocument, NbtLimits, NbtValue,
     RawPacket, decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame,
     encode_game_frame,
 };
+use cobblestone_runtime::NativeBuffer;
 use proptest::prelude::*;
 
 fn codec_limits() -> CodecLimits {

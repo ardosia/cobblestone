@@ -1,4 +1,4 @@
-use cobblestone_core::ChunkEviction;
+use cobblestone_world::ChunkEviction;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 

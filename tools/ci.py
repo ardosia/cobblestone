@@ -70,7 +70,8 @@ def benchmark_rust() -> None:
         print("bench: workspace not present")
         return
     require(shutil.which("cargo") is not None, "cargo is required for the native benchmark")
-    run(["cargo", "bench", "-p", "cobblestone-core", "--bench", "core"])
+    run(["cargo", "bench", "-p", "cobblestone-runtime", "--bench", "runtime"])
+    run(["cargo", "bench", "-p", "cobblestone-world", "--bench", "world"])
     print("bench: completed")
 
 

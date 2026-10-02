@@ -1,9 +1,9 @@
-use cobblestone_core::NativeBuffer;
 use cobblestone_protocol84::{
     BatchPacket, BootstrapPacket, CodecError, CodecLimits, DisconnectPacket, LimitKind,
     LoginPacket, PlayStatusPacket, RawPacket, decode_bootstrap_frame, encode_bootstrap_frame,
     packet_id,
 };
+use cobblestone_runtime::NativeBuffer;
 
 fn limits() -> CodecLimits {
     CodecLimits::new(

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use cobblestone_core::{CHUNK_NIBBLE_BYTES, ChunkCoord};
 use cobblestone_protocol84::{
     Protocol84ChunkSnapshot, RawPacket, encode_protocol84_full_chunk_data,
 };
+use cobblestone_world::{CHUNK_NIBBLE_BYTES, ChunkCoord};
 use ext_php_rs::exception::PhpResult;
 
 use crate::boundary::php_error;

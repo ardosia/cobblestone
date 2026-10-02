@@ -4,15 +4,15 @@ use std::io::{Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use cobblestone_core::{
-    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
-    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord,
-    ChunkImport, ChunkPatch, WorldStore,
-};
 use cobblestone_storage::{
     Compression, CompressionPolicy, ExtensionSection, INDEX_PAGE_BYTES, REGION_HEADER_BYTES,
     RegionCoord, RegionFile, decode_chunk_record, encode_chunk_record,
     encode_chunk_record_with_policy,
+};
+use cobblestone_world::{
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
+    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord,
+    ChunkImport, ChunkPatch, WorldStore,
 };
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(1);
@@ -31,8 +31,8 @@ fn temp_region_path(name: &str) -> PathBuf {
 fn world_and_snapshots() -> (
     WorldStore,
     ChunkCoord,
-    cobblestone_core::ChunkSnapshot,
-    cobblestone_core::ChunkSnapshot,
+    cobblestone_world::ChunkSnapshot,
+    cobblestone_world::ChunkSnapshot,
 ) {
     let store = WorldStore::new();
     let position = ChunkCoord::new(-1, 17);
@@ -84,7 +84,7 @@ fn world_and_snapshots() -> (
     (store, position, first, second)
 }
 
-fn noisy_snapshot() -> cobblestone_core::ChunkSnapshot {
+fn noisy_snapshot() -> cobblestone_world::ChunkSnapshot {
     let store = WorldStore::new();
     let position = ChunkCoord::new(0, 0);
     let flags =

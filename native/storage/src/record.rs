@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::io::{Cursor, Read};
 
-use cobblestone_core::{
+use cobblestone_world::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_MASK, CHUNK_NIBBLE_BYTES, ChunkCoord,
     ChunkImport, ChunkSnapshot, MAX_LEGACY_STATE_ID,
 };

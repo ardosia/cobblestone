@@ -2,17 +2,17 @@ use std::collections::HashMap;
 use std::fs;
 use std::time::{Duration, Instant};
 
-use cobblestone_core::{
-    CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED,
-    ChunkCoord, WorldStore,
-};
 use cobblestone_storage::{
     AsyncLoadConfig, AsyncLoadService, CompressionPolicy, LoadCompletion, RegionCoord, RegionFile,
+};
+use cobblestone_world::{
+    CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED,
+    ChunkCoord, WorldStore,
 };
 
 const CHUNKS: usize = 64;
 
-fn snapshots() -> Vec<cobblestone_core::ChunkSnapshot> {
+fn snapshots() -> Vec<cobblestone_world::ChunkSnapshot> {
     let store = WorldStore::new();
     let flags =
         CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED | CHUNK_LIFECYCLE_LIGHT_POPULATED;
@@ -45,7 +45,7 @@ fn region_path(root: &std::path::Path, region: RegionCoord) -> std::path::PathBu
 fn populate(
     root: &std::path::Path,
     world_uuid: [u8; 16],
-    snapshots: &[cobblestone_core::ChunkSnapshot],
+    snapshots: &[cobblestone_world::ChunkSnapshot],
 ) {
     let mut regions = HashMap::<RegionCoord, RegionFile>::new();
     for snapshot in snapshots {

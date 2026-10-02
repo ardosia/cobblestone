@@ -3,17 +3,17 @@ use std::hint::black_box;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use cobblestone_core::{
-    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
-    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord,
-    ChunkImport, WorldStore,
-};
 use cobblestone_storage::{
     Compression, CompressionPolicy, RegionCoord, RegionFile, decode_chunk_record,
     encode_chunk_record, encode_chunk_record_with_policy,
 };
+use cobblestone_world::{
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
+    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord,
+    ChunkImport, WorldStore,
+};
 
-fn snapshot(noisy: bool) -> cobblestone_core::ChunkSnapshot {
+fn snapshot(noisy: bool) -> cobblestone_world::ChunkSnapshot {
     snapshot_at(ChunkCoord::new(0, 0), noisy, 0x1234_5678)
 }
 
@@ -21,7 +21,7 @@ fn snapshot_at(
     position: ChunkCoord,
     noisy: bool,
     noise_seed: u32,
-) -> cobblestone_core::ChunkSnapshot {
+) -> cobblestone_world::ChunkSnapshot {
     let store = WorldStore::new();
     let flags =
         CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED | CHUNK_LIFECYCLE_LIGHT_POPULATED;
@@ -86,7 +86,7 @@ fn snapshot_at(
     store.snapshot(position).unwrap()
 }
 
-fn bench_codec(label: &str, snapshot: &cobblestone_core::ChunkSnapshot, iterations: usize) {
+fn bench_codec(label: &str, snapshot: &cobblestone_world::ChunkSnapshot, iterations: usize) {
     for compression in [Compression::None, Compression::Zstd] {
         let encoded = encode_chunk_record(snapshot, compression, &[]).unwrap();
 
@@ -124,7 +124,7 @@ fn bench_codec(label: &str, snapshot: &cobblestone_core::ChunkSnapshot, iteratio
     );
 }
 
-fn bench_region(label: &str, snapshot: &cobblestone_core::ChunkSnapshot, iterations: usize) {
+fn bench_region(label: &str, snapshot: &cobblestone_world::ChunkSnapshot, iterations: usize) {
     let root: PathBuf = std::env::temp_dir().join(format!(
         "cobblestone-storage-bench-{}-{label}",
         std::process::id()

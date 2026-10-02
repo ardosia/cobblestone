@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::RegionId;
+use cobblestone_runtime::RegionId;
 
 use change_log::WorldChangeLog;
 pub use change_log::{

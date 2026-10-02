@@ -2,8 +2,8 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::sync::{Mutex, MutexGuard};
 
-use cobblestone_core::{NativeBuffer, RuntimeId};
 use cobblestone_protocol84::CodecLimits;
+use cobblestone_runtime::{NativeBuffer, RuntimeId};
 use cobblestone_session::{
     SessionDelivery, SessionHost, SessionHostConfig, SessionHostError, SessionHostEvent, SessionId,
     SessionPacket,

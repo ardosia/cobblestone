@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, HashMap};
 
-use cobblestone_core::{
-    ChunkCoord, MAX_POINT_BLOCK_CHANGES, WorldChangeKind, WorldChangeLogSnapshot,
-};
 use cobblestone_protocol84::{
     BatchPacket, BootstrapPacket, RawPacket, UPDATE_BLOCK_FLAG_ALL_PRIORITY,
     encode_protocol84_update_block,
 };
 use cobblestone_session::SessionDelivery;
+use cobblestone_world::{
+    ChunkCoord, MAX_POINT_BLOCK_CHANGES, WorldChangeKind, WorldChangeLogSnapshot,
+};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 

@@ -3,8 +3,8 @@ use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use bytes::Bytes;
-use cobblestone_core::NativeBuffer;
 use cobblestone_protocol84::{CodecLimits, RawPacket, decode_game_frame, encode_game_frame};
+use cobblestone_runtime::NativeBuffer;
 use cobblestone_session::{
     SessionDelivery, SessionHost, SessionHostConfig, SessionHostEvent, SessionPacket,
 };

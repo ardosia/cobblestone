@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use cobblestone_core::NativeBuffer;
+use cobblestone_runtime::NativeBuffer;
 use flate2::Compression;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;

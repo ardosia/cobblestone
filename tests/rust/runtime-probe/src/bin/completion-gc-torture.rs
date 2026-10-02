@@ -8,7 +8,7 @@ use std::sync::mpsc::{TryRecvError, TrySendError};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use cobblestone_core::{Completion, RuntimeId, TrySubmitError, WorkerPool};
+use cobblestone_runtime::{Completion, RuntimeId, TrySubmitError, WorkerPool};
 use cobblestone_runtime_probe::{RoutedMessage, RuntimeCommand, RuntimeCompletion, RuntimeProcess};
 
 const NATIVE_TASKS: u64 = 100_000;

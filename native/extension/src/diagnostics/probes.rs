@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use cobblestone_core::{Arena, Handle};
+use cobblestone_runtime::{Arena, Handle};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 

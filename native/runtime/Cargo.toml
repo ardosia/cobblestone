@@ -1,5 +1,5 @@
 [package]
-name = "cobblestone-core"
+name = "cobblestone-runtime"
 version = "0.0.1"
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ repository.workspace = true
 publish = false
 
 [[bench]]
-name = "core"
+name = "runtime"
 harness = false
 
 [dependencies]

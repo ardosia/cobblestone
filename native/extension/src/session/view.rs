@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
 
-use cobblestone_core::{ChunkCoord, NativeBuffer, RuntimeId, WorldStore};
 use cobblestone_protocol84::{BatchPacket, BootstrapPacket, RawPacket};
+use cobblestone_runtime::{NativeBuffer, RuntimeId};
 use cobblestone_session::{SessionDelivery, SessionId};
+use cobblestone_world::{ChunkCoord, WorldStore};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 
@@ -228,7 +229,7 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
 #[cfg(test)]
 mod view_delta_tests {
     use super::*;
-    use cobblestone_core::{ChunkPatch, WORLD_CHANGE_LOG_CAPACITY};
+    use cobblestone_world::{ChunkPatch, WORLD_CHANGE_LOG_CAPACITY};
 
     fn positions(values: &[(i32, i32)]) -> Vec<ChunkCoord> {
         values.iter().map(|&(x, z)| ChunkCoord::new(x, z)).collect()

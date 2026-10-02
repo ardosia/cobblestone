@@ -22,7 +22,8 @@ Immutable/native shared values such as packet buffers, snapshots, chunk snapshot
 
 Initial module families are:
 
-- `cobblestone-core`: runtime identity, generational handles, bounded workers, completion/future plumbing, Fiber wake integration, cancellation, immutable buffers, telemetry, panic/error boundaries, region routing, and the current region-sharded native `WorldStore`.
+- `cobblestone-runtime`: runtime identity, generational handles, bounded workers, completion plumbing, cancellation, immutable buffers, ownership epochs, and generic region routing.
+- `cobblestone-world`: authoritative native chunk/world state, snapshots, revisions, residency, patches, and the bounded world change journal.
 - `cobblestone-transport`: protocol-8 RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
 - `cobblestone-protocol84`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
 - `cobblestone-session`: stable gameplay-session identity and lifecycle above transport/codec; it hides RakNet connection objects and Batch envelopes from the owning runtime while preserving bounded backpressure and malformed-input behavior.
@@ -46,7 +47,8 @@ The repository-level `modules/` directory and Composer package graph have no rol
 Rust crate identities remain stable even when repository paths change. Cross-crate public APIs are preserved during source cleanup; internal files are split only along real ownership/dependency seams.
 
 The initial source cleanup applies that rule concretely:
-- `cobblestone-core` separates generational handle/arena storage and worker public types from pool machinery;
+- `cobblestone-runtime` separates generational handle/arena storage and worker public types from pool machinery;
+- `cobblestone-world` owns world/chunk state without pulling worker or Zend concerns into that domain;
 - `cobblestone-protocol84` separates packet/NBT data models from wire encode/decode implementation;
 - `cobblestone-session` separates session identity, packet, delivery, error, listener/live-session, wire flattening, and host runner concerns;
 - `cobblestone-transport` separates the backend command/state surface from the RakNet event-loop runner;
@@ -61,13 +63,13 @@ C001 creates the durable project identity, fixed-target requirements, S3 parent 
 
 C001 is complete only after the resulting remote revision passes the repository metadata validation and repository state is re-read.
 
-## C002 — PHP 8.5 ZTS plus `cobblestone-core` proof
+## C002 — PHP 8.5 ZTS native-runtime proof
 
 C002 is a sequence of bounded proofs, not one large extension dump.
 
 ### C002 primitive slice
 
-The first implementation slice creates a Rust workspace and a safe `cobblestone-core` crate containing:
+The first implementation slice proved the mechanisms that now live in `cobblestone-runtime`, containing:
 
 - `RuntimeId` as an explicit nonzero runtime identity type;
 - a type-safe generational handle/arena with stale-generation rejection and slot retirement on generation exhaustion;
@@ -121,13 +123,13 @@ The validated C003 outcome is **GO for the process-isolated persistent-runtime t
 
 ## C004 — production ownership mechanism
 
-C004 promotes the owner-plus-epoch behavior proven by C003 into reusable `cobblestone-core` mechanism.
+C004 promotes the owner-plus-epoch behavior proven by C003 into the reusable mechanism now owned by `cobblestone-runtime`.
 
 `OwnedArena<T>` layers exactly-one-owner metadata over the type-safe generational `Arena`. `OwnedHandle<T>` remains identity only. Mutable/shared authoritative access and reclamation require both the current `RuntimeId` and current `OwnershipEpoch`. Wrong-owner, stale-epoch, stale-handle, and epoch-exhaustion failures are typed and safe.
 
 A successful ownership transfer advances the epoch before the new owner may mutate. Delayed work carrying the previous epoch therefore fails after transfer. If the epoch cannot advance, transfer fails without partially changing owner or value. Removal still delegates slot invalidation to the generational arena, so reused slots reject every old handle.
 
-Semantic routing remains above `cobblestone-core`: higher layers may inspect current metadata and route an operation to the owner when API semantics permit, but core never silently performs cross-runtime mutation. The C003 ownership torture now wraps the production arena so the stress oracle and production mechanism do not diverge.
+Semantic routing remains above `cobblestone-runtime`: higher layers may inspect current metadata and route an operation to the owner when API semantics permit, but runtime primitives never silently perform cross-runtime mutation. The C003 ownership torture now wraps the production arena so the stress oracle and production mechanism do not diverge.
 
 Immutable native values such as `NativeBuffer` may be cloned/shared across runtimes. Sharing immutable data never transfers mutable authority for the authoritative object that produced it.
 
@@ -210,7 +212,7 @@ The executable delegates pacing to a monotonic `TickLoop` instead of owning a ra
 
 Gameplay world changes use `World::edit()`. The base `WorldEdit` interface is the semantic callback surface; the staged implementation lives in `cobblestone-world-mutation`, provides read-your-writes semantics, and may be replayed before commit. The concrete coordinator discovers the touched chunk set, discards/replays when that set expands, prepares every chunk against a base revision, rejects stale revisions, filters net-no-op/reverted edits, then commits changed chunks with one revision advance each. `World` depends internally on `MutationCoordinatorInterface`; ordinary edit conveniences use that seam while generation remains direct initialization.
 
-Execution regions are internal ownership/scheduling territories, not fixed-target Minecraft world/storage semantics. PHP maps chunks deterministically to internal region identities. Rust `cobblestone-core::RegionDirectory` maps those identities to exactly one `RuntimeId` plus `OwnershipEpoch`, rejecting wrong-owner and stale-epoch transfers. Normal plugin APIs expose neither regions nor runtime/thread ceremony.
+Execution regions are internal ownership/scheduling territories, not fixed-target Minecraft world/storage semantics. PHP maps chunks deterministically to internal region identities. Rust `cobblestone-runtime::RegionDirectory` maps those identities to exactly one `RuntimeId` plus `OwnershipEpoch`, rejecting wrong-owner and stale-epoch transfers. Normal plugin APIs expose neither regions nor runtime/thread ceremony.
 
 The production gameplay path remains single-owner PHP today. This foundation deliberately does not claim that multi-runtime region scheduling is active yet.
 

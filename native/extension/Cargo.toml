@@ -13,7 +13,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 cobblestone-protocol84 = { path = "../protocol84" }
-cobblestone-core = { path = "../core" }
+cobblestone-runtime = { path = "../runtime" }
+cobblestone-world = { path = "../world" }
 cobblestone-transport = { path = "../transport" }
 cobblestone-session = { path = "../session" }
 cobblestone-storage = { path = "../storage" }

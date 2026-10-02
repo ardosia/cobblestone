@@ -4,11 +4,11 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use bytes::Bytes;
-use cobblestone_core::NativeBuffer;
 use cobblestone_protocol84::{
     BootstrapPacket, CodecError, CodecLimits, LoginPacket, RawPacket, decode_bootstrap_frame,
     decode_game_frame, encode_bootstrap_frame, encode_game_frame, packet_id,
 };
+use cobblestone_runtime::NativeBuffer;
 use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
 use raknet_rust::low_level::protocol::Reliability;
 use tokio::time::timeout;

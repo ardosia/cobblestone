@@ -1,15 +1,15 @@
 use std::fs;
 use std::time::{Duration, Instant};
 
-use cobblestone_core::{
+use cobblestone_storage::{AsyncSaveConfig, AsyncSaveService, SaveCompletion};
+use cobblestone_world::{
     CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED,
     ChunkCoord, WorldStore,
 };
-use cobblestone_storage::{AsyncSaveConfig, AsyncSaveService, SaveCompletion};
 
 const CHUNKS: usize = 64;
 
-fn snapshots() -> Vec<cobblestone_core::ChunkSnapshot> {
+fn snapshots() -> Vec<cobblestone_world::ChunkSnapshot> {
     let store = WorldStore::new();
     let flags =
         CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED | CHUNK_LIFECYCLE_LIGHT_POPULATED;

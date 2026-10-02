@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex, MutexGuard};
 
-use cobblestone_core::{ChunkCoord, RuntimeId};
 use cobblestone_protocol84::MovePlayerPacket;
+use cobblestone_runtime::RuntimeId;
 use cobblestone_session::SessionId;
+use cobblestone_world::ChunkCoord;
 
 use crate::session::view::ChunkViewDelta;
 

@@ -10,7 +10,7 @@ publish = false
 [dependencies]
 bytes.workspace = true
 cobblestone-protocol84 = { path = "../protocol84" }
-cobblestone-core = { path = "../core" }
+cobblestone-runtime = { path = "../runtime" }
 cobblestone-transport = { path = "../transport" }
 crossbeam-channel.workspace = true
 thiserror.workspace = true

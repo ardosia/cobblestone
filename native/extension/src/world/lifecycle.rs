@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use cobblestone_core::WorldStore;
+use cobblestone_world::WorldStore;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 

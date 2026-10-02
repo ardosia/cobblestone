@@ -1,4 +1,4 @@
-use cobblestone_core::NativeBuffer;
+use cobblestone_runtime::NativeBuffer;
 
 use crate::batch::{BatchPacket, compress_zlib, decompress_zlib_limited};
 use crate::binary::{Reader, Writer};

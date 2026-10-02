@@ -236,7 +236,8 @@ native/extension
 Related mechanisms:
 
 ~~~text
-native/core
+native/runtime
+native/world
 ~~~
 
 Target design: API_STYLE.md, RUNTIME_API.md, TRANSPORT_API.md, DATA_API.md, WORLD_API.md.
@@ -257,7 +258,7 @@ Status: implemented bounded native worker pool.
 Current crate:
 
 ~~~text
-native/core
+native/runtime
 ~~~
 
 Target design: RUNTIME_API.md.
@@ -354,7 +355,7 @@ Status: implemented region-sharded native world state.
 Current crate area:
 
 ~~~text
-native/core/src/world*
+native/world/src/*
 ~~~
 
 Target design: WORLD_API.md plus WORLD_SYNC.md.

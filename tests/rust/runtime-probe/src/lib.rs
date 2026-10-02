@@ -9,7 +9,7 @@ use std::sync::mpsc::{
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use cobblestone_core::RuntimeId;
+use cobblestone_runtime::RuntimeId;
 
 /// Handshake reported by one persistent PHP runtime process.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -406,7 +406,7 @@ fn completion_matches(command: RuntimeCommand, completion: RuntimeCompletion) ->
 
 #[cfg(test)]
 mod tests {
-    use cobblestone_core::RuntimeId;
+    use cobblestone_runtime::RuntimeId;
 
     use super::{
         RoutedMessage, RuntimeCommand, RuntimeCompletion, completion_matches, parse_boot,

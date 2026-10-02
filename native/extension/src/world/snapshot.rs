@@ -1,4 +1,4 @@
-use cobblestone_core::CHUNK_NIBBLE_BYTES;
+use cobblestone_world::CHUNK_NIBBLE_BYTES;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;

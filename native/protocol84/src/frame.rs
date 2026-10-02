@@ -1,4 +1,4 @@
-use cobblestone_core::NativeBuffer;
+use cobblestone_runtime::NativeBuffer;
 
 use crate::{CodecError, CodecLimits, LimitKind};
 

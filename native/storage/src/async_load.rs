@@ -8,7 +8,7 @@ use std::sync::mpsc::{
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use cobblestone_core::ChunkCoord;
+use cobblestone_world::ChunkCoord;
 use thiserror::Error;
 
 use crate::{RegionCoord, RegionFile, StorageError, StoredChunk};
@@ -361,7 +361,7 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
-    use cobblestone_core::{
+    use cobblestone_world::{
         CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_POPULATED, ChunkCoord, ChunkPatch, WorldStore,
     };
 
@@ -378,7 +378,7 @@ mod tests {
         ))
     }
 
-    fn snapshot(position: ChunkCoord, state: u16) -> cobblestone_core::ChunkSnapshot {
+    fn snapshot(position: ChunkCoord, state: u16) -> cobblestone_world::ChunkSnapshot {
         let store = WorldStore::new();
         store.ensure_chunk(position, 1);
         let flags = CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED;

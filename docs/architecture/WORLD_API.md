@@ -8,7 +8,7 @@ This document defines the intended public and internal design direction for:
 - src/World/Generator;
 - src/World/Light;
 - src/World/Mutation;
-- the native WorldStore in native/core;
+- the native WorldStore in native/world;
 - native/storage;
 - the world/storage portions of native/extension.
 

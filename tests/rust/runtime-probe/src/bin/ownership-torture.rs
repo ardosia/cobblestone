@@ -2,7 +2,7 @@ use std::error::Error;
 use std::io;
 use std::time::Instant;
 
-use cobblestone_core::{OwnedArena, OwnedHandle, OwnershipEpoch, OwnershipError, RuntimeId};
+use cobblestone_runtime::{OwnedArena, OwnedHandle, OwnershipEpoch, OwnershipError, RuntimeId};
 
 const ITERATIONS: u64 = 250_000;
 

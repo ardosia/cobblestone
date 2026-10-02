@@ -86,18 +86,11 @@ name = "cobblestone-client-bootstrap"
 version = "0.0.1"
 dependencies = [
  "bytes",
- "cobblestone-core",
  "cobblestone-protocol84",
+ "cobblestone-runtime",
  "cobblestone-transport",
  "raknet-rust",
  "tokio",
-]
-
-[[package]]
-name = "cobblestone-core"
-version = "0.0.1"
-dependencies = [
- "crossbeam-channel",
 ]
 
 [[package]]
@@ -105,17 +98,24 @@ name = "cobblestone-protocol84"
 version = "0.0.1"
 dependencies = [
  "bitflags",
- "cobblestone-core",
+ "cobblestone-runtime",
  "flate2",
  "proptest",
  "thiserror",
 ]
 
 [[package]]
+name = "cobblestone-runtime"
+version = "0.0.1"
+dependencies = [
+ "crossbeam-channel",
+]
+
+[[package]]
 name = "cobblestone-runtime-probe"
 version = "0.0.1"
 dependencies = [
- "cobblestone-core",
+ "cobblestone-runtime",
 ]
 
 [[package]]
@@ -123,8 +123,8 @@ name = "cobblestone-session"
 version = "0.0.1"
 dependencies = [
  "bytes",
- "cobblestone-core",
  "cobblestone-protocol84",
+ "cobblestone-runtime",
  "cobblestone-transport",
  "crossbeam-channel",
  "raknet-rust",
@@ -137,7 +137,7 @@ dependencies = [
 name = "cobblestone-storage"
 version = "0.0.1"
 dependencies = [
- "cobblestone-core",
+ "cobblestone-world",
  "crc32c",
  "thiserror",
  "zstd",
@@ -152,6 +152,13 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "cobblestone-world"
+version = "0.0.1"
+dependencies = [
+ "cobblestone-runtime",
 ]
 
 [[package]]

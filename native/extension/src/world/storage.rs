@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use cobblestone_core::{ChunkCoord, WorldStore};
 use cobblestone_storage::{
     AsyncLoadConfig, AsyncLoadService, AsyncSaveConfig, AsyncSaveService, CompactionCompletion,
     CompactionSubmitError, LoadCompletion, LoadRequestState, RegionCoord, RegionStats,
     SaveCompletion, SaveSubmitError, WORLD_METADATA_FILENAME, WorldDirectory, WorldMetadata,
 };
+use cobblestone_world::{ChunkCoord, WorldStore};
 use ext_php_rs::binary::Binary;
 use ext_php_rs::convert::IntoZval;
 use ext_php_rs::exception::PhpResult;

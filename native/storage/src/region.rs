@@ -2,7 +2,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use cobblestone_core::{ChunkCoord, ChunkSnapshot};
+use cobblestone_world::{ChunkCoord, ChunkSnapshot};
 
 use crate::{
     CompressionPolicy, MAX_CHUNK_RECORD_BYTES, STORAGE_FORMAT_VERSION, StorageError, StoredChunk,
@@ -800,7 +800,7 @@ fn read_i32(bytes: &[u8], offset: usize) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::{RegionCoord, STORAGE_REGION_EDGE};
-    use cobblestone_core::ChunkCoord;
+    use cobblestone_world::ChunkCoord;
 
     #[test]
     fn negative_chunks_use_floor_region_coordinates() {
