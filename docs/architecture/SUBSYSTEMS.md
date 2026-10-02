@@ -605,16 +605,16 @@ Do not create empty managers before protocol/gameplay work begins.
 
 ### Server configuration
 
-Status: partial environment/config composition exists.
+Status: readonly ServerConfig foundation implemented.
 
 Target design: DATA_API.md.
 
-Target direction:
+Current direction:
 
-- parse once into readonly typed ServerConfig;
-- deterministic source precedence;
-- no scattered steady-state getenv calls;
-- explicit runtime changes for mutable settings.
+- Server::create() accepts typed ServerConfig rather than a primitive constructor bag;
+- runtime dependencies such as World and LoggerFactory stay outside config;
+- configuration source precedence remains composition-root work;
+- explicit runtime changes are required for settings that become mutable.
 
 ### Fixed-target catalogs
 

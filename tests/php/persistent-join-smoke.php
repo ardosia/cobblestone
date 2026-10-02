@@ -6,6 +6,7 @@ require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\Session\Event\SessionDisconnected;
@@ -180,9 +181,7 @@ fclose($probe);
 persistentJoinExpect(is_string($bind) && $bind !== '', 'failed to resolve loopback UDP address');
 
 $server = Server::create(
-    $bind,
-    4,
-    'Cobblestone Persistent Join Test',
+    new ServerConfig($bind, 4, 'Cobblestone Persistent Join Test'),
     world: $world,
 );
 $spawned = false;

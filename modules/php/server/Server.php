@@ -54,21 +54,11 @@ final class Server
 
     /** @param Closure(Packet): void|null $packetHandler */
     private function __construct(
-        private readonly string $bind,
-        private readonly int $maxConnections,
+        private readonly ServerConfig $config,
         private readonly LoggerFactory $logs,
-        private ?Closure $packetHandler,
-        private readonly string $serverName,
         private readonly World $world,
-        private readonly int $initialChunkRadius,
+        private ?Closure $packetHandler,
     ) {
-        if ($maxConnections <= 0) {
-            throw new \InvalidArgumentException('max connections must be positive');
-        }
-        if ($initialChunkRadius < 0) {
-            throw new \InvalidArgumentException('initial chunk radius must be non-negative');
-        }
-
         $this->logger = $logs->logger('Cobblestone.Server');
         $this->events = new EventBus();
         $this->commands = new CommandRegistry();
@@ -83,26 +73,25 @@ final class Server
 
     /** @param Closure(Packet): void|null $packetHandler */
     public static function create(
-        string $bind,
-        int $maxConnections,
-        string $serverName,
-        ?Closure $packetHandler = null,
-        ?LoggerFactory $logs = null,
+        ServerConfig $config,
         ?World $world = null,
-        int $initialChunkRadius = 2,
+        ?LoggerFactory $logs = null,
+        ?Closure $packetHandler = null,
     ): self {
         $logs ??= LoggerFactory::console(getenv('COBBLESTONE_LOG_LEVEL') ?: 'INFO');
         $world ??= WorldFactory::flat();
 
         return new self(
-            $bind,
-            $maxConnections,
+            $config,
             $logs,
-            $packetHandler,
-            $serverName,
             $world,
-            $initialChunkRadius,
+            $packetHandler,
         );
+    }
+
+    public function config(): ServerConfig
+    {
+        return $this->config;
     }
 
     public function start(): void
@@ -121,10 +110,10 @@ final class Server
         $sessions = null;
 
         try {
-            $sessions = Runtime::start($this->bind, $this->maxConnections, $this->serverName);
+            $sessions = Runtime::start($this->config->bind, $this->config->maxConnections, $this->config->name);
             $this->sessions = $sessions;
-            $this->bootstrap = new SessionBootstrap($sessions, $this->world, $this->initialChunkRadius);
-            $this->gameplay = new SessionGameplay($sessions, $this->world, $this->initialChunkRadius);
+            $this->bootstrap = new SessionBootstrap($sessions, $this->world, $this->config->initialChunkRadius);
+            $this->gameplay = new SessionGameplay($sessions, $this->world, $this->config->initialChunkRadius);
             $this->worldMaintenance = new WorldMaintenance($sessions, $this->world, $this->logger);
 
             $this->state = ServerState::Running;
@@ -134,7 +123,7 @@ final class Server
                 [
                     'world' => $this->world->name(),
                     'generator' => $this->world->generator()->name(),
-                    'initial_chunk_radius' => $this->initialChunkRadius,
+                    'initial_chunk_radius' => $this->config->initialChunkRadius,
                 ],
             );
         } catch (Throwable $error) {

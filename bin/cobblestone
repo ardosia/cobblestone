@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerRunner;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\Tick\TickLoop;
@@ -108,11 +109,13 @@ try {
         compactionMinDeadPercent: $compactionMinDeadPercent,
     );
     $server = Server::create(
-        $bind,
-        $maxConnections,
-        $serverName,
-        logs: $logs,
+        new ServerConfig(
+            bind: $bind,
+            maxConnections: $maxConnections,
+            name: $serverName,
+        ),
         world: $world,
+        logs: $logs,
     );
 } catch (Throwable $error) {
     $logger->critical('Failed to configure Cobblestone', ['exception' => $error]);

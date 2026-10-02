@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Cobblestone\Server\Event\ServerStarted;
 use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Tests\ServerSmokePlugin;
@@ -20,7 +21,7 @@ if (!extension_loaded('cobblestone_core_php')) {
     server_fail('cobblestone_core_php extension did not load for server smoke test');
 }
 
-$server = Server::create('127.0.0.1:0', 4, 'Cobblestone Server Test');
+$server = Server::create(new ServerConfig('127.0.0.1:0', 4, 'Cobblestone Server Test'));
 if ($server->state() !== ServerState::Created) {
     server_fail('server did not remain created before lifecycle start');
 }

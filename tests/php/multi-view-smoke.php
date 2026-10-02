@@ -6,6 +6,7 @@ require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
@@ -36,7 +37,7 @@ $bind = stream_socket_get_name($probe, false);
 fclose($probe);
 multiViewExpect(is_string($bind) && $bind !== '', 'failed to resolve loopback UDP address');
 
-$server = Server::create($bind, 4, 'Cobblestone Multi View Test');
+$server = Server::create(new ServerConfig($bind, 4, 'Cobblestone Multi View Test'));
 $spawned = 0;
 /** @var list<int> $sessionIds */
 $sessionIds = [];

@@ -8,6 +8,7 @@ use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\ViewSendResult;
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\ChunkViewPreparation;
 use Cobblestone\Session\Event\SessionDisconnected;
@@ -47,10 +48,8 @@ $retryCommitted = false;
 $disconnected = false;
 
 $server = Server::create(
-    $bind,
-    2,
-    'Cobblestone Backpressure View Test',
-    static function (Packet $packet) use (&$server, &$backpressureInjected): void {
+    new ServerConfig($bind, 2, 'Cobblestone Backpressure View Test'),
+    packetHandler: static function (Packet $packet) use (&$server, &$backpressureInjected): void {
         if ($packet->packetId !== 0x10 || $backpressureInjected) {
             return;
         }

@@ -10,6 +10,7 @@ $streamTorture = in_array('--stream-torture', $argv, true);
 
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
@@ -51,10 +52,13 @@ if (!is_string($bind) || $bind === '') {
 $movementHandled = false;
 $server = null;
 $server = Server::create(
-    $bind,
-    4,
-    'Cobblestone World Sync Test',
-    static function (Packet $packet) use (&$movementHandled, &$server, $transitionOnly): void {
+    new ServerConfig(
+        $bind,
+        4,
+        'Cobblestone World Sync Test',
+        initialChunkRadius: $radiusCycle ? 3 : 2,
+    ),
+    packetHandler: static function (Packet $packet) use (&$movementHandled, &$server, $transitionOnly): void {
         if ($packet->packetId !== 0x10) {
             return;
         }
@@ -74,9 +78,6 @@ $server = Server::create(
         }
         $movementHandled = true;
     },
-    null,
-    null,
-    $radiusCycle ? 3 : 2,
 );
 $spawned = false;
 $mutated = false;

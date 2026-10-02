@@ -7,6 +7,7 @@ require __DIR__ . '/bootstrap.php';
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\Session\ChunkViewPreparation;
@@ -98,10 +99,9 @@ $spawned = false;
 $disconnected = false;
 
 $server = Server::create(
-    $bind,
-    2,
-    'Cobblestone Pending Disconnect Test',
-    static function (Packet $packet) use (
+    new ServerConfig($bind, 2, 'Cobblestone Pending Disconnect Test'),
+    world: $world,
+    packetHandler: static function (Packet $packet) use (
         &$server,
         $store,
         $center,
@@ -173,8 +173,6 @@ $server = Server::create(
         $runtime->disconnect($packet->sessionId);
         $cleanupTriggered = true;
     },
-    null,
-    $world,
 );
 
 $server->on(
