@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use Cobblestone\Command\CommandParseException;
 use Cobblestone\Command\CommandRegistry;
+use function Cobblestone\Command\literal;
 use Cobblestone\Event\EventBus;
 use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Plugin\PluginManager;
@@ -41,13 +43,17 @@ pluginExpect($subscription->cancel(), 'event subscription cancellation failed');
 $events->dispatch(new RuntimeException('second'));
 pluginExpect($subscriptionRuns === 1, 'cancelled event subscription ran again');
 
-$binding = $commands->register('smoke:binding', static fn (): string => 'ok');
-pluginExpect($commands->execute('smoke:binding') === 'ok', 'command binding did not execute');
+$binding = $commands->register(
+    literal('smoke')->then(
+        literal('binding')->executes(static fn (): string => 'ok'),
+    ),
+);
+pluginExpect($commands->execute('smoke binding') === 'ok', 'command binding did not execute');
 pluginExpect($binding->cancel(), 'command binding cancellation failed');
 try {
-    $commands->execute('smoke:binding');
+    $commands->execute('smoke binding');
     throw new RuntimeException('cancelled command binding remained registered');
-} catch (LogicException) {
+} catch (CommandParseException) {
 }
 
 try {
@@ -58,9 +64,9 @@ try {
 }
 
 try {
-    $commands->execute('smoke:rollback');
+    $commands->execute('smoke rollback');
     throw new RuntimeException('failed plugin left its command registered');
-} catch (LogicException) {
+} catch (CommandParseException) {
 }
 
 $scheduler->tick();

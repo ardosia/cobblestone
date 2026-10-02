@@ -2,11 +2,13 @@
 
 ## Status
 
-This document records the intended public command API direction for Cobblestone.
+This document defines the public command API direction for Cobblestone.
+
+The typed-tree foundation is implemented in `modules/php/command`: literal and argument nodes, variadic immutable composition, aliases, typed handler compilation, requirements, suggestions, plugin-owned bindings, and basic string/integer/boolean/enum argument types.
 
 The design is deliberately Brigadier-like in structure, but it is not a Java Brigadier port. Cobblestone keeps the useful command-tree semantics while using PHP 8.5 language features to remove context-map casts, builder ceremony, listener classes, and framework plumbing.
 
-The public API is still subject to implementation feedback, but the structural decisions in this document are the baseline for command work.
+Semantic gameplay argument types, sender-specific command contexts, permission integration, and generated help/usage remain follow-on work as their owning gameplay subsystems become real.
 
 ## Goals
 

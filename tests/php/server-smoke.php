@@ -48,8 +48,11 @@ if (!$started || $server->state() !== ServerState::Running) {
     server_fail('server did not enter running state through explicit start');
 }
 
-if ($server->executeCommand('smoke:echo', ['one', 'two']) !== 'one:two') {
-    server_fail('command registry did not dispatch plugin command');
+if ($server->executeCommand('smoke echo one two') !== 'one two') {
+    server_fail('typed command tree did not dispatch plugin command');
+}
+if ($server->suggestCommand('smoke e') !== ['echo']) {
+    server_fail('typed command tree did not suggest plugin subcommand');
 }
 
 $server->tick(1);

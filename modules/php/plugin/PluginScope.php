@@ -7,6 +7,7 @@ namespace Cobblestone\Plugin;
 use Closure;
 use Cobblestone\Command\CommandBinding;
 use Cobblestone\Command\CommandRegistry;
+use Cobblestone\Command\Literal;
 use Cobblestone\Event\EventBus;
 use Cobblestone\Event\Subscription;
 use Cobblestone\Task\Scheduler;
@@ -47,16 +48,10 @@ final class PluginScope
         return $subscription;
     }
 
-    /**
-     * Temporary compatibility bridge until the typed command tree replaces the legacy string
-     * command registry.
-     *
-     * @param Closure(list<string>): mixed $handler
-     */
-    public function command(string $name, Closure $handler): CommandBinding
+    public function command(Literal $root): CommandBinding
     {
         $this->assertOpen();
-        $binding = $this->commands->register($name, $handler);
+        $binding = $this->commands->register($root);
         $this->own(static function () use ($binding): void {
             $binding->cancel();
         });

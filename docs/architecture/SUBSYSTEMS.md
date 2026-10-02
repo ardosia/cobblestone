@@ -64,7 +64,7 @@ Primary convergence work:
 
 ### Commands
 
-Status: implemented simple registry/dispatch; redesign specified.
+Status: typed Brigadier-style tree foundation implemented.
 
 Current package:
 
@@ -74,15 +74,14 @@ modules/php/command
 
 Target design: COMMANDS.md.
 
-Target direction:
+Current direction:
 
-- real recursive Brigadier-style tree;
-- literal and typed argument nodes;
-- variadic then();
-- typed handler injection;
-- suggestions, requirements, aliases, usage/help from one tree;
-- registration-time compilation and validation;
-- plugin-owned binding lifetime.
+- recursive literal/argument trees compile at registration;
+- variadic immutable then() composition is public API;
+- typed handler injection avoids context-map casts;
+- aliases, requirements, basic suggestions, and plugin-owned bindings are implemented;
+- basic word/string/greedy/integer/boolean/enum arguments are implemented;
+- semantic gameplay arguments plus generated usage/help arrive with their owning subsystems.
 
 ### Events
 

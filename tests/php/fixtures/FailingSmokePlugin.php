@@ -7,6 +7,7 @@ namespace Cobblestone\Tests;
 use Cobblestone\Plugin\Plugin;
 use Cobblestone\Plugin\PluginScope;
 use RuntimeException;
+use function Cobblestone\Command\literal;
 
 final class FailingSmokePlugin implements Plugin
 {
@@ -16,12 +17,15 @@ final class FailingSmokePlugin implements Plugin
     public function enable(PluginScope $plugin): void
     {
         $plugin->command(
-            'smoke:rollback',
-            static function (): string {
-                self::$state['command'] = true;
+            literal('smoke')->then(
+                literal('rollback')->executes(
+                    static function (): string {
+                        self::$state['command'] = true;
 
-                return 'bad';
-            },
+                        return 'bad';
+                    },
+                ),
+            ),
         );
 
         $plugin->after(

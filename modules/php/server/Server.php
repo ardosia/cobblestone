@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Cobblestone\Server;
 
 use Closure;
+use Cobblestone\Command\CommandBinding;
 use Cobblestone\Command\CommandRegistry;
+use Cobblestone\Command\Literal;
 use Cobblestone\Event\EventBus;
 use Cobblestone\Event\Subscription;
 use Cobblestone\Log\LoggerFactory;
@@ -184,13 +186,20 @@ final class Server
         return $this->scheduler->spawn($entry);
     }
 
-    /**
-     * @internal Temporary execution bridge until the typed command tree owns parsing/dispatch.
-     * @param list<string> $arguments
-     */
-    public function executeCommand(string $name, array $arguments = []): mixed
+    public function command(Literal $root): CommandBinding
     {
-        return $this->commands->execute($name, $arguments);
+        return $this->commands->register($root);
+    }
+
+    public function executeCommand(string $input, mixed $source = null): mixed
+    {
+        return $this->commands->execute($input, $source);
+    }
+
+    /** @return list<string> */
+    public function suggestCommand(string $input, mixed $source = null): array
+    {
+        return $this->commands->suggest($input, $source);
     }
 
     public function logger(): LoggerInterface

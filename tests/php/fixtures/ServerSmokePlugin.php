@@ -7,6 +7,7 @@ namespace Cobblestone\Tests;
 use Cobblestone\Plugin\Plugin;
 use Cobblestone\Plugin\PluginScope;
 use Cobblestone\Server\Event\ServerStopping;
+use function Cobblestone\Command\{greedyString, literal};
 
 final class ServerSmokePlugin implements Plugin
 {
@@ -19,8 +20,13 @@ final class ServerSmokePlugin implements Plugin
         $plugin->logger()->info('Server smoke plugin enabled');
 
         $plugin->command(
-            'smoke:echo',
-            static fn (array $arguments): string => implode(':', $arguments),
+            literal('smoke')->then(
+                literal('echo')->then(
+                    greedyString('message')->executes(
+                        static fn (string $message): string => $message,
+                    ),
+                ),
+            ),
         );
 
         $plugin->on(
