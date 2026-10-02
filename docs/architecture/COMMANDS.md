@@ -4,7 +4,7 @@
 
 This document defines the public command API direction for Cobblestone.
 
-The typed-tree foundation is implemented in `modules/php/command`: literal and argument nodes, variadic immutable composition, aliases, typed handler compilation, requirements, suggestions, plugin-owned bindings, and basic string/integer/boolean/enum argument types.
+The typed-tree foundation is implemented in `src/Command`: literal and argument nodes, variadic immutable composition, aliases, typed handler compilation, requirements, suggestions, plugin-owned bindings, and basic string/integer/boolean/enum argument types.
 
 The design is deliberately Brigadier-like in structure, but it is not a Java Brigadier port. Cobblestone keeps the useful command-tree semantics while using PHP 8.5 language features to remove context-map casts, builder ceremony, listener classes, and framework plumbing.
 

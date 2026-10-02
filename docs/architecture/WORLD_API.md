@@ -4,10 +4,10 @@
 
 This document defines the intended public and internal design direction for:
 
-- modules/php/world;
-- modules/php/world-generation;
-- modules/php/world-light;
-- modules/php/world-mutation;
+- src/World;
+- src/World/Generator;
+- src/World/Light;
+- src/World/Mutation;
 - the native WorldStore in modules/rust/core;
 - modules/rust/storage;
 - the world/storage portions of modules/rust/php-extension.

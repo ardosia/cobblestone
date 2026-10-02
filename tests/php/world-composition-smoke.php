@@ -17,32 +17,28 @@ function compositionExpect(bool $condition, string $message): void
 }
 
 $root = dirname(__DIR__, 2);
-$world = json_decode(
-    (string) file_get_contents($root . '/modules/php/world/composer.json'),
+$composer = json_decode(
+    (string) file_get_contents($root . '/composer.json'),
     true,
     flags: JSON_THROW_ON_ERROR,
 );
-compositionExpect(
-    array_filter(
-        array_keys($world['require'] ?? []),
-        static fn (string $name): bool => str_starts_with($name, 'ardosia/cobblestone-'),
-    ) === [],
-    'base world package must not depend on sibling Cobblestone packages',
-);
 
-foreach (['world-generation', 'world-light', 'world-mutation'] as $package) {
-    $manifest = json_decode(
-        (string) file_get_contents($root . "/modules/php/{$package}/composer.json"),
-        true,
-        flags: JSON_THROW_ON_ERROR,
-    );
-    $cobblestone = array_values(array_filter(
-        array_keys($manifest['require'] ?? []),
-        static fn (string $name): bool => str_starts_with($name, 'ardosia/cobblestone-'),
-    ));
+compositionExpect(
+    ($composer['autoload']['psr-4']['Cobblestone\\'] ?? null) === 'src/',
+    'root Composer package must map Cobblestone\\ to src/',
+);
+compositionExpect(
+    ($composer['autoload']['files'] ?? []) === ['src/Command/functions.php'],
+    'command helper functions must autoload from src/',
+);
+compositionExpect(
+    !is_dir($root . '/modules/php'),
+    'legacy PHP package workspace must be removed',
+);
+foreach (['Generator', 'Light', 'Mutation'] as $domain) {
     compositionExpect(
-        $cobblestone === ['ardosia/cobblestone-world'],
-        "{$package} must depend one-way on the base world package only",
+        is_dir($root . "/src/World/{$domain}"),
+        "World {$domain} namespace must live under src/World",
     );
 }
 

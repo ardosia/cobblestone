@@ -1,109 +1,24 @@
-Cobblestone uses one repository-level product boundary:
+Cobblestone no longer uses a PHP package workspace under `modules/`.
+
+PHP product code lives in the single root Composer package:
 
 ```text
-modules/
-├── php/
-└── rust/
+src/
+├── Command/
+├── Event/
+├── Log/
+├── Native/
+├── Plugin/
+├── Server/
+├── Session/
+├── Task/
+├── Tick/
+└── World/
 ```
 
-## PHP
+`Cobblestone\\` maps directly to `src/`. World generation, lighting, and mutation are namespace subdomains under `src/World/`, not separately versioned Composer packages.
 
-`modules/php/` is a flat workspace of local Composer packages. Package directories and Composer names are lowercase; PHP namespaces/classes remain PascalCase.
-
-```text
-modules/php/
-├── command/
-│   ├── composer.json
-│   └── CommandRegistry.php
-├── event/
-│   ├── composer.json
-│   └── EventBus.php
-├── log/
-│   ├── composer.json
-│   ├── ConsoleFormatter.php
-│   ├── ContextLogger.php
-│   └── LoggerFactory.php
-├── plugin/
-│   ├── composer.json
-│   ├── Plugin.php
-│   ├── PluginScope.php
-│   └── PluginManager.php
-├── server/
-│   ├── composer.json
-│   ├── Server.php
-│   ├── ServerConfig.php
-│   ├── ServerRunner.php
-│   ├── WorldFactory.php
-│   ├── WorldMaintenance.php
-│   ├── Event/
-│   └── Tick/
-├── session/
-│   ├── composer.json
-│   ├── SessionBootstrap.php
-│   ├── SessionGameplay.php
-│   ├── InitialChunkView.php
-│   ├── ChunkViewPreparation.php
-│   ├── Event/
-│   └── Native/
-├── task/
-│   ├── composer.json
-│   ├── Scheduler.php
-│   ├── TaskHandle.php
-│   ├── DueQueue.php
-│   ├── NativeTaskAwait.php
-│   └── TickSleep.php
-├── world/
-│   ├── composer.json
-│   ├── World.php
-│   ├── WorldEdit.php
-│   ├── Chunk.php
-│   ├── ChunkLease.php
-│   ├── MainChunkSource.php
-│   ├── NativeWorldStore.php
-│   ├── Generator/
-│   ├── Mutation/
-│   └── Region/
-├── world-generation/
-│   ├── composer.json
-│   ├── FlatGenerator.php
-│   ├── FlatLayer.php
-│   └── FlatPreset.php
-├── world-light/
-│   ├── composer.json
-│   ├── LightEngine.php
-│   ├── LightPropagator.php
-│   └── WorldLightAccess.php
-└── world-mutation/
-    ├── composer.json
-    ├── MutationCoordinator.php
-    ├── ChunkPatch.php
-    └── StagedWorldMutation.php
-```
-
-Package roots are their PSR-4 roots; do not add package-local `src/` wrappers. The session package also maps `Cobblestone\Native\Session\` to `session/Native/`, while the server package maps `Cobblestone\Tick\` to `server/Tick/`.
-
-Current dependency direction:
-
-```text
-command ──────────────┐
-event ────────────────┤
-log ──────────────────┼──> plugin ───────────────┐
-task ─────────────────┘                          │
-                                                │
-world ──> session ──────────────────────────────┤
-  ├────> world-generation ──────────────────────┤
-  ├────> world-light ───────────────────────────┤──> server
-  └────> world-mutation ────────────────────────┤
-                                                │
-command/event/log/plugin/session/task/world ─────┘
-```
-
-The root Composer application consumes `modules/php/*` through path repositories and requires only the server composition package directly.
-
-`world/` owns fixed-target coordinates/chunks/world semantics and the native-world facade. `world-generation/`, `world-light/`, and `world-mutation/` own generation, lighting, and staged mutation behavior respectively. Region mapping remains internal execution/ownership plumbing. `log/` owns PSR-3/Monolog application logging. Tick pacing lives under the server composition package, and native session transport lives under the session package. Later gameplay packages such as `player/`, `entity/`, `block/`, and `inventory/` should still be created only when their implementation begins.
-
-## Rust
-
+The remaining `modules/` tree is the current Rust Cargo workspace:
 ```text
 modules/rust/
 ├── core/
@@ -114,6 +29,6 @@ modules/rust/
 └── php-extension/
 ```
 
-Rust crate names remain stable and each crate keeps normal Cargo-local `src/` directories.
+These crate paths remain unchanged during the PHP-layout migration. A later native-workspace cleanup may rename/restructure them, but this document describes current durable repository state.
 
-Repository-level module/package layout has no role in Zend function registration. The PHP extension owns native exports independently and exact export names remain regression-tested.
+Repository-level PHP layout does not control Zend export names. The native extension owns its ABI independently and exact exports remain regression-tested.

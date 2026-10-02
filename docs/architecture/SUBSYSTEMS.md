@@ -40,10 +40,10 @@ The governing split remains:
 
 Status: implemented foundation.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/server
+src/Server
 ~~~
 
 Responsibilities:
@@ -67,10 +67,10 @@ Current direction:
 
 Status: typed Brigadier-style tree foundation implemented.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/command
+src/Command
 ~~~
 
 Target design: COMMANDS.md.
@@ -88,10 +88,10 @@ Current direction:
 
 Status: implemented owner-runtime dispatcher.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/event
+src/Event
 ~~~
 
 Target design: RUNTIME_API.md.
@@ -107,10 +107,10 @@ Current direction:
 
 Status: implemented delayed work, repeating work, Fibers, native awaits.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/task
+src/Task
 ~~~
 
 Target design: RUNTIME_API.md.
@@ -127,10 +127,10 @@ Current direction:
 
 Status: owned plugin lifecycle foundation implemented.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/plugin
+src/Plugin
 ~~~
 
 Target design: RUNTIME_API.md.
@@ -147,10 +147,10 @@ Current direction:
 
 Status: implemented PSR-3 / Monolog logging.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/log
+src/Log
 ~~~
 
 Target design: RUNTIME_API.md and DATA_API.md.
@@ -166,10 +166,10 @@ Target direction:
 
 Status: implemented fixed-target production join/session path.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/session
+src/Session
 modules/rust/session
 ~~~
 
@@ -274,10 +274,10 @@ Target direction:
 
 Status: implemented foundation.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/world
+src/World
 ~~~
 
 Target design: WORLD_API.md.
@@ -294,10 +294,10 @@ Target direction:
 
 Status: implemented Flat generation foundation.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/world-generation
+src/World/Generator
 ~~~
 
 Target design: WORLD_API.md.
@@ -313,10 +313,10 @@ Target direction:
 
 Status: implemented fixed-target lighting foundation.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/world-light
+src/World/Light
 ~~~
 
 Target design: WORLD_API.md.
@@ -332,10 +332,10 @@ Target direction:
 
 Status: implemented staged mutation foundation.
 
-Current package:
+Current source:
 
 ~~~text
-modules/php/world-mutation
+src/World/Mutation
 ~~~
 
 Target design: WORLD_API.md.
@@ -713,16 +713,16 @@ Examples include:
 
 The subsystem map reserves architectural space without claiming unsupported functionality.
 
-## Candidate future package boundaries
+## Candidate future domain boundaries
 
-Possible future PHP packages include:
+Possible future PHP namespaces/directories include:
 
 ~~~text
-modules/php/player
-modules/php/entity
-modules/php/item
-modules/php/inventory
-modules/php/permission
+src/Player
+src/Entity
+src/Item
+src/Inventory
+src/Permission
 ~~~
 
 These are candidates, not preapproved empty packages.

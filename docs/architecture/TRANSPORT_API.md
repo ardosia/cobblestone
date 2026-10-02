@@ -8,7 +8,7 @@ This document defines the intended architecture and public boundaries for:
 - modules/rust/codec;
 - modules/rust/session;
 - the session-facing portions of modules/rust/php-extension;
-- modules/php/session;
+- src/Session;
 - future login/identity/session bootstrap concerns.
 
 The design keeps RakNet and protocol-84 wire machinery out of ordinary gameplay APIs.

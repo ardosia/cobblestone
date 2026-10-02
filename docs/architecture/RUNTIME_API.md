@@ -4,11 +4,11 @@
 
 This document defines the intended PHP-facing design for the runtime-facing subsystems that currently live primarily in:
 
-- modules/php/server;
-- modules/php/event;
-- modules/php/task;
-- modules/php/plugin;
-- modules/php/log;
+- src/Server;
+- src/Event;
+- src/Task;
+- src/Plugin;
+- src/Log;
 - the runtime/worker portions of modules/rust/core and modules/rust/php-extension.
 
 It also defines the future lifecycle model these packages should converge toward.

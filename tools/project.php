@@ -49,15 +49,6 @@ function extensionPath(): string
     };
 }
 
-/** @return list<string> */
-function composerPackageManifests(): array
-{
-    $manifests = glob(ROOT . '/modules/php/*/composer.json') ?: [];
-    sort($manifests);
-
-    return array_values($manifests);
-}
-
 function setupComposer(): void
 {
     run(['composer', 'update', '--no-interaction']);
@@ -75,10 +66,6 @@ function ensureAutoload(): void
 function validateComposer(): void
 {
     run(['composer', 'validate', '--strict', '--no-check-publish', ROOT . '/composer.json']);
-
-    foreach (composerPackageManifests() as $manifest) {
-        run(['composer', 'validate', '--strict', '--no-check-publish', $manifest]);
-    }
 }
 
 function buildNative(): void
@@ -98,7 +85,7 @@ function checkNative(): void
 function lintPhp(): void
 {
     $roots = [
-        ROOT . '/modules/php',
+        ROOT . '/src',
         ROOT . '/tests/php',
         ROOT . '/tools',
     ];
@@ -189,15 +176,7 @@ function testPhp(): void
 
 function listModules(): void
 {
-    foreach (composerPackageManifests() as $manifest) {
-        $package = json_decode((string) file_get_contents($manifest), true, flags: JSON_THROW_ON_ERROR);
-        printf(
-            "php: %s (%s)%s",
-            basename(dirname($manifest)),
-            $package['name'] ?? 'unknown',
-            PHP_EOL,
-        );
-    }
+    printf("php: src (ardosia/cobblestone)%s", PHP_EOL);
 
     $rustRoot = ROOT . '/modules/rust';
     $rust = [];

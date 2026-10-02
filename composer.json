@@ -3,20 +3,21 @@
   "description": "Fixed-target Minecraft Windows 10 Edition Beta / MCPE 0.15.10 server foundation.",
   "type": "project",
   "license": "MIT OR Apache-2.0",
-  "repositories": [
-    {
-      "type": "path",
-      "url": "modules/php/*"
-    }
-  ],
   "require": {
     "php": ">=8.5",
-    "ardosia/cobblestone-server": "dev-main"
+    "monolog/monolog": "^3.0",
+    "psr/log": "^3.0"
   },
-  "minimum-stability": "dev",
-  "prefer-stable": true,
   "suggest": {
     "ext-cobblestone_core_php": "Required to run the native-backed Cobblestone server."
+  },
+  "autoload": {
+    "psr-4": {
+      "Cobblestone\\": "src/"
+    },
+    "files": [
+      "src/Command/functions.php"
+    ]
   },
   "autoload-dev": {
     "psr-4": {
