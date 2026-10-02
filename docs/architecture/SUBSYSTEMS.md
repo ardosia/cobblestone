@@ -55,12 +55,13 @@ Responsibilities:
 
 Target design: RUNTIME_API.md.
 
-Primary convergence work:
+Current direction:
 
-- construction must not emit Started before registration is possible;
-- expose direct semantic operations rather than manager chains;
-- integrate plugin-owned registration/lifetime;
-- keep tick work bounded.
+- construction remains side-effect free until explicit start();
+- Server exposes direct event/command/task/plugin operations;
+- plugin-owned registration lifetime is integrated;
+- readonly ServerConfig replaces the primitive creation argument bag;
+- remaining tick-boundary batching is performance work, not API cleanup.
 
 ### Commands
 
@@ -95,14 +96,12 @@ modules/php/event
 
 Target design: RUNTIME_API.md.
 
-Target direction:
+Current direction:
 
-- typed event subscriptions;
-- Subscription handles;
-- compiled concrete listener chains rather than scanning every registered type;
-- focused cancellable events;
-- deterministic priority/order;
-- plugin-owned lifetime.
+- typed event subscriptions return Subscription handles;
+- concrete listener chains are cached instead of rescanning every registered event type;
+- plugin-owned subscriptions are released deterministically;
+- focused cancellable events and explicit priority ordering remain future event-model work.
 
 ### Tasks / scheduler
 
@@ -116,17 +115,17 @@ modules/php/task
 
 Target design: RUNTIME_API.md.
 
-Target direction:
+Current direction:
 
-- TaskHandle objects instead of integer IDs;
-- task() starts on scheduler boundary rather than executing Fiber inline;
-- due-time heaps remain;
-- batched native-ready completion retrieval;
-- explicit cooperative cancellation semantics.
+- scheduling returns TaskHandle objects;
+- task() starts Fibers on the scheduler boundary rather than inline;
+- due-time heaps remain the dormant-task mechanism;
+- cancellation is explicit and failed/repeating work does not remain active;
+- batched native-ready completion retrieval remains separate performance work.
 
 ### Plugins
 
-Status: implemented class-based load/enable/disable foundation.
+Status: owned plugin lifecycle foundation implemented.
 
 Current package:
 
@@ -136,14 +135,13 @@ modules/php/plugin
 
 Target design: RUNTIME_API.md.
 
-Target direction:
+Current direction:
 
-- PluginScope owns registrations/resources;
-- enable rollback on failure;
-- deterministic unload;
-- closure-first entrypoint supported alongside class entrypoints;
-- dependency metadata resolved before enable;
-- no service-locator-style plugin context.
+- PluginScope owns events, commands, tasks, and cleanup;
+- failed enable rolls back partial registrations;
+- unload/shutdown cleanup is deterministic;
+- the old service-locator-style PluginContext is removed;
+- closure-first entrypoints and dependency metadata remain separate plugin-system work.
 
 ### Logging
 
