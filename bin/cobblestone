@@ -107,7 +107,7 @@ try {
         compactionMinDeadBytes: $compactionMinDeadBytes,
         compactionMinDeadPercent: $compactionMinDeadPercent,
     );
-    $server = Server::start(
+    $server = Server::create(
         $bind,
         $maxConnections,
         $serverName,
@@ -115,7 +115,7 @@ try {
         world: $world,
     );
 } catch (Throwable $error) {
-    $logger->critical('Failed to start Cobblestone', ['exception' => $error]);
+    $logger->critical('Failed to configure Cobblestone', ['exception' => $error]);
     exit(1);
 }
 
@@ -130,7 +130,7 @@ $runner = new ServerRunner(
 );
 
 $logger->info(
-    'Started Cobblestone',
+    'Configured Cobblestone',
     [
         'bind' => $bind,
         'protocol' => 84,

@@ -50,7 +50,7 @@ if (!is_string($bind) || $bind === '') {
 
 $movementHandled = false;
 $server = null;
-$server = Server::start(
+$server = Server::create(
     $bind,
     4,
     'Cobblestone World Sync Test',
@@ -80,7 +80,7 @@ $server = Server::start(
 );
 $spawned = false;
 $mutated = false;
-$server->events()->listen(
+$server->on(
     SessionSpawned::class,
     static function (SessionSpawned $event) use ($server, $transitionOnly, $radiusCycle, $streamTorture, &$spawned, &$mutated): void {
         $spawned = true;
@@ -107,6 +107,8 @@ $server->events()->listen(
     },
 );
 
+$server->start();
+
 $root = dirname(__DIR__, 2);
 $command = [
     'cargo',
@@ -129,8 +131,8 @@ $descriptors = [
 ];
 $process = proc_open($command, $descriptors, $pipes, $root);
 if (!is_resource($process)) {
-    $server->requestStop('world-sync-client-start-failed');
-    $server->stop();
+    $server->stop('world-sync-client-start-failed');
+    $server->shutdown();
     throw new RuntimeException('failed to start world-sync loopback client');
 }
 fclose($pipes[0]);
@@ -300,8 +302,8 @@ try {
         proc_close($process);
     }
     if ($server->state() === ServerState::Running) {
-        $server->requestStop('world-sync-smoke');
-        $server->stop();
+        $server->stop('world-sync-smoke');
+        $server->shutdown();
     }
 }
 

@@ -36,24 +36,26 @@ $bind = stream_socket_get_name($probe, false);
 fclose($probe);
 multiViewExpect(is_string($bind) && $bind !== '', 'failed to resolve loopback UDP address');
 
-$server = Server::start($bind, 4, 'Cobblestone Multi View Test');
+$server = Server::create($bind, 4, 'Cobblestone Multi View Test');
 $spawned = 0;
 /** @var list<int> $sessionIds */
 $sessionIds = [];
 $disconnected = 0;
-$server->events()->listen(
+$server->on(
     SessionSpawned::class,
     static function (SessionSpawned $event) use (&$spawned, &$sessionIds): void {
         ++$spawned;
         $sessionIds[] = $event->sessionId;
     },
 );
-$server->events()->listen(
+$server->on(
     SessionDisconnected::class,
     static function () use (&$disconnected): void {
         ++$disconnected;
     },
 );
+
+$server->start();
 
 $root = dirname(__DIR__, 2);
 $clients = [];
@@ -220,8 +222,8 @@ try {
     unset($client);
 
     if ($server->state() === ServerState::Running) {
-        $server->requestStop('multi-view-smoke');
-        $server->stop();
+        $server->stop('multi-view-smoke');
+        $server->shutdown();
     }
 }
 

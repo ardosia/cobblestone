@@ -97,7 +97,7 @@ $cleanupTriggered = false;
 $spawned = false;
 $disconnected = false;
 
-$server = Server::start(
+$server = Server::create(
     $bind,
     2,
     'Cobblestone Pending Disconnect Test',
@@ -177,18 +177,20 @@ $server = Server::start(
     $world,
 );
 
-$server->events()->listen(
+$server->on(
     SessionSpawned::class,
     static function () use (&$spawned): void {
         $spawned = true;
     },
 );
-$server->events()->listen(
+$server->on(
     SessionDisconnected::class,
     static function () use (&$disconnected): void {
         $disconnected = true;
     },
 );
+
+$server->start();
 
 $root = dirname(__DIR__, 2);
 $process = proc_open(
@@ -280,8 +282,8 @@ try {
         proc_close($process);
     }
     if ($server instanceof Server && $server->state() === ServerState::Running) {
-        $server->requestStop('pending-disconnect-smoke');
-        $server->stop();
+        $server->stop('pending-disconnect-smoke');
+        $server->shutdown();
     }
     try {
         $store->destroy();

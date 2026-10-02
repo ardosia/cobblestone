@@ -45,7 +45,7 @@ $backpressureInjected = false;
 $retryCommitted = false;
 $disconnected = false;
 
-$server = Server::start(
+$server = Server::create(
     $bind,
     2,
     'Cobblestone Backpressure View Test',
@@ -95,18 +95,20 @@ $server = Server::start(
     },
 );
 
-$server->events()->listen(
+$server->on(
     SessionSpawned::class,
     static function (SessionSpawned $event) use (&$spawnedSessionId): void {
         $spawnedSessionId = $event->sessionId;
     },
 );
-$server->events()->listen(
+$server->on(
     SessionDisconnected::class,
     static function () use (&$disconnected): void {
         $disconnected = true;
     },
 );
+
+$server->start();
 
 $root = dirname(__DIR__, 2);
 $process = proc_open(
@@ -213,8 +215,8 @@ try {
         proc_close($process);
     }
     if ($server instanceof Server && $server->state() === ServerState::Running) {
-        $server->requestStop('backpressure-view-smoke');
-        $server->stop();
+        $server->stop('backpressure-view-smoke');
+        $server->shutdown();
     }
 }
 

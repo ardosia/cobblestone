@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Cobblestone\Server\Event\ServerStarted;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Task\Scheduler;
@@ -19,16 +20,35 @@ if (!extension_loaded('cobblestone_core_php')) {
     server_fail('cobblestone_core_php extension did not load for server smoke test');
 }
 
-$server = Server::start('127.0.0.1:0', 4, 'Cobblestone Server Test');
-
-$pluginFile = __DIR__ . '/fixtures/ServerSmokePlugin.php';
-$server->plugins()->load($pluginFile, ServerSmokePlugin::class);
-
-if ((ServerSmokePlugin::$state['enabled'] ?? false) !== true) {
-    server_fail('plugin did not enable');
+$server = Server::create('127.0.0.1:0', 4, 'Cobblestone Server Test');
+if ($server->state() !== ServerState::Created) {
+    server_fail('server did not remain created before lifecycle start');
 }
 
-if ($server->commands()->execute('smoke:echo', ['one', 'two']) !== 'one:two') {
+$started = false;
+$server->on(
+    ServerStarted::class,
+    static function () use (&$started): void {
+        $started = true;
+    },
+);
+if ($started) {
+    server_fail('server started event fired during construction');
+}
+
+$pluginFile = __DIR__ . '/fixtures/ServerSmokePlugin.php';
+$server->loadPlugin($pluginFile, ServerSmokePlugin::class);
+
+if ((ServerSmokePlugin::$state['enabled'] ?? false) !== true) {
+    server_fail('plugin did not enable before server start');
+}
+
+$server->start();
+if (!$started || $server->state() !== ServerState::Running) {
+    server_fail('server did not enter running state through explicit start');
+}
+
+if ($server->executeCommand('smoke:echo', ['one', 'two']) !== 'one:two') {
     server_fail('command registry did not dispatch plugin command');
 }
 
@@ -40,7 +60,7 @@ if ((ServerSmokePlugin::$state['scheduled'] ?? false) !== true) {
 $nativeTask = cobblestone_core_async_submit(21);
 $fiberResult = null;
 
-$server->scheduler()->spawn(
+$server->task(
     static function () use ($nativeTask, &$fiberResult): void {
         $fiberResult = Scheduler::awaitNative($nativeTask);
     },
@@ -60,7 +80,7 @@ if ($fiberResult !== 42) {
 }
 
 $slept = false;
-$server->scheduler()->spawn(
+$server->task(
     static function () use (&$slept): void {
         Scheduler::sleep(2);
         $slept = true;
@@ -69,7 +89,12 @@ $server->scheduler()->spawn(
 
 $server->tick(1);
 if ($slept) {
-    server_fail('Fiber tick sleep resumed too early');
+    server_fail('Fiber tick sleep resumed during its start tick');
+}
+
+$server->tick(1);
+if ($slept) {
+    server_fail('Fiber tick sleep resumed one tick early');
 }
 
 $server->tick(1);
@@ -77,11 +102,11 @@ if (!$slept) {
     server_fail('Fiber tick sleep did not resume on owner runtime');
 }
 
-$server->requestStop('smoke-test');
+$server->stop('smoke-test');
 if (!$server->isStopRequested()) {
     server_fail('shutdown request was not observable');
 }
-$server->stop();
+$server->shutdown();
 
 if ($server->state() !== ServerState::Stopped) {
     server_fail('server did not reach stopped state');

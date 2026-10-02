@@ -32,6 +32,7 @@ final class ServerRunner
         $tickCount = 0;
 
         try {
+            $this->server->start();
             $tickCount = $this->ticks->run(
                 function (int $_tick): void {
                     $this->server->tick($this->nativeEventBudget);
@@ -41,13 +42,13 @@ final class ServerRunner
         } catch (Throwable $error) {
             $failure = $error;
             $this->logger->critical(
-                'Server tick loop failed',
+                'Server run failed',
                 ['exception' => $error],
             );
-            $this->server->requestStop('tick-loop-failure');
+            $this->server->stop('server-run-failure');
         } finally {
             try {
-                $this->server->stop();
+                $this->server->shutdown();
             } catch (Throwable $error) {
                 if ($failure === null) {
                     $failure = $error;
@@ -84,7 +85,7 @@ final class ServerRunner
             pcntl_signal(
                 $signal,
                 function (int $_signal) use ($signalName): void {
-                    $this->server->requestStop($signalName);
+                    $this->server->stop($signalName);
                 },
             );
         }
@@ -102,9 +103,9 @@ final class ServerRunner
                 return;
             }
 
-            $this->server->requestStop('php-shutdown');
+            $this->server->stop('php-shutdown');
             try {
-                $this->server->stop();
+                $this->server->shutdown();
             } catch (Throwable $error) {
                 $this->logger->error(
                     'Shutdown hook failed',

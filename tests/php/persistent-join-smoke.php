@@ -179,7 +179,7 @@ $bind = stream_socket_get_name($probe, false);
 fclose($probe);
 persistentJoinExpect(is_string($bind) && $bind !== '', 'failed to resolve loopback UDP address');
 
-$server = Server::start(
+$server = Server::create(
     $bind,
     4,
     'Cobblestone Persistent Join Test',
@@ -190,13 +190,13 @@ $spawnedSessionId = null;
 $disconnected = false;
 $mutated = false;
 $stopFlushDirty = false;
-$server->events()->listen(
+$server->on(
     SessionDisconnected::class,
     static function (SessionDisconnected $event) use (&$disconnected): void {
         $disconnected = true;
     },
 );
-$server->events()->listen(
+$server->on(
     SessionSpawned::class,
     static function (SessionSpawned $event) use (
         $server,
@@ -239,6 +239,8 @@ $server->events()->listen(
     },
 );
 
+$server->start();
+
 $root = dirname(__DIR__, 2);
 $command = [
     'cargo',
@@ -259,8 +261,8 @@ $descriptors = [
 ];
 $process = proc_open($command, $descriptors, $pipes, $root);
 if (!is_resource($process)) {
-    $server->requestStop('persistent-join-client-start-failed');
-    $server->stop();
+    $server->stop('persistent-join-client-start-failed');
+    $server->shutdown();
     $store->destroy();
     persistentJoinRemoveTree($storageRoot);
     throw new RuntimeException('failed to start persistent-join loopback client');
@@ -359,7 +361,7 @@ try {
     );
 
     $loadedHandle = null;
-    $server->scheduler()->spawn(
+    $server->task(
         static function () use ($server, $fiberPersistedPosition, &$loadedHandle): void {
             $loadedHandle = $server->awaitResidentChunk($fiberPersistedPosition);
         },
@@ -392,7 +394,7 @@ try {
     );
 
     $generatedHandle = null;
-    $server->scheduler()->spawn(
+    $server->task(
         static function () use ($server, $fiberMissingPosition, &$generatedHandle): void {
             $generatedHandle = $server->awaitResidentChunk($fiberMissingPosition);
         },
@@ -425,7 +427,7 @@ try {
     );
 
     $centerHandle = null;
-    $server->scheduler()->spawn(
+    $server->task(
         static function () use ($server, $center, &$centerHandle): void {
             $centerHandle = $server->awaitResidentChunk($center);
         },
@@ -449,8 +451,8 @@ try {
         proc_close($process);
     }
     if ($server->state() === ServerState::Running) {
-        $server->requestStop('persistent-join-smoke');
-        $server->stop();
+        $server->stop('persistent-join-smoke');
+        $server->shutdown();
     }
     if ($stopFlushDirty) {
         persistentJoinExpect(

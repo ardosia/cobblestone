@@ -7,25 +7,27 @@ namespace Cobblestone\Server;
 use Closure;
 use Cobblestone\Command\CommandRegistry;
 use Cobblestone\Event\EventBus;
+use Cobblestone\Event\Subscription;
 use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\Runtime;
+use Cobblestone\Plugin\Plugin;
 use Cobblestone\Plugin\PluginManager;
 use Cobblestone\Server\Event\ServerStarted;
 use Cobblestone\Server\Event\ServerStopping;
+use Cobblestone\Session\BootstrapUpdate;
 use Cobblestone\Session\Event\SessionConnected;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionLoginAccepted;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\Session\SessionBootstrap;
 use Cobblestone\Session\SessionGameplay;
-use Cobblestone\Session\BootstrapUpdate;
 use Cobblestone\Task\Scheduler;
+use Cobblestone\Task\TaskHandle;
 use Cobblestone\World\ChunkLoadPending;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\ResidentChunkHandle;
 use Cobblestone\World\World;
 use LogicException;
@@ -38,23 +40,33 @@ final class Server
     private readonly CommandRegistry $commands;
     private readonly Scheduler $scheduler;
     private readonly PluginManager $plugins;
-    private readonly SessionBootstrap $bootstrap;
-    private readonly SessionGameplay $gameplay;
-    private readonly WorldMaintenance $worldMaintenance;
     private readonly LoggerInterface $logger;
 
-    private ServerState $state = ServerState::Starting;
+    private ?Runtime $sessions = null;
+    private ?SessionBootstrap $bootstrap = null;
+    private ?SessionGameplay $gameplay = null;
+    private ?WorldMaintenance $worldMaintenance = null;
+
+    private ServerState $state = ServerState::Created;
     private ?string $stopReason = null;
 
     /** @param Closure(Packet): void|null $packetHandler */
     private function __construct(
-        private readonly Runtime $sessions,
+        private readonly string $bind,
+        private readonly int $maxConnections,
         private readonly LoggerFactory $logs,
         private ?Closure $packetHandler,
         private readonly string $serverName,
         private readonly World $world,
-        int $initialChunkRadius,
+        private readonly int $initialChunkRadius,
     ) {
+        if ($maxConnections <= 0) {
+            throw new \InvalidArgumentException('max connections must be positive');
+        }
+        if ($initialChunkRadius < 0) {
+            throw new \InvalidArgumentException('initial chunk radius must be non-negative');
+        }
+
         $this->logger = $logs->logger('Cobblestone.Server');
         $this->events = new EventBus();
         $this->commands = new CommandRegistry();
@@ -65,24 +77,10 @@ final class Server
             $this->scheduler,
             $this->logs,
         );
-        $this->bootstrap = new SessionBootstrap($this->sessions, $this->world, $initialChunkRadius);
-        $this->gameplay = new SessionGameplay($this->sessions, $this->world, $initialChunkRadius);
-        $this->worldMaintenance = new WorldMaintenance($this->sessions, $this->world, $this->logger);
-
-        $this->state = ServerState::Running;
-        $this->events->dispatch(new ServerStarted());
-        $this->logger->info(
-            'Server lifecycle started',
-            [
-                'world' => $world->name(),
-                'generator' => $world->generator()->name(),
-                'initial_chunk_radius' => $initialChunkRadius,
-            ],
-        );
     }
 
     /** @param Closure(Packet): void|null $packetHandler */
-    public static function start(
+    public static function create(
         string $bind,
         int $maxConnections,
         string $serverName,
@@ -93,33 +91,122 @@ final class Server
     ): self {
         $logs ??= LoggerFactory::console(getenv('COBBLESTONE_LOG_LEVEL') ?: 'INFO');
         $world ??= WorldFactory::flat();
-        $sessions = Runtime::start($bind, $maxConnections, $serverName);
+
+        return new self(
+            $bind,
+            $maxConnections,
+            $logs,
+            $packetHandler,
+            $serverName,
+            $world,
+            $initialChunkRadius,
+        );
+    }
+
+    public function start(): void
+    {
+        if ($this->state === ServerState::Running) {
+            return;
+        }
+        if ($this->state !== ServerState::Created) {
+            throw new LogicException("cannot start server from {$this->state->value} state");
+        }
+        if ($this->stopReason !== null) {
+            throw new LogicException('cannot start server after shutdown was requested');
+        }
+
+        $this->state = ServerState::Starting;
+        $sessions = null;
 
         try {
-            return new self(
-                $sessions,
-                $logs,
-                $packetHandler,
-                $serverName,
-                $world,
-                $initialChunkRadius,
+            $sessions = Runtime::start($this->bind, $this->maxConnections, $this->serverName);
+            $this->sessions = $sessions;
+            $this->bootstrap = new SessionBootstrap($sessions, $this->world, $this->initialChunkRadius);
+            $this->gameplay = new SessionGameplay($sessions, $this->world, $this->initialChunkRadius);
+            $this->worldMaintenance = new WorldMaintenance($sessions, $this->world, $this->logger);
+
+            $this->state = ServerState::Running;
+            $this->events->dispatch(new ServerStarted());
+            $this->logger->info(
+                'Server lifecycle started',
+                [
+                    'world' => $this->world->name(),
+                    'generator' => $this->world->generator()->name(),
+                    'initial_chunk_radius' => $this->initialChunkRadius,
+                ],
             );
         } catch (Throwable $error) {
-            try {
-                $sessions->stop();
-            } catch (Throwable) {
+            if ($sessions !== null) {
+                try {
+                    $sessions->stop();
+                } catch (Throwable) {
+                }
             }
+            $this->sessions = null;
+            $this->bootstrap = null;
+            $this->gameplay = null;
+            $this->worldMaintenance = null;
+            $this->state = ServerState::Created;
             throw $error;
         }
     }
 
-    public function events(): EventBus { return $this->events; }
-    public function commands(): CommandRegistry { return $this->commands; }
-    public function scheduler(): Scheduler { return $this->scheduler; }
-    public function plugins(): PluginManager { return $this->plugins; }
-    public function logger(): LoggerInterface { return $this->logger; }
-    public function state(): ServerState { return $this->state; }
-    public function world(): World { return $this->world; }
+    /** @param class-string $event */
+    public function on(string $event, Closure $listener): Subscription
+    {
+        return $this->events->listen($event, $listener);
+    }
+
+    /** @param class-string<Plugin> $class */
+    public function loadPlugin(string $file, string $class): Plugin
+    {
+        return $this->plugins->load($file, $class);
+    }
+
+    /** @param class-string<Plugin> $class */
+    public function unloadPlugin(string $class): bool
+    {
+        return $this->plugins->unload($class);
+    }
+
+    public function after(int $delayTicks, Closure $task): TaskHandle
+    {
+        return $this->scheduler->schedule($delayTicks, $task);
+    }
+
+    public function every(int $intervalTicks, Closure $task): TaskHandle
+    {
+        return $this->scheduler->repeat($intervalTicks, $task);
+    }
+
+    public function task(Closure $entry): TaskHandle
+    {
+        return $this->scheduler->spawn($entry);
+    }
+
+    /**
+     * @internal Temporary execution bridge until the typed command tree owns parsing/dispatch.
+     * @param list<string> $arguments
+     */
+    public function executeCommand(string $name, array $arguments = []): mixed
+    {
+        return $this->commands->execute($name, $arguments);
+    }
+
+    public function logger(): LoggerInterface
+    {
+        return $this->logger;
+    }
+
+    public function state(): ServerState
+    {
+        return $this->state;
+    }
+
+    public function world(): World
+    {
+        return $this->world;
+    }
 
     /**
      * Suspends the current scheduler-managed Fiber until this chunk is resident.
@@ -146,12 +233,18 @@ final class Server
 
     public function isStopRequested(): bool
     {
-        return $this->stopReason !== null || $this->state !== ServerState::Running;
+        return $this->stopReason !== null
+            || $this->state === ServerState::Stopping
+            || $this->state === ServerState::Stopped;
     }
 
-    public function requestStop(string $reason = 'requested'): void
+    public function stop(string $reason = 'requested'): void
     {
-        if ($this->state !== ServerState::Running || $this->stopReason !== null) {
+        if (
+            $this->state === ServerState::Stopped
+            || $this->state === ServerState::Stopping
+            || $this->stopReason !== null
+        ) {
             return;
         }
 
@@ -166,16 +259,21 @@ final class Server
             throw new LogicException('native event budget must be positive');
         }
 
+        $sessions = $this->sessionRuntime();
+        $bootstrap = $this->sessionBootstrap();
+        $gameplay = $this->sessionGameplay();
+        $worldMaintenance = $this->worldMaintenance();
+
         $this->scheduler->tick();
 
         for ($processed = 0; $processed < $nativeEventBudget; ++$processed) {
-            $event = $this->sessions->poll();
+            $event = $sessions->poll();
             if ($event === null) {
                 break;
             }
 
             if ($event instanceof Connected) {
-                $this->bootstrap->connected($event->sessionId);
+                $bootstrap->connected($event->sessionId);
                 $this->logger->info(
                     'Session connected',
                     ['session' => $event->sessionId, 'peer' => $event->peer],
@@ -184,8 +282,8 @@ final class Server
                 continue;
             }
             if ($event instanceof Disconnected) {
-                $this->bootstrap->disconnected($event->sessionId);
-                $this->gameplay->disconnected($event->sessionId);
+                $bootstrap->disconnected($event->sessionId);
+                $gameplay->disconnected($event->sessionId);
                 $this->logger->info(
                     'Session disconnected',
                     ['session' => $event->sessionId, 'reason' => $event->reason],
@@ -195,7 +293,7 @@ final class Server
             }
             if ($event instanceof Packet) {
                 try {
-                    $update = $this->bootstrap->handle($event);
+                    $update = $bootstrap->handle($event);
                 } catch (Throwable $error) {
                     $this->logger->error(
                         'Session bootstrap failed',
@@ -206,7 +304,7 @@ final class Server
                         ],
                     );
                     try {
-                        $this->sessions->disconnect($event->sessionId);
+                        $sessions->disconnect($event->sessionId);
                     } catch (Throwable $disconnectError) {
                         $this->logger->warning(
                             'Session disconnect after bootstrap failure failed',
@@ -236,7 +334,7 @@ final class Server
                 }
 
                 try {
-                    $this->gameplay->handle($event);
+                    $gameplay->handle($event);
                 } catch (Throwable $error) {
                     $this->logger->error(
                         'Session gameplay packet failed',
@@ -247,7 +345,7 @@ final class Server
                         ],
                     );
                     try {
-                        $this->sessions->disconnect($event->sessionId);
+                        $sessions->disconnect($event->sessionId);
                     } catch (Throwable $disconnectError) {
                         $this->logger->warning(
                             'Session disconnect after gameplay failure failed',
@@ -266,41 +364,49 @@ final class Server
             }
         }
 
-        $this->worldMaintenance->tickStorage();
+        $worldMaintenance->tickStorage();
 
-        foreach ($this->bootstrap->tick() as $completion) {
+        foreach ($bootstrap->tick() as $completion) {
             $this->dispatchSpawned($completion['sessionId'], $completion['update']);
         }
 
-        $this->gameplay->tick();
-        $this->worldMaintenance->flushWorldChanges();
+        $gameplay->tick();
+        $worldMaintenance->flushWorldChanges();
     }
 
-    public function stop(): void
+    /** @internal ServerRunner owns terminal shutdown. */
+    public function shutdown(): void
     {
         if ($this->state === ServerState::Stopped || $this->state === ServerState::Stopping) {
             return;
         }
 
+        $previous = $this->state;
         $this->state = ServerState::Stopping;
         $reason = $this->stopReason ?? 'shutdown';
         $this->logger->info('Stopping server', ['reason' => $reason]);
 
         $failure = null;
+        $phases = [];
+        if ($previous === ServerState::Running) {
+            $phases['stopping-event'] = fn () => $this->events->dispatch(new ServerStopping());
+        }
+        if ($this->gameplay !== null) {
+            $phases['gameplay'] = fn () => $this->gameplay?->stop();
+        }
+        if ($this->sessions !== null) {
+            $phases['sessions'] = fn () => $this->sessions?->stop();
+        }
+        $phases['plugins'] = fn () => $this->plugins->shutdown();
+        $phases['scheduler'] = fn () => $this->scheduler->shutdown();
+        $phases['world-storage'] = function (): void {
+            $nativeStore = $this->world->nativeStore();
+            if ($nativeStore !== null && $nativeStore->hasStorage()) {
+                $nativeStore->flushStorage();
+            }
+        };
 
-        foreach ([
-            'stopping-event' => fn () => $this->events->dispatch(new ServerStopping()),
-            'gameplay' => fn () => $this->gameplay->stop(),
-            'sessions' => fn () => $this->sessions->stop(),
-            'plugins' => fn () => $this->plugins->shutdown(),
-            'scheduler' => fn () => $this->scheduler->shutdown(),
-            'world-storage' => function (): void {
-                $nativeStore = $this->world->nativeStore();
-                if ($nativeStore !== null && $nativeStore->hasStorage()) {
-                    $nativeStore->flushStorage();
-                }
-            },
-        ] as $phase => $shutdown) {
+        foreach ($phases as $phase => $shutdown) {
             try {
                 $shutdown();
             } catch (Throwable $error) {
@@ -312,6 +418,10 @@ final class Server
             }
         }
 
+        $this->sessions = null;
+        $this->bootstrap = null;
+        $this->gameplay = null;
+        $this->worldMaintenance = null;
         $this->state = ServerState::Stopped;
         $this->logger->info('Server stopped', ['reason' => $reason]);
 
@@ -322,7 +432,7 @@ final class Server
 
     private function dispatchSpawned(int $sessionId, BootstrapUpdate $update): void
     {
-        $this->gameplay->spawned($sessionId);
+        $this->sessionGameplay()->spawned($sessionId);
         $effectiveRadius = $update->effectiveRadius ?? 0;
         $this->logger->info(
             'Session spawned',
@@ -348,8 +458,32 @@ final class Server
 
     private function assertRunning(): void
     {
-        if ($this->state !== ServerState::Running || !$this->sessions->isRunning()) {
+        if (
+            $this->state !== ServerState::Running
+            || $this->sessions === null
+            || !$this->sessions->isRunning()
+        ) {
             throw new LogicException('Cobblestone server is not running');
         }
+    }
+
+    private function sessionRuntime(): Runtime
+    {
+        return $this->sessions ?? throw new LogicException('session runtime is unavailable');
+    }
+
+    private function sessionBootstrap(): SessionBootstrap
+    {
+        return $this->bootstrap ?? throw new LogicException('session bootstrap is unavailable');
+    }
+
+    private function sessionGameplay(): SessionGameplay
+    {
+        return $this->gameplay ?? throw new LogicException('session gameplay is unavailable');
+    }
+
+    private function worldMaintenance(): WorldMaintenance
+    {
+        return $this->worldMaintenance ?? throw new LogicException('world maintenance is unavailable');
     }
 }
