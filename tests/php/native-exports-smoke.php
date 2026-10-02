@@ -22,8 +22,6 @@ $required = [
     'cobblestone_session_running',
     'cobblestone_session_poll_event',
     'cobblestone_session_send',
-    'cobblestone_session_protocol84_accept_login',
-    'cobblestone_session_protocol84_spawn_probe',
     'cobblestone_session_protocol84_accept_login_world',
     'cobblestone_session_protocol84_request_chunk_radius',
     'cobblestone_session_protocol84_send_initial_chunks',
@@ -87,6 +85,8 @@ if (cobblestone_core_abi() !== 1) {
 }
 
 $forbidden = [
+    'cobblestone_session_protocol84_accept_login',
+    'cobblestone_session_protocol84_spawn_probe',
     'cobblestone_session_protocol_84_accept_login',
     'cobblestone_session_protocol_84_spawn_probe',
 ];
