@@ -5,7 +5,6 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Native\Session\Packet;
-use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
@@ -116,9 +115,7 @@ $server = Server::create(
 
         pendingDisconnectExpect($server instanceof Server, 'pending-disconnect server unavailable');
 
-        $gameplayProperty = new ReflectionProperty(Server::class, 'gameplay');
-        $gameplay = $gameplayProperty->getValue($server);
-        pendingDisconnectExpect($gameplay instanceof SessionGameplay, 'gameplay state unavailable');
+        $gameplay = testServerGameplay($server);
 
         $preparationsProperty = new ReflectionProperty(SessionGameplay::class, 'preparations');
         $preparations = $preparationsProperty->getValue($gameplay);
@@ -167,10 +164,7 @@ $server = Server::create(
             'PHP pending cleanup released the native active view too early',
         );
 
-        $sessionsProperty = new ReflectionProperty(Server::class, 'sessions');
-        $runtime = $sessionsProperty->getValue($server);
-        pendingDisconnectExpect($runtime instanceof Runtime, 'session runtime unavailable');
-        $runtime->disconnect($packet->sessionId);
+        testNativeSessions($server)->disconnect($packet->sessionId);
         $cleanupTriggered = true;
     },
 );

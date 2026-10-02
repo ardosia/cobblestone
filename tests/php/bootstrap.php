@@ -9,3 +9,41 @@ if (!is_file($autoload)) {
 }
 
 require_once $autoload;
+
+/** @internal Test-only access to the server orchestration boundary. */
+function testServerRuntime(Cobblestone\Server\Server $server): Cobblestone\Server\Internal\Runtime
+{
+    $property = new ReflectionProperty(Cobblestone\Server\Server::class, 'runtime');
+    $runtime = $property->getValue($server);
+    if (!$runtime instanceof Cobblestone\Server\Internal\Runtime) {
+        throw new RuntimeException('server runtime is unavailable');
+    }
+
+    return $runtime;
+}
+
+/** @internal Test-only access for white-box session gameplay integration tests. */
+function testServerGameplay(Cobblestone\Server\Server $server): Cobblestone\Session\SessionGameplay
+{
+    $runtime = testServerRuntime($server);
+    $property = new ReflectionProperty(Cobblestone\Server\Internal\Runtime::class, 'gameplay');
+    $gameplay = $property->getValue($runtime);
+    if (!$gameplay instanceof Cobblestone\Session\SessionGameplay) {
+        throw new RuntimeException('server gameplay runtime is unavailable');
+    }
+
+    return $gameplay;
+}
+
+/** @internal Test-only access for deterministic native disconnect integration tests. */
+function testNativeSessions(Cobblestone\Server\Server $server): Cobblestone\Native\Session\Runtime
+{
+    $runtime = testServerRuntime($server);
+    $property = new ReflectionProperty(Cobblestone\Server\Internal\Runtime::class, 'sessions');
+    $sessions = $property->getValue($runtime);
+    if (!$sessions instanceof Cobblestone\Native\Session\Runtime) {
+        throw new RuntimeException('native session runtime is unavailable');
+    }
+
+    return $sessions;
+}

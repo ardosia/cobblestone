@@ -6,7 +6,6 @@ require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\ViewSendResult;
-use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
@@ -58,9 +57,7 @@ $server = Server::create(
         $store = $server->world()->nativeStore();
         backpressureViewExpect($store !== null, 'backpressure test lost native store');
 
-        $gameplayProperty = new ReflectionProperty(Server::class, 'gameplay');
-        $gameplay = $gameplayProperty->getValue($server);
-        backpressureViewExpect($gameplay instanceof SessionGameplay, 'gameplay state unavailable');
+        $gameplay = testServerGameplay($server);
 
         $preparationsProperty = new ReflectionProperty(SessionGameplay::class, 'preparations');
         $preparations = $preparationsProperty->getValue($gameplay);
@@ -161,8 +158,7 @@ try {
                 'retry did not transfer entrant ownership to the active view',
             );
 
-            $gameplayProperty = new ReflectionProperty(Server::class, 'gameplay');
-            $gameplay = $gameplayProperty->getValue($server);
+            $gameplay = testServerGameplay($server);
             $preparationsProperty = new ReflectionProperty(SessionGameplay::class, 'preparations');
             $preparations = $preparationsProperty->getValue($gameplay);
             backpressureViewExpect(
@@ -183,10 +179,7 @@ try {
             && $exitCode !== null
             && is_int($spawnedSessionId)
         ) {
-            $sessionsProperty = new ReflectionProperty(Server::class, 'sessions');
-            $runtime = $sessionsProperty->getValue($server);
-            backpressureViewExpect($runtime instanceof Runtime, 'session runtime unavailable');
-            $runtime->disconnect($spawnedSessionId);
+            testNativeSessions($server)->disconnect($spawnedSessionId);
             $disconnectRequested = true;
         }
 

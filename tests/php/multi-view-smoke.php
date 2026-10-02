@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
@@ -148,9 +147,7 @@ try {
             && $clients['west']['exit'] !== null
             && count($sessionIds) === 2
         ) {
-            $sessionsProperty = new ReflectionProperty(Server::class, 'sessions');
-            $runtime = $sessionsProperty->getValue($server);
-            multiViewExpect($runtime instanceof Runtime, 'multi-view session runtime was unavailable');
+            $runtime = testNativeSessions($server);
             foreach ($sessionIds as $sessionId) {
                 $runtime->disconnect($sessionId);
             }

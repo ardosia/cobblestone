@@ -48,19 +48,20 @@ src/Server
 
 Responsibilities:
 
-- composition root;
-- lifecycle/tick loop;
-- graceful stop;
-- server-owned session/world/gameplay orchestration.
+- public composition/lifecycle facade;
+- graceful stop and shutdown ordering;
+- direct event/command/task/plugin operations;
+- ownership of the internal owner-runtime boundary.
 
 Target design: RUNTIME_API.md.
 
 Current direction:
 
 - construction remains side-effect free until explicit start();
-- Server exposes direct event/command/task/plugin operations;
+- `Server` is a public facade rather than the session packet/tick implementation;
+- `Server\Internal\Runtime` owns native-session routing, bootstrap/gameplay dispatch, tick ordering, and world maintenance;
 - plugin-owned registration lifetime is integrated;
-- readonly ServerConfig replaces the primitive creation argument bag;
+- readonly `ServerConfig` replaces the primitive creation argument bag;
 - remaining tick-boundary batching is performance work, not API cleanup.
 
 ### Commands

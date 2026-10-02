@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
-use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
@@ -338,10 +337,7 @@ try {
     );
     persistentJoinExpect(is_int($spawnedSessionId), 'persistent session id was not captured');
 
-    $sessionsProperty = new ReflectionProperty(Server::class, 'sessions');
-    $runtime = $sessionsProperty->getValue($server);
-    persistentJoinExpect($runtime instanceof Runtime, 'persistent server session runtime was unavailable');
-    $runtime->disconnect($spawnedSessionId);
+    testNativeSessions($server)->disconnect($spawnedSessionId);
 
     for ($attempt = 0; $attempt < 1000; ++$attempt) {
         if (
