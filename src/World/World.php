@@ -109,7 +109,7 @@ final class World
      */
     public function edit(Closure $operation): mixed
     {
-        return $this->mutations->run($operation)->value;
+        return $this->mutations->run($operation);
     }
 
     public function blockStateId(BlockPos $position): int
@@ -122,15 +122,13 @@ final class World
     public function setBlockStateId(BlockPos $position, int $stateId): int
     {
         BlockStateId::assert($stateId);
-        $result = $this->mutations->run(
+        return $this->mutations->run(
             static fn (WorldEdit $edit): int => $edit->setBlockStateId(
                 $position,
                 $stateId,
             ),
             [$position->chunk()],
         );
-
-        return $result->value;
     }
 
     public function block(BlockPos $position): BlockState
@@ -154,12 +152,10 @@ final class World
     public function setBiomeAt(int $x, int $z, BiomeId $biome): BiomeId
     {
         $chunkPosition = ChunkPos::fromBlock($x, $z);
-        $result = $this->mutations->run(
+        return $this->mutations->run(
             static fn (WorldEdit $edit): BiomeId => $edit->setBiomeAt($x, $z, $biome),
             [$chunkPosition],
         );
-
-        return $result->value;
     }
 
     public function skyLight(BlockPos $position): int
@@ -171,12 +167,10 @@ final class World
 
     public function setSkyLight(BlockPos $position, int $level): int
     {
-        $result = $this->mutations->run(
+        return $this->mutations->run(
             static fn (WorldEdit $edit): int => $edit->setSkyLight($position, $level),
             [$position->chunk()],
         );
-
-        return $result->value;
     }
 
     public function blockLight(BlockPos $position): int
@@ -188,12 +182,10 @@ final class World
 
     public function setBlockLight(BlockPos $position, int $level): int
     {
-        $result = $this->mutations->run(
+        return $this->mutations->run(
             static fn (WorldEdit $edit): int => $edit->setBlockLight($position, $level),
             [$position->chunk()],
         );
-
-        return $result->value;
     }
 
     public function blockExtraData(BlockPos $position): int
@@ -205,12 +197,10 @@ final class World
 
     public function setBlockExtraData(BlockPos $position, int $data): int
     {
-        $result = $this->mutations->run(
+        return $this->mutations->run(
             static fn (WorldEdit $edit): int => $edit->setBlockExtraData($position, $data),
             [$position->chunk()],
         );
-
-        return $result->value;
     }
 
     public function spawn(): BlockPos

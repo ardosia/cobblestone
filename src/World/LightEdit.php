@@ -70,7 +70,7 @@ final class LightEdit
         return $previous;
     }
 
-    public function commit(): LightEditResult
+    public function commit(): bool
     {
         if ($this->chunk->lightRevision()->value !== $this->baseRevision) {
             throw new \LogicException('chunk light changed while LightEdit was staged');
@@ -88,7 +88,7 @@ final class LightEdit
         );
 
         if ($sky === [] && $block === []) {
-            return new LightEditResult(false, new LightRevision($this->baseRevision));
+            return false;
         }
         if ($this->baseRevision === PHP_INT_MAX) {
             throw new \OverflowException('chunk light revision space exhausted');
@@ -121,7 +121,7 @@ final class LightEdit
                 $blockValues,
             );
 
-            return new LightEditResult(true, new LightRevision($next));
+            return true;
         }
 
         foreach ($sky as $key => $level) {
@@ -135,7 +135,7 @@ final class LightEdit
 
         $this->chunk->commitLightRevision($this->baseRevision, $next);
 
-        return new LightEditResult(true, new LightRevision($next));
+        return true;
     }
 
     private function authoritativeSky(int $key): int

@@ -189,7 +189,7 @@ Users should not need a transaction object just to place one block.
 
 Mutations should return only information callers actually need.
 
-Avoid a giant generic MutationResult data bag.
+World edits return the callback value directly; do not reintroduce a generic mutation-result data bag.
 
 Useful semantic outcomes may include:
 

@@ -21,11 +21,11 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `ChunkTerrain` | `ChunkTerrain` facade over one resident `Chunk` | semantic parity |
 | `TerrainPatch` | `TerrainPatch` | semantic parity |
 | `PreparedTerrainPatch` | `PreparedTerrainPatch` | semantic parity |
-| `TerrainEdit` / `TerrainEditResult` | same names/concepts | semantic parity |
+| `TerrainEdit` / boolean commit result | same names/concepts | semantic parity |
 | `LightLevel` | `LightLevel` at ergonomic/snapshot edges; scalar `int` levels on propagation hot paths | semantic parity with a deliberate allocation-free hot-path adaptation |
 | `LightRevision` | `LightRevision` + independent chunk light revision | semantic parity |
 | `ChunkLight` | `ChunkLight` facade over chunk light channels | semantic parity |
-| `LightEdit` / `LightEditResult` | same names/concepts | semantic parity |
+| `LightEdit` / boolean commit result | same names/concepts | semantic parity |
 | `LightSnapshot` | `LightSnapshot` | semantic parity |
 | `LightLayer` | `LightLayer` | semantic parity |
 | `LightUpdate` | `LightUpdate` | semantic parity |

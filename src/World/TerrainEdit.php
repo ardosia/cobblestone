@@ -44,7 +44,7 @@ final class TerrainEdit
         return $this->patch->setBiome($this->terrain, $x, $z, $biome);
     }
 
-    public function commit(): TerrainEditResult
+    public function commit(): bool
     {
         return $this->terrain->commitPrepared($this->patch->prepare($this->terrain));
     }

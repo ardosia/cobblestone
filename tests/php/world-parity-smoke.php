@@ -43,22 +43,22 @@ parityExpect(
     $edit->setBlock(1, 20, 1, new BlockState(1))?->isAir() === true,
     'terrain edit previous block mismatch',
 );
-$result = $edit->commit();
-parityExpect($result->changed && $result->revision->value === 1, 'terrain edit revision mismatch');
+$changed = $edit->commit();
+parityExpect($changed && $terrain->revision()->value === 1, 'terrain edit revision mismatch');
 parityExpect($chunk->block(1, 20, 1)->id === 1, 'terrain edit did not commit block');
 
 $noOp = $terrain->edit();
 $noOp->setBlock(1, 20, 1, new BlockState(1));
-$noOpResult = $noOp->commit();
-parityExpect(!$noOpResult->changed, 'terrain no-op reported a change');
+$noOpChanged = $noOp->commit();
+parityExpect(!$noOpChanged, 'terrain no-op reported a change');
 parityExpect($terrain->revision()->value === 1, 'terrain no-op advanced revision');
 
 $reverted = $terrain->edit();
 $original = $reverted->block(1, 20, 1);
 $reverted->setBlock(1, 20, 1, new BlockState(2));
 $reverted->setBlock(1, 20, 1, $original);
-$revertedResult = $reverted->commit();
-parityExpect(!$revertedResult->changed, 'reverted terrain edit reported a change');
+$revertedChanged = $reverted->commit();
+parityExpect(!$revertedChanged, 'reverted terrain edit reported a change');
 parityExpect($terrain->revision()->value === 1, 'reverted terrain edit advanced revision');
 
 $patch = new TerrainPatch();
@@ -68,8 +68,8 @@ parityExpect(
     $prepared->changed && $prepared->revision->value === 2,
     'prepared terrain patch revision mismatch',
 );
-$preparedResult = $terrain->commitPrepared($prepared);
-parityExpect($preparedResult->changed, 'prepared terrain patch did not commit');
+$preparedChanged = $terrain->commitPrepared($prepared);
+parityExpect($preparedChanged, 'prepared terrain patch did not commit');
 parityExpect($chunk->biome(3, 4)->value === 2, 'prepared terrain biome did not commit');
 
 $light = $chunk->light();
@@ -77,9 +77,9 @@ parityExpect($light->revision()->value === 0, 'light revision did not start at z
 $beforeLight = $light->snapshot();
 $lightEdit = $light->edit();
 $lightEdit->setBlock(2, 20, 2, new LightLevel(5));
-$lightResult = $lightEdit->commit();
+$lightChanged = $lightEdit->commit();
 parityExpect(
-    $lightResult->changed && $lightResult->revision->value === 1,
+    $lightChanged && $light->revision()->value === 1,
     'light edit revision mismatch',
 );
 parityExpect($light->block(2, 20, 2)?->value === 5, 'light edit did not commit');
@@ -87,7 +87,7 @@ parityExpect($beforeLight->block(2, 20, 2)?->value === 0, 'light snapshot mutate
 
 $lightNoOp = $light->edit();
 $lightNoOp->setBlock(2, 20, 2, new LightLevel(5));
-parityExpect(!$lightNoOp->commit()->changed, 'light no-op reported change');
+parityExpect(!$lightNoOp->commit(), 'light no-op reported change');
 parityExpect($light->revision()->value === 1, 'light no-op advanced revision');
 
 $snapshot = $firstHandle->snapshot();

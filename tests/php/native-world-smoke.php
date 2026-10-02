@@ -188,8 +188,8 @@ nativeWorldExpect(
     $edit->setBlockStateId(10, 20, 8, BlockStateId::fromLegacy(4)) === BlockStateId::fromLegacy(0),
     'native terrain edit previous state mismatch',
 );
-$editResult = $edit->commit();
-nativeWorldExpect($editResult->changed, 'native terrain edit reported no change');
+$editChanged = $edit->commit();
+nativeWorldExpect($editChanged, 'native terrain edit reported no change');
 nativeWorldExpect($chunk->revision() === 4, 'native terrain edit did not advance revision once');
 nativeWorldExpect(
     $chunk->blockStateId(10, 20, 8) === BlockStateId::fromLegacy(4),

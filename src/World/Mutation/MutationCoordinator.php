@@ -35,7 +35,7 @@ final class MutationCoordinator
      * @param Closure(WorldEdit): mixed $operation
      * @param list<ChunkPos> $hints
      */
-    public function run(Closure $operation, array $hints = []): MutationResult
+    public function run(Closure $operation, array $hints = []): mixed
     {
         if ($this->active) {
             throw new LogicException(
@@ -75,20 +75,13 @@ final class MutationCoordinator
                     continue;
                 }
 
-                $changedChunks = [];
                 foreach ($prepared as $patch) {
-                    if (!$patch->changed()) {
-                        continue;
+                    if ($patch->changed()) {
+                        $patch->commit();
                     }
-                    $patch->commit();
-                    $changedChunks[] = $patch->chunk()->position();
                 }
 
-                return new MutationResult(
-                    $value,
-                    $changedChunks,
-                    $attempt,
-                );
+                return $value;
             }
         } finally {
             $this->active = false;

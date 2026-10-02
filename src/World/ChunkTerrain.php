@@ -31,7 +31,7 @@ final readonly class ChunkTerrain
         return new TerrainEdit($this);
     }
 
-    public function commitPrepared(PreparedTerrainPatch $prepared): TerrainEditResult
+    public function commitPrepared(PreparedTerrainPatch $prepared): bool
     {
         $current = $this->chunk->revision();
         if ($current !== $prepared->baseRevision()) {
@@ -41,7 +41,7 @@ final readonly class ChunkTerrain
         }
 
         if (!$prepared->changed) {
-            return new TerrainEditResult(false, $prepared->revision);
+            return false;
         }
 
         $blocks = $prepared->blocks();
@@ -63,7 +63,7 @@ final readonly class ChunkTerrain
                 [],
             );
 
-            return new TerrainEditResult(true, $prepared->revision);
+            return true;
         }
 
         foreach ($blocks as $key => $stateId) {
@@ -77,6 +77,6 @@ final readonly class ChunkTerrain
 
         $this->chunk->commitRevision($current, $prepared->revision->value);
 
-        return new TerrainEditResult(true, $prepared->revision);
+        return true;
     }
 }
