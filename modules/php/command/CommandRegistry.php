@@ -10,31 +10,57 @@ use LogicException;
 
 final class CommandRegistry
 {
-    /** @var array<string, Closure(list<string>): mixed> */
+    /** @var array<string, array{id: int, handler: Closure(list<string>): mixed}> */
     private array $commands = [];
 
+    private int $nextBindingId = 1;
+
     /** @param Closure(list<string>): mixed $handler */
-    public function register(string $name, Closure $handler): void
+    public function register(string $name, Closure $handler): CommandBinding
     {
-        $name = strtolower(trim($name));
-        if ($name === '') {
-            throw new InvalidArgumentException('command name must not be empty');
-        }
+        $name = self::normalize($name);
         if (isset($this->commands[$name])) {
             throw new LogicException("command already registered: {$name}");
         }
-        $this->commands[$name] = $handler;
+
+        $id = $this->nextBindingId++;
+        $this->commands[$name] = ['id' => $id, 'handler' => $handler];
+
+        return new CommandBinding(
+            fn (): bool => $this->remove($name, $id),
+        );
     }
 
     /** @param list<string> $arguments */
     public function execute(string $name, array $arguments = []): mixed
     {
-        $name = strtolower(trim($name));
-        $handler = $this->commands[$name] ?? null;
-        if ($handler === null) {
+        $name = self::normalize($name);
+        $command = $this->commands[$name] ?? null;
+        if ($command === null) {
             throw new LogicException("unknown command: {$name}");
         }
 
-        return $handler($arguments);
+        return ($command['handler'])($arguments);
+    }
+
+    private function remove(string $name, int $id): bool
+    {
+        if (($this->commands[$name]['id'] ?? null) !== $id) {
+            return false;
+        }
+
+        unset($this->commands[$name]);
+
+        return true;
+    }
+
+    private static function normalize(string $name): string
+    {
+        $name = strtolower(trim($name));
+        if ($name === '') {
+            throw new InvalidArgumentException('command name must not be empty');
+        }
+
+        return $name;
     }
 }

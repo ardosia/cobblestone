@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Cobblestone\Tests;
 
 use Cobblestone\Plugin\Plugin;
-use Cobblestone\Plugin\PluginContext;
+use Cobblestone\Plugin\PluginScope;
 use Cobblestone\Server\Event\ServerStopping;
 
 final class ServerSmokePlugin implements Plugin
@@ -13,17 +13,17 @@ final class ServerSmokePlugin implements Plugin
     /** @var array<string, mixed> */
     public static array $state = [];
 
-    public function enable(PluginContext $context): void
+    public function enable(PluginScope $plugin): void
     {
         self::$state['enabled'] = true;
-        $context->logger->info('Server smoke plugin enabled');
+        $plugin->logger()->info('Server smoke plugin enabled');
 
-        $context->commands->register(
+        $plugin->command(
             'smoke:echo',
             static fn (array $arguments): string => implode(':', $arguments),
         );
 
-        $context->events->listen(
+        $plugin->on(
             ServerStopping::class,
             static function (object $event): void {
                 if (!$event instanceof ServerStopping) {
@@ -33,7 +33,7 @@ final class ServerSmokePlugin implements Plugin
             },
         );
 
-        $context->scheduler->schedule(
+        $plugin->after(
             1,
             static function (): void {
                 self::$state['scheduled'] = true;

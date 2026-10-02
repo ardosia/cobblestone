@@ -6,7 +6,7 @@ namespace Cobblestone\Plugin;
 
 interface Plugin
 {
-    public function enable(PluginContext $context): void;
+    public function enable(PluginScope $plugin): void;
 
     public function disable(): void;
 }

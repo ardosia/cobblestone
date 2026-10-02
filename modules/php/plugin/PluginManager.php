@@ -16,12 +16,12 @@ use Throwable;
 /**
  * Explicit plugin loader for the owning PHP gameplay runtime.
  *
- * Discovery magic stays out of the runtime. Every plugin receives semantic services and a
- * structured logger; runtime/thread ownership machinery remains internal.
+ * Discovery magic stays out of the runtime. Every plugin receives an owned PluginScope; runtime and
+ * thread ownership machinery remains internal.
  */
 final class PluginManager
 {
-    /** @var array<class-string<Plugin>, Plugin> */
+    /** @var array<class-string<Plugin>, array{plugin: Plugin, scope: PluginScope}> */
     private array $plugins = [];
 
     private readonly LoggerInterface $logger;
@@ -35,9 +35,7 @@ final class PluginManager
         $this->logger = $logs->logger('Cobblestone.Plugin');
     }
 
-    /**
-     * @param class-string<Plugin> $class
-     */
+    /** @param class-string<Plugin> $class */
     public function load(string $file, string $class): Plugin
     {
         $real = realpath($file);
@@ -59,7 +57,7 @@ final class PluginManager
             throw new RuntimeException("plugin class must implement " . Plugin::class . ": {$class}");
         }
 
-        $context = new PluginContext(
+        $scope = new PluginScope(
             $this->events,
             $this->commands,
             $this->scheduler,
@@ -69,32 +67,84 @@ final class PluginManager
             ),
         );
 
-        $plugin->enable($context);
-        $this->plugins[$class] = $plugin;
+        try {
+            $plugin->enable($scope);
+        } catch (Throwable $error) {
+            try {
+                $scope->close();
+            } catch (Throwable $cleanupError) {
+                $this->logger->error(
+                    'Plugin enable rollback failed',
+                    ['plugin' => $class, 'exception' => $cleanupError],
+                );
+            }
+            throw $error;
+        }
+
+        $this->plugins[$class] = ['plugin' => $plugin, 'scope' => $scope];
         $this->logger->info('Enabled plugin', ['plugin' => $class]);
 
         return $plugin;
     }
 
+    /** @param class-string<Plugin> $class */
+    public function unload(string $class): bool
+    {
+        $entry = $this->plugins[$class] ?? null;
+        if ($entry === null) {
+            return false;
+        }
+        unset($this->plugins[$class]);
+
+        $this->disable($class, $entry['plugin'], $entry['scope']);
+
+        return true;
+    }
+
     public function shutdown(): void
     {
-        $firstFailure = null;
-        foreach (array_reverse($this->plugins, true) as $class => $plugin) {
+        $failure = null;
+        foreach (array_reverse(array_keys($this->plugins)) as $class) {
             try {
-                $plugin->disable();
-                $this->logger->info('Disabled plugin', ['plugin' => $class]);
+                $this->unload($class);
             } catch (Throwable $error) {
-                $firstFailure ??= $error;
-                $this->logger->error(
-                    'Plugin disable failed',
-                    ['plugin' => $class, 'exception' => $error],
-                );
+                $failure ??= $error;
             }
         }
-        $this->plugins = [];
 
-        if ($firstFailure !== null) {
-            throw $firstFailure;
+        if ($failure !== null) {
+            throw $failure;
         }
+    }
+
+    /** @param class-string<Plugin> $class */
+    private function disable(string $class, Plugin $plugin, PluginScope $scope): void
+    {
+        $failure = null;
+        try {
+            $plugin->disable();
+        } catch (Throwable $error) {
+            $failure = $error;
+            $this->logger->error(
+                'Plugin disable failed',
+                ['plugin' => $class, 'exception' => $error],
+            );
+        }
+
+        try {
+            $scope->close();
+        } catch (Throwable $error) {
+            $failure ??= $error;
+            $this->logger->error(
+                'Plugin scope cleanup failed',
+                ['plugin' => $class, 'exception' => $error],
+            );
+        }
+
+        if ($failure !== null) {
+            throw $failure;
+        }
+
+        $this->logger->info('Disabled plugin', ['plugin' => $class]);
     }
 }

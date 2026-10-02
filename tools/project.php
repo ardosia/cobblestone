@@ -151,6 +151,7 @@ function testPhp(): void
 
     foreach ([
         'log-smoke.php',
+        'plugin-smoke.php',
         'scheduler-smoke.php',
         'tick-smoke.php',
         'world-composition-smoke.php',
