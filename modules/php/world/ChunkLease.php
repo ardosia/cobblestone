@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace Cobblestone\World;
 
 /**
- * Stable owner-runtime pinned handle to one resident chunk cell.
+ * Deterministic owner-runtime pin on one resident chunk.
  *
- * The handle releases its pin deterministically through release(), with destructor cleanup as a
- * fallback. It exposes no native lock/guard object to gameplay code.
- *
- * @internal
+ * release() is the correctness path. Destructor cleanup exists only as a shutdown fallback.
  */
-final class ResidentChunkHandle
+final class ChunkLease
 {
     private bool $released = false;
 
+    /** @internal */
     public function __construct(private readonly ResidentChunkCell $cell)
     {
         $this->cell->acquire();
@@ -45,21 +43,24 @@ final class ResidentChunkHandle
         $this->released = true;
     }
 
-    public function position(): ChunkPos
+    public function chunk(): Chunk
     {
         $this->assertActive();
 
-        return $this->cell->position();
+        return $this->cell->chunk();
+    }
+
+    public function position(): ChunkPos
+    {
+        return $this->chunk()->position();
     }
 
     public function snapshot(): ChunkSnapshot
     {
-        $this->assertActive();
-
-        return $this->cell->snapshot();
+        return $this->chunk()->snapshot();
     }
 
-    public function sameCell(self $other): bool
+    public function sameChunk(self $other): bool
     {
         return $this->cell === $other->cell;
     }
@@ -67,7 +68,7 @@ final class ResidentChunkHandle
     private function assertActive(): void
     {
         if ($this->released) {
-            throw new \LogicException('resident chunk handle was released');
+            throw new \LogicException('chunk lease was released');
         }
     }
 }

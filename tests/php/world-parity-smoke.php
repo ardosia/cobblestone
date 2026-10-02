@@ -31,10 +31,10 @@ $position = new ChunkPos(0, 0);
 $chunk = $world->chunk($position, true);
 parityExpect($chunk !== null, 'generated chunk missing');
 
-$firstHandle = $world->residentChunk($position, false);
-$secondHandle = $world->residentChunk($position, false);
-parityExpect($firstHandle !== null && $secondHandle !== null, 'resident handle missing');
-parityExpect($firstHandle->sameCell($secondHandle), 'same resident chunk lost cell identity');
+$firstHandle = $world->pinChunk($position, false);
+$secondHandle = $world->pinChunk($position, false);
+parityExpect($firstHandle !== null && $secondHandle !== null, 'chunk lease missing');
+parityExpect($firstHandle->sameChunk($secondHandle), 'same resident chunk lost cell identity');
 
 $terrain = $chunk->terrain();
 parityExpect($terrain->revision()->value === 0, 'terrain revision did not start at zero');
@@ -101,7 +101,7 @@ parityExpect($snapshot->light()->revision->value === 1, 'chunk snapshot light re
 parityExpect($chunk->isDirty(), 'newly generated/mutated chunk must be dirty');
 parityExpect(
     $world->chunks()->unload($position) === ChunkUnloadStatus::Pinned,
-    'resident handles did not block chunk unload',
+    'chunk leases did not block chunk unload',
 );
 $firstHandle->release();
 $secondHandle->release();
@@ -117,10 +117,10 @@ parityExpect(
     'clean unpinned chunk did not unload',
 );
 $replacement = $world->chunk($position, true);
-$replacementHandle = $world->residentChunk($position, false);
+$replacementHandle = $world->pinChunk($position, false);
 parityExpect($replacement !== null && $replacementHandle !== null, 'replacement chunk missing');
 parityExpect(
-    !$firstHandle->sameCell($replacementHandle),
+    !$firstHandle->sameChunk($replacementHandle),
     'unload/reload reused resident cell identity',
 );
 $replacementHandle->release();

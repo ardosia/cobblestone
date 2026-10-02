@@ -28,9 +28,9 @@ use Cobblestone\Session\SessionBootstrap;
 use Cobblestone\Session\SessionGameplay;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Task\TaskHandle;
+use Cobblestone\World\ChunkLease;
 use Cobblestone\World\ChunkLoadPending;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\ResidentChunkHandle;
 use Cobblestone\World\World;
 use LogicException;
 use Psr\Log\LoggerInterface;
@@ -224,13 +224,13 @@ final class Server
      * miss. Already-resident and non-persistent chunks complete synchronously. The caller owns the
      * returned residency pin and must release it when the gameplay operation is finished.
      */
-    public function awaitResidentChunk(ChunkPos $position): ResidentChunkHandle
+    public function awaitResidentChunk(ChunkPos $position): ChunkLease
     {
         $this->assertRunning();
 
         while (true) {
             try {
-                return $this->world->residentChunk($position, true)
+                return $this->world->pinChunk($position, true)
                     ?? throw new LogicException(
                         "chunk {$position->x}:{$position->z} did not become resident",
                     );

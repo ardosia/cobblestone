@@ -6,6 +6,7 @@ namespace Cobblestone\World\Mutation;
 
 use Cobblestone\World\ChunkPos;
 
+/** @internal Commit metadata retained by the mutation mechanism. */
 final readonly class MutationResult
 {
     /**

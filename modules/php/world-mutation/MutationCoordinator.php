@@ -8,13 +8,14 @@ use Closure;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSource;
 use Cobblestone\World\Region\RegionMapInterface;
+use Cobblestone\World\WorldEdit;
 use LogicException;
 
 /**
  * Owner-runtime mutation coordinator.
  *
  * Discovery/replay and revision gates stay explicit so native region routing can later acquire the
- * complete region set before the final attempt without changing the World::mutate() API.
+ * complete region set before the final attempt without changing the World::edit() API.
  */
 final class MutationCoordinator implements MutationCoordinatorInterface
 {
@@ -31,14 +32,14 @@ final class MutationCoordinator implements MutationCoordinatorInterface
     }
 
     /**
-     * @param Closure(WorldMutation): mixed $operation
+     * @param Closure(WorldEdit): mixed $operation
      * @param list<ChunkPos> $hints
      */
     public function run(Closure $operation, array $hints = []): MutationResult
     {
         if ($this->active) {
             throw new LogicException(
-                'nested World::mutate() calls are not allowed; use the active WorldMutation',
+                'nested World::edit() calls are not allowed; use the active WorldEdit',
             );
         }
 

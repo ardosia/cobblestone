@@ -8,8 +8,6 @@ use Closure;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
 use Cobblestone\World\Mutation\MutationCoordinatorInterface;
-use Cobblestone\World\Mutation\MutationResult;
-use Cobblestone\World\Mutation\WorldMutation;
 use ValueError;
 
 final class World implements BlockSource
@@ -53,6 +51,7 @@ final class World implements BlockSource
         return $this->generator->type();
     }
 
+    /** @internal Mechanism access for world/session implementation code. */
     public function chunks(): ChunkSource
     {
         return $this->chunks;
@@ -71,9 +70,28 @@ final class World implements BlockSource
             : $this->chunks->get($position);
     }
 
-    public function residentChunk(ChunkPos $position, bool $generate = true): ?ResidentChunkHandle
+    public function pinChunk(ChunkPos $position, bool $generate = true): ?ChunkLease
     {
         return $this->chunks->resident($position, $generate);
+    }
+
+    /**
+     * Keeps one chunk resident for exactly the duration of the callback.
+     *
+     * @param Closure(Chunk): mixed $operation
+     */
+    public function withChunk(ChunkPos $position, Closure $operation): mixed
+    {
+        $lease = $this->pinChunk($position, true)
+            ?? throw new \LogicException(
+                "chunk {$position->x}:{$position->z} did not become resident",
+            );
+
+        try {
+            return $operation($lease->chunk());
+        } finally {
+            $lease->release();
+        }
     }
 
     /** @internal Adopts a chunk already loaded into the authoritative native store. */
@@ -83,13 +101,13 @@ final class World implements BlockSource
     }
 
     /**
-     * Runs one replayable, atomic semantic world mutation.
+     * Runs one replayable, atomic semantic world edit and returns the callback value.
      *
-     * @param Closure(WorldMutation): mixed $operation
+     * @param Closure(WorldEdit): mixed $operation
      */
-    public function mutate(Closure $operation): MutationResult
+    public function edit(Closure $operation): mixed
     {
-        return $this->mutations->run($operation);
+        return $this->mutations->run($operation)->value;
     }
 
     public function blockStateId(BlockPos $position): int
@@ -103,7 +121,7 @@ final class World implements BlockSource
     {
         BlockStateId::assert($stateId);
         $result = $this->mutations->run(
-            static fn (WorldMutation $mutation): int => $mutation->setBlockStateId(
+            static fn (WorldEdit $edit): int => $edit->setBlockStateId(
                 $position,
                 $stateId,
             ),
@@ -135,7 +153,7 @@ final class World implements BlockSource
     {
         $chunkPosition = ChunkPos::fromBlock($x, $z);
         $result = $this->mutations->run(
-            static fn (WorldMutation $mutation): BiomeId => $mutation->setBiomeAt($x, $z, $biome),
+            static fn (WorldEdit $edit): BiomeId => $edit->setBiomeAt($x, $z, $biome),
             [$chunkPosition],
         );
 
@@ -152,7 +170,7 @@ final class World implements BlockSource
     public function setSkyLight(BlockPos $position, int $level): int
     {
         $result = $this->mutations->run(
-            static fn (WorldMutation $mutation): int => $mutation->setSkyLight($position, $level),
+            static fn (WorldEdit $edit): int => $edit->setSkyLight($position, $level),
             [$position->chunk()],
         );
 
@@ -169,7 +187,7 @@ final class World implements BlockSource
     public function setBlockLight(BlockPos $position, int $level): int
     {
         $result = $this->mutations->run(
-            static fn (WorldMutation $mutation): int => $mutation->setBlockLight($position, $level),
+            static fn (WorldEdit $edit): int => $edit->setBlockLight($position, $level),
             [$position->chunk()],
         );
 
@@ -186,7 +204,7 @@ final class World implements BlockSource
     public function setBlockExtraData(BlockPos $position, int $data): int
     {
         $result = $this->mutations->run(
-            static fn (WorldMutation $mutation): int => $mutation->setBlockExtraData($position, $data),
+            static fn (WorldEdit $edit): int => $edit->setBlockExtraData($position, $data),
             [$position->chunk()],
         );
 

@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Cobblestone\Session;
 
 use Cobblestone\World\ChunkLoadPending;
+use Cobblestone\World\ChunkLease;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\ResidentChunkHandle;
 use Cobblestone\World\World;
 use LogicException;
 
 /** @internal */
 final class ChunkViewPreparation
 {
-    /** @var array<string, ResidentChunkHandle> */
+    /** @var array<string, ChunkLease> */
     private array $pins = [];
     private bool $sent = false;
 
@@ -52,7 +52,7 @@ final class ChunkViewPreparation
             }
 
             try {
-                $handle = $world->residentChunk($position, true);
+                $handle = $world->pinChunk($position, true);
             } catch (ChunkLoadPending) {
                 continue;
             }

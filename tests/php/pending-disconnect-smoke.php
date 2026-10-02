@@ -14,9 +14,9 @@ use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\Session\SessionGameplay;
 use Cobblestone\World\BiomeId;
+use Cobblestone\World\ChunkLease;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\NativeWorldStore;
-use Cobblestone\World\ResidentChunkHandle;
 
 function pendingDisconnectExpect(bool $condition, string $message): void
 {
@@ -73,12 +73,12 @@ $partialPositions = [
     new ChunkPos($center->x + 3, $center->z - 1),
 ];
 
-/** @var list<ResidentChunkHandle> $baselineHandles */
+/** @var list<ChunkLease> $baselineHandles */
 $baselineHandles = [];
 foreach ($partialPositions as $position) {
     $store->ensureChunk($position, new BiomeId(1));
     $world->adoptNativeChunk($position);
-    $handle = $world->residentChunk($position, false);
+    $handle = $world->pinChunk($position, false);
     pendingDisconnectExpect($handle !== null, 'failed to pin pre-resident entering chunk');
     $baselineHandles[] = $handle;
 }

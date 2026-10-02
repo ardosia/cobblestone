@@ -24,7 +24,7 @@ interface ChunkSource
      */
     public function evictCleanUnpinned(int $budget): int;
 
-    public function resident(ChunkPos $position, bool $generate = false): ?ResidentChunkHandle;
+    public function resident(ChunkPos $position, bool $generate = false): ?ChunkLease;
 
     public function count(): int;
 }

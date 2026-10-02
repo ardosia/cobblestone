@@ -190,7 +190,7 @@ final class MainChunkSource implements ChunkSource
         return count($this->chunks);
     }
 
-    public function resident(ChunkPos $position, bool $generate = false): ?ResidentChunkHandle
+    public function resident(ChunkPos $position, bool $generate = false): ?ChunkLease
     {
         $chunk = $generate ? $this->getOrGenerate($position) : $this->get($position);
         if ($chunk === null) {
@@ -200,6 +200,6 @@ final class MainChunkSource implements ChunkSource
         $key = $position->key();
         $cell = $this->cells[$key] ??= new ResidentChunkCell($chunk);
 
-        return new ResidentChunkHandle($cell);
+        return new ChunkLease($cell);
     }
 }

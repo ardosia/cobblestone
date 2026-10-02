@@ -2,19 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\World\Mutation;
-
-use Cobblestone\World\BiomeId;
-use Cobblestone\World\BlockPos;
-use Cobblestone\World\BlockState;
+namespace Cobblestone\World;
 
 /**
- * Replayable semantic mutation surface exposed by World::mutate().
+ * Replayable semantic edit surface used by World::edit().
  *
- * Implementations may replay an operation before commit, so callers must keep side effects inside
- * the mutation itself. Scalar state IDs are the hot-path currency; BlockState methods are wrappers.
+ * The callback may be replayed before commit when the edit discovers additional chunks, so side
+ * effects must stay inside the edit itself. Scalar state IDs remain the hot-path currency while
+ * BlockState methods provide the ergonomic surface.
  */
-interface WorldMutation
+interface WorldEdit
 {
     public function blockStateId(BlockPos $position): int;
 

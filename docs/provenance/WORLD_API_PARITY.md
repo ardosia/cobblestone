@@ -32,7 +32,7 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `LightAccess` | scalar state/light `LightAccess` over revision-pinned chunk snapshots | semantic behavior parity; PHP hot path avoids per-cell native calls/value allocations |
 | `apply_light_update` | `world-light/LightPropagator::apply()` | algorithm/order parity with the pinned Ardosia implementation |
 | binary-derived block light properties | `world-light/BlockLightCatalog` | mapped from Ardosia dense semantic identities to fixed-target legacy IDs using the pinned 0.15.10 BlockIds vocabulary |
-| `ResidentChunkCell` / `ResidentChunkHandle` | shared owner-runtime cell + lifetime pin mirrored into native `WorldStore` | semantic resident identity + snapshot parity; safe unload cannot invalidate a live handle |
+| `ResidentChunkCell` / `ChunkLease` | shared owner-runtime cell + lifetime pin mirrored into native `WorldStore` | semantic resident identity + snapshot parity; safe unload cannot invalidate a live lease |
 | terrain/light lock guards | direct owner-runtime access | deliberate runtime adaptation; no PHP lock ceremony |
 | `ChunkSnapshot` | scalar-first `ChunkSnapshot` + ergonomic `terrain()` / `light()` views | semantic parity plus fixed-target protocol projection fields |
 

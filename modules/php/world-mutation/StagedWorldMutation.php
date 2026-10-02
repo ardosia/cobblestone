@@ -9,10 +9,11 @@ use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSource;
+use Cobblestone\World\WorldEdit;
 use ValueError;
 
-/** @internal Owner-runtime staged implementation of the public mutation surface. */
-final class StagedWorldMutation implements WorldMutation
+/** @internal Owner-runtime staged implementation of the public world-edit surface. */
+final class StagedWorldMutation implements WorldEdit
 {
     /** @var array<string, ChunkPatch> */
     private array $patches = [];

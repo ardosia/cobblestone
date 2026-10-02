@@ -9,7 +9,7 @@ use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Generator\FlatGenerator;
-use Cobblestone\World\Mutation\WorldMutation;
+use Cobblestone\World\WorldEdit;
 use Cobblestone\World\Region\RegionMap;
 
 function mutationExpect(bool $condition, string $message): void
@@ -29,50 +29,49 @@ mutationExpect($firstChunk !== null && $secondChunk !== null, 'test chunks were 
 mutationExpect($firstChunk->revision() === 0, 'generated chunk revision must start at zero');
 mutationExpect($secondChunk->revision() === 0, 'generated chunk revision must start at zero');
 
-$result = $world->mutate(
-    static function (WorldMutation $mutation) use ($first, $second): string {
-        mutationExpect($mutation->block($first)->isAir(), 'first staged source was not air');
-        $mutation->setBlock($first, new BlockState(5));
-        mutationExpect($mutation->block($first)->id === 5, 'staged read did not see first write');
+$attempts = 0;
+$result = $world->edit(
+    static function (WorldEdit $edit) use ($first, $second, &$attempts): string {
+        ++$attempts;
+        mutationExpect($edit->block($first)->isAir(), 'first staged source was not air');
+        $edit->setBlock($first, new BlockState(5));
+        mutationExpect($edit->block($first)->id === 5, 'staged read did not see first write');
 
-        $mutation->setBlock($second, new BlockState(4));
-        mutationExpect($mutation->block($second)->id === 4, 'staged cross-region read did not see write');
+        $edit->setBlock($second, new BlockState(4));
+        mutationExpect($edit->block($second)->id === 4, 'staged cross-region read did not see write');
 
         return 'committed';
     },
 );
 
-mutationExpect($result->value === 'committed', 'mutation callback result was not preserved');
-mutationExpect($result->attempts === 2, 'cross-chunk discovery did not use discard/replay');
-mutationExpect(count($result->changedChunks) === 2, 'two changed chunks were not reported');
+mutationExpect($result === 'committed', 'world edit callback result was not preserved');
+mutationExpect($attempts === 2, 'cross-chunk discovery did not use discard/replay');
 mutationExpect($firstChunk->revision() === 1, 'first chunk revision did not advance exactly once');
 mutationExpect($secondChunk->revision() === 1, 'second chunk revision did not advance exactly once');
 
 $before = $firstChunk->revision();
 $beforeLight = $firstChunk->lightRevision()->value;
-$noOp = $world->mutate(
-    static function (WorldMutation $mutation) use ($first): void {
-        $original = $mutation->block($first);
-        $mutation->setBlock($first, new BlockState(1));
-        $mutation->setBlock($first, $original);
+$world->edit(
+    static function (WorldEdit $edit) use ($first): void {
+        $original = $edit->block($first);
+        $edit->setBlock($first, new BlockState(1));
+        $edit->setBlock($first, $original);
     },
 );
-mutationExpect(!$noOp->changed(), 'reverted mutation must not report a net change');
 mutationExpect($firstChunk->revision() === $before, 'reverted mutation advanced terrain revision');
 mutationExpect(
     $firstChunk->lightRevision()->value === $beforeLight,
     'reverted mutation advanced light revision',
 );
 
-$compound = $world->mutate(
-    static function (WorldMutation $mutation) use ($first): void {
-        $mutation->setBlock($first, new BlockState(2));
-        $mutation->setSkyLight($first, 15);
-        $mutation->setBlockLight($first, 7);
-        $mutation->setBlockExtraData($first, 0xbeef);
+$world->edit(
+    static function (WorldEdit $edit) use ($first): void {
+        $edit->setBlock($first, new BlockState(2));
+        $edit->setSkyLight($first, 15);
+        $edit->setBlockLight($first, 7);
+        $edit->setBlockExtraData($first, 0xbeef);
     },
 );
-mutationExpect($compound->changed(), 'compound mutation did not report change');
 mutationExpect(
     $firstChunk->revision() === $before + 1,
     'compound mutation did not advance terrain revision exactly once',
