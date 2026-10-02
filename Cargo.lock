@@ -86,22 +86,11 @@ name = "cobblestone-client-bootstrap"
 version = "0.0.1"
 dependencies = [
  "bytes",
- "cobblestone-codec",
  "cobblestone-core",
- "cobblestone-network",
+ "cobblestone-protocol84",
+ "cobblestone-transport",
  "raknet-rust",
  "tokio",
-]
-
-[[package]]
-name = "cobblestone-codec"
-version = "0.0.1"
-dependencies = [
- "bitflags",
- "cobblestone-core",
- "flate2",
- "proptest",
- "thiserror",
 ]
 
 [[package]]
@@ -112,14 +101,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "cobblestone-network"
+name = "cobblestone-protocol84"
 version = "0.0.1"
 dependencies = [
- "bytes",
- "raknet-rust",
+ "bitflags",
+ "cobblestone-core",
+ "flate2",
+ "proptest",
  "thiserror",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -134,9 +123,9 @@ name = "cobblestone-session"
 version = "0.0.1"
 dependencies = [
  "bytes",
- "cobblestone-codec",
  "cobblestone-core",
- "cobblestone-network",
+ "cobblestone-protocol84",
+ "cobblestone-transport",
  "crossbeam-channel",
  "raknet-rust",
  "thiserror",
@@ -152,6 +141,17 @@ dependencies = [
  "crc32c",
  "thiserror",
  "zstd",
+]
+
+[[package]]
+name = "cobblestone-transport"
+version = "0.0.1"
+dependencies = [
+ "bytes",
+ "raknet-rust",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

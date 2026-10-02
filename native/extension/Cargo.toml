@@ -1,0 +1,23 @@
+[package]
+name = "cobblestone-extension"
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ardosia/cobblestone"
+publish = false
+
+[lib]
+name = "cobblestone_core_php"
+crate-type = ["cdylib"]
+
+[dependencies]
+cobblestone-protocol84 = { path = "../protocol84" }
+cobblestone-core = { path = "../core" }
+cobblestone-transport = { path = "../transport" }
+cobblestone-session = { path = "../session" }
+cobblestone-storage = { path = "../storage" }
+ext-php-rs = "=0.15.15"
+
+[workspace]
+resolver = "3"

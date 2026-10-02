@@ -1,0 +1,15 @@
+[package]
+name = "cobblestone-transport"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license = "Apache-2.0"
+repository.workspace = true
+publish = false
+
+[dependencies]
+bytes.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+raknet-rust.workspace = true
+tracing.workspace = true

@@ -170,7 +170,7 @@ Current source:
 
 ~~~text
 src/Session
-modules/rust/session
+native/session
 ~~~
 
 Target design: TRANSPORT_API.md.
@@ -190,7 +190,7 @@ Status: implemented protocol-8 RakNet backend.
 Current crate:
 
 ~~~text
-modules/rust/network
+native/transport
 ~~~
 
 Target design: TRANSPORT_API.md.
@@ -210,7 +210,7 @@ Status: implemented protocol-84 codec/bootstrap/batch foundation.
 Current crate:
 
 ~~~text
-modules/rust/codec
+native/protocol84
 ~~~
 
 Target design: TRANSPORT_API.md.
@@ -230,13 +230,13 @@ Status: implemented extension bridge and native mechanism surface.
 Current crate:
 
 ~~~text
-modules/rust/php-extension
+native/extension
 ~~~
 
 Related mechanisms:
 
 ~~~text
-modules/rust/core
+native/core
 ~~~
 
 Target design: API_STYLE.md, RUNTIME_API.md, TRANSPORT_API.md, DATA_API.md, WORLD_API.md.
@@ -257,7 +257,7 @@ Status: implemented bounded native worker pool.
 Current crate:
 
 ~~~text
-modules/rust/core
+native/core
 ~~~
 
 Target design: RUNTIME_API.md.
@@ -354,7 +354,7 @@ Status: implemented region-sharded native world state.
 Current crate area:
 
 ~~~text
-modules/rust/core/src/world*
+native/core/src/world*
 ~~~
 
 Target design: WORLD_API.md plus WORLD_SYNC.md.
@@ -373,7 +373,7 @@ Status: implemented custom v1 region/chunk durability and async workers.
 Current crate:
 
 ~~~text
-modules/rust/storage
+native/storage
 ~~~
 
 Target design: WORLD_API.md, DATA_API.md, WORLD_STORAGE.md.

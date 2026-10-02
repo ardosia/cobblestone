@@ -1,16 +1,16 @@
 [workspace]
 resolver = "3"
 members = [
-    "modules/rust/core",
-    "modules/rust/codec",
-    "modules/rust/network",
-    "modules/rust/session",
-    "modules/rust/storage",
+    "native/core",
+    "native/protocol84",
+    "native/transport",
+    "native/session",
+    "native/storage",
     "tests/rust/client-bootstrap",
     "tests/rust/runtime-probe",
 ]
 exclude = [
-    "modules/rust/php-extension",
+    "native/extension",
 ]
 
 [workspace.package]

@@ -28,24 +28,24 @@ src/
 ├── Tick/
 └── World/
 
-modules/rust/
+native/
 ├── core/
-├── codec/
-├── network/
+├── protocol84/
+├── transport/
 ├── session/
 ├── storage/
-└── php-extension/
+└── extension/
 ```
 
 PHP is one Composer package. The root autoloader maps `Cobblestone\\` directly to `src/`; namespaces define semantic domains and no subsystem is separately versioned or installed.
 
-Rust remains in the existing Cargo workspace for this migration stage. Native Zend exports are registered by `modules/rust/php-extension` and are independent from PHP filesystem layout.
+Native mechanisms live under `native/`. Protocol 84 and RakNet transport have explicit crate identities, while the extension remains the narrow Zend bridge and keeps the `cobblestone_core_php` module/library ABI name.
 
 `src/World` owns fixed 0.15.10 16×16×128 world/chunk semantics. Generation, lighting, and mutation live under `src/World/Generator`, `src/World/Light`, and `src/World/Mutation` as subdomains of the same semantic world layer rather than separate packages. The server composition root creates a region-sharded native `WorldStore` when the extension is available; PHP `Chunk` objects remain owner-runtime semantic facades over native terrain/light planes, revisions, lifecycle metadata, immutable snapshots, pin counts, dirty watermarks, and atomic patches. Scalar `BlockStateId` values are the hot-path state currency; `BlockState` is the ergonomic wrapper. `docs/provenance/WORLD_API_PARITY.md` tracks semantic parity against the pinned Ardosia world substrate and records the deliberate runtime adaptations.
 
 `src/Command`, `src/Event`, `src/Plugin`, `src/Task`, and `src/Server` are semantic namespaces inside the single Composer package. `src/Log` provides the PSR-3/Monolog implementation. Monotonic tick pacing remains under `src/Tick`, while the owner-runtime task scheduler keeps scheduled tasks and `TickSleep` Fibers in stable due-time min-heaps so dormant work is not scanned every tick. The server runner handles graceful stop requests/signals instead of leaving a raw infinite loop in the executable.
 
-The production join path reads immutable native world snapshots directly inside the extension, reuses revision-keyed protocol-84 FullChunkData encodings, and sends one bounded initial-radius Batch around the real Flat spawn. Persistent joins now prepare the requested view through one reusable native load batch and defer spawn across server ticks until each chunk is either imported from durable storage or confirmed missing and generated; no disk wait or per-chunk polling loop runs on the PHP owner runtime. Live mutations stay on the same coarse boundary: native patch commits append to a bounded change journal, one flush call per server tick coalesces/routes viewer updates, small block-only changes use protocol-84 UpdateBlock, and complete chunk snapshots are used when light/biome/extra-data or large terrain changes require them. PHP still owns gameplay semantics and never marshals per-block network deltas. Obsolete synthetic bootstrap compatibility exports were removed when native ABI version 1 became explicit. `docs/architecture/WORLD_SYNC.md` records the measured thresholds. `modules/rust/storage` implements `world.cwm`, the custom v1 chunk-record/dual-index region durability core, and bounded native async save/load services described in `docs/architecture/WORLD_STORAGE.md`. Loaded native chunks are adopted into PHP residency without rewriting terrain, while unresolved synchronous access raises `ChunkLoadPending` instead of clobbering unknown durable state.
+The production join path reads immutable native world snapshots directly inside the extension, reuses revision-keyed protocol-84 FullChunkData encodings, and sends one bounded initial-radius Batch around the real Flat spawn. Persistent joins now prepare the requested view through one reusable native load batch and defer spawn across server ticks until each chunk is either imported from durable storage or confirmed missing and generated; no disk wait or per-chunk polling loop runs on the PHP owner runtime. Live mutations stay on the same coarse boundary: native patch commits append to a bounded change journal, one flush call per server tick coalesces/routes viewer updates, small block-only changes use protocol-84 UpdateBlock, and complete chunk snapshots are used when light/biome/extra-data or large terrain changes require them. PHP still owns gameplay semantics and never marshals per-block network deltas. Obsolete synthetic bootstrap compatibility exports were removed when native ABI version 1 became explicit. `docs/architecture/WORLD_SYNC.md` records the measured thresholds. `native/storage` implements `world.cwm`, the custom v1 chunk-record/dual-index region durability core, and bounded native async save/load services described in `docs/architecture/WORLD_STORAGE.md`. Loaded native chunks are adopted into PHP residency without rewriting terrain, while unresolved synchronous access raises `ChunkLoadPending` instead of clobbering unknown durable state.
 
 ## Developer workflow
 

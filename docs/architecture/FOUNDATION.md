@@ -23,8 +23,8 @@ Immutable/native shared values such as packet buffers, snapshots, chunk snapshot
 Initial module families are:
 
 - `cobblestone-core`: runtime identity, generational handles, bounded workers, completion/future plumbing, Fiber wake integration, cancellation, immutable buffers, telemetry, panic/error boundaries, region routing, and the current region-sharded native `WorldStore`.
-- `cobblestone-network`: protocol-8 RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
-- `cobblestone-codec`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
+- `cobblestone-transport`: protocol-8 RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
+- `cobblestone-protocol84`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
 - `cobblestone-session`: stable gameplay-session identity and lifecycle above transport/codec; it hides RakNet connection objects and Batch envelopes from the owning runtime while preserving bounded backpressure and malformed-input behavior.
 - A separate `cobblestone-world` crate is deferred until the native world mechanism needs an independently versioned boundary; splitting the already-working store merely for taxonomy is not a goal.
 - `cobblestone-storage`: custom world metadata/region/chunk persistence. The v1 record/region durability core is implemented; async save/load orchestration, metadata publication, and compaction remain isolated here rather than entering `core`.
@@ -33,7 +33,7 @@ Sibling modules must not reach into each other's private Rust structs or depend 
 
 ## Repository module layout
 
-All product code lives under `modules/`. Rust mechanism crates live in `modules/rust/`; each keeps Cargo-standard local `src/` and test directories.
+PHP product code lives under root `src/`, while Rust/native mechanism crates live under root `native/`; each Rust crate keeps Cargo-standard local `src/` and test directories.
 
 PHP code lives in one root Composer package under `src/`, organized by semantic namespace. `Cobblestone\\` maps directly to `src/`; domains such as `Session`, `World`, `Command`, and `Plugin` are namespace/filesystem boundaries rather than separately versioned packages.
 
@@ -41,16 +41,16 @@ The root Composer package owns the PHP dependency graph directly. Internal bound
 
 The PHP world graph is deliberately one-way. `cobblestone-world` owns the semantic model plus the collaboration contracts/value types that `World` exposes: `Generator`/`GeneratorType`, `ChunkSource`, `RegionMapInterface`/`RegionId`, `RegionMap`, `WorldEdit`; the mutation coordinator and commit metadata remain internal mechanism contracts. Concrete `cobblestone-world-generation`, `cobblestone-world-light`, and `cobblestone-world-mutation` packages each depend only on `cobblestone-world`. `World` accepts its already-built collaborators and never constructs those implementations itself. `cobblestone-server` depends on the base plus the three remaining world implementation packages and is the composition root that wires the default graph. This keeps the Composer dependency graph acyclic without hiding back-edges inside namespace layout. Player, entity, block, and inventory remain deferred until their work begins.
 
-The repository-level `modules/` directory and Composer package graph have no role in Zend extension registration. Native PHP functions are registered only by the Rust `ext-php-rs` extension under `modules/rust/php-extension`, and exact exported names are verified independently. Composer/PSR-4 reorganization therefore must not alter the native function ABI.
+The repository-level `modules/` directory and Composer package graph have no role in Zend extension registration. Native PHP functions are registered only by the Rust `ext-php-rs` extension under `native/extension`, and exact exported names are verified independently. Composer/PSR-4 reorganization therefore must not alter the native function ABI.
 
 Rust crate identities remain stable even when repository paths change. Cross-crate public APIs are preserved during source cleanup; internal files are split only along real ownership/dependency seams.
 
 The initial source cleanup applies that rule concretely:
 - `cobblestone-core` separates generational handle/arena storage and worker public types from pool machinery;
-- `cobblestone-codec` separates packet/NBT data models from wire encode/decode implementation;
+- `cobblestone-protocol84` separates packet/NBT data models from wire encode/decode implementation;
 - `cobblestone-session` separates session identity, packet, delivery, error, listener/live-session, wire flattening, and host runner concerns;
-- `cobblestone-network` separates the backend command/state surface from the RakNet event-loop runner;
-- `cobblestone-core-php` separates panic/error boundary, runtime identity, diagnostics, session bridge, and fixed-target join compatibility machinery.
+- `cobblestone-transport` separates the backend command/state surface from the RakNet event-loop runner;
+- `cobblestone-extension` owns the panic/error boundary, runtime identity, diagnostics, session bridge, and fixed-target Zend integration while preserving the `cobblestone_core_php` PHP module/library name.
 
 These are internal source boundaries only. Public crate names, fixed-target behavior, and native PHP function names remain stable.
 
@@ -133,11 +133,11 @@ Immutable native values such as `NativeBuffer` may be cloned/shared across runti
 
 ## C005 — protocol-8 RakNet transport
 
-C005 introduces `cobblestone-network` as the transport boundary. The implementation pins the exact Ardosia RakNet consumer revision recorded in `docs/provenance/ARDOSIA_REUSE.md` instead of following a moving transport branch.
+C005 introduces `cobblestone-transport` as the transport boundary. The implementation pins the exact Ardosia RakNet consumer revision recorded in `docs/provenance/ARDOSIA_REUSE.md` instead of following a moving transport branch.
 
 ### Transport boundary
 
-`cobblestone-network` owns:
+`cobblestone-transport` owns:
 
 - UDP/RakNet listener and connection lifecycle;
 - RakNet reliability selection;
@@ -166,7 +166,7 @@ These fixtures validate transport mechanics only. Protocol-84 packet compatibili
 
 ## C006 — protocol-84 wire codec
 
-C006 introduces `cobblestone-codec` above the RakNet transport boundary. It is fixed to MCPE 0.15.10 game protocol 84 and derives compatibility-sensitive wire facts from the supplied fixed-target artifacts plus the pinned matching historical source recorded in `docs/provenance/PROTOCOL84.md`.
+C006 introduces `cobblestone-protocol84` above the RakNet transport boundary. It is fixed to MCPE 0.15.10 game protocol 84 and derives compatibility-sensitive wire facts from the supplied fixed-target artifacts plus the pinned matching historical source recorded in `docs/provenance/PROTOCOL84.md`.
 
 The codec owns the `0xfe` connected game marker, one-byte protocol-84 packet IDs, fixed-endian packet primitives, Login and Batch zlib framing, the initial login/session bootstrap packet subset, and the little-endian NBT dialect required by protocol-84 network data. It consumes and produces immutable native byte buffers and does not own RakNet reliability, sessions, players, worlds, plugins, authentication policy, or gameplay semantics.
 
@@ -178,9 +178,9 @@ The initial typed session subset covers Login, PlayStatus, Disconnect, Batch, Se
 
 ## C007 — single-runtime server/session foundation
 
-C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts protocol-84 payloads through `cobblestone-network`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-codec`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
+C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts protocol-84 payloads through `cobblestone-transport`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-protocol84`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
 
-The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session\\Runtime` facade tracks local lifecycle state and converts native events into server-internal PHP values. Owner-runtime identity is enforced once at the actual native operation boundary by `cobblestone-core-php`; PHP does not perform redundant native owner/running probes before every poll/send/disconnect call. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
+The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session\\Runtime` facade tracks local lifecycle state and converts native events into server-internal PHP values. Owner-runtime identity is enforced once at the actual native operation boundary by `cobblestone-extension`; PHP does not perform redundant native owner/running probes before every poll/send/disconnect call. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
 The ordinary PHP server surfaces are deliberately synchronous and owner-local: `EventBus`, `CommandRegistry`, `PluginManager`, and `Scheduler`. Plugins receive an owned `PluginScope`; event subscriptions, command bindings, tasks, and cleanup registered through that scope are released deterministically, including rollback after failed enable. `Server` construction is side-effect free until explicit `start()`, then translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, and applies a finite native-event budget per tick. Scheduled callbacks and `TickSleep` Fibers are indexed by stable due-time binary min-heaps so a tick visits due work rather than the entire live set. Fiber waits on native completions remain a compact active-wait set and are polled only during the owner-runtime scheduler tick; the current diagnostic worker ABI exposes per-task `ready`/`take` operations and no batch ready-set. The fixed-target real-client bootstrap is orchestrated by an internal PHP state machine while Login validation, packet encoding, and compression remain native wire mechanisms; obsolete compatibility-only synthetic bootstrap exports have been removed under ABI version 1.
 

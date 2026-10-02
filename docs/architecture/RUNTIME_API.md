@@ -9,7 +9,7 @@ This document defines the intended PHP-facing design for the runtime-facing subs
 - src/Task;
 - src/Plugin;
 - src/Log;
-- the runtime/worker portions of modules/rust/core and modules/rust/php-extension.
+- the runtime/worker portions of native/core and native/extension.
 
 It also defines the future lifecycle model these packages should converge toward.
 

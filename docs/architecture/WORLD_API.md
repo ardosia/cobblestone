@@ -8,9 +8,9 @@ This document defines the intended public and internal design direction for:
 - src/World/Generator;
 - src/World/Light;
 - src/World/Mutation;
-- the native WorldStore in modules/rust/core;
-- modules/rust/storage;
-- the world/storage portions of modules/rust/php-extension.
+- the native WorldStore in native/core;
+- native/storage;
+- the world/storage portions of native/extension.
 
 Existing mechanism details remain documented in WORLD_SYNC.md and WORLD_STORAGE.md.
 

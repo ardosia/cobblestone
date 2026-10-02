@@ -4,10 +4,10 @@
 
 This document defines the intended architecture and public boundaries for:
 
-- modules/rust/network;
-- modules/rust/codec;
-- modules/rust/session;
-- the session-facing portions of modules/rust/php-extension;
+- native/transport;
+- native/protocol84;
+- native/session;
+- the session-facing portions of native/extension;
 - src/Session;
 - future login/identity/session bootstrap concerns.
 

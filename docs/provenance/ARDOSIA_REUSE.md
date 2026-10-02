@@ -33,7 +33,7 @@ The Cobblestone facade and transport fixture structure are adapted from:
 
 Only generic transport behavior is reused: handshake/profile translation, connection lifecycle, reliability mapping, bounded queues/backpressure, shutdown, protocol-version tests, and fragmentation/reassembly tests. MCPE packet semantics, gameplay/session policy, world state, and Ardosia application lifecycle are not imported.
 
-Because this slice derives from Apache-2.0 Ardosia transport/facade code, `cobblestone-network` is explicitly Apache-2.0 rather than inheriting the workspace's dual-license declaration.
+Because this slice derives from Apache-2.0 Ardosia transport/facade code, `cobblestone-transport` is explicitly Apache-2.0 rather than inheriting the workspace's dual-license declaration.
 
 ### C005 parity audit
 

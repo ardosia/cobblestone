@@ -3,14 +3,14 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 
 use bytes::Bytes;
-use cobblestone_codec::{
+use cobblestone_core::NativeBuffer;
+use cobblestone_protocol84::{
     AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, CodecError, CodecLimits,
     LoginPacket, PlayStatusPacket, RawPacket, SetDifficultyPacket, SetSpawnPositionPacket,
     SetTimePacket, StartGamePacket, decode_bootstrap_frame, decode_game_frame,
     encode_bootstrap_frame, encode_game_frame, packet_id,
 };
-use cobblestone_core::NativeBuffer;
-use cobblestone_network::{Connection, NetworkConfig, NetworkServer, Reliability};
+use cobblestone_transport::{Connection, NetworkConfig, NetworkServer, Reliability};
 
 const DEFAULT_BIND: &str = "0.0.0.0:19132";
 const MAX_CONNECTIONS: usize = 20;
@@ -34,7 +34,7 @@ fn codec_limits() -> CodecLimits {
 fn advertisement() -> String {
     format!(
         "MCPE;Cobblestone;{};;0;{MAX_CONNECTIONS}",
-        cobblestone_codec::PROTOCOL_VERSION
+        cobblestone_protocol84::PROTOCOL_VERSION
     )
 }
 

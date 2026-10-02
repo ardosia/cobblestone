@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 const ROOT = __DIR__ . '/..';
-const NATIVE_EXTENSION = ROOT . '/modules/rust/php-extension';
+const NATIVE_EXTENSION = ROOT . '/native/extension';
 
 function fail(string $message, int $code = 1): never
 {
@@ -178,7 +178,7 @@ function listModules(): void
 {
     printf("php: src (ardosia/cobblestone)%s", PHP_EOL);
 
-    $rustRoot = ROOT . '/modules/rust';
+    $rustRoot = ROOT . '/native';
     $rust = [];
     if (is_dir($rustRoot)) {
         foreach (new DirectoryIterator($rustRoot) as $entry) {

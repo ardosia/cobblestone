@@ -4,11 +4,11 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use bytes::Bytes;
-use cobblestone_codec::{
+use cobblestone_core::NativeBuffer;
+use cobblestone_protocol84::{
     BootstrapPacket, CodecError, CodecLimits, LoginPacket, RawPacket, decode_bootstrap_frame,
     decode_game_frame, encode_bootstrap_frame, encode_game_frame, packet_id,
 };
-use cobblestone_core::NativeBuffer;
 use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
 use raknet_rust::low_level::protocol::Reliability;
 use tokio::time::timeout;
@@ -117,7 +117,8 @@ async fn verify_radius_cycle(
                 }
                 continue;
             }
-            if packet.id() != cobblestone_codec::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
+            if packet.id() != cobblestone_protocol84::FULL_CHUNK_DATA_ID || packet.body().len() < 8
+            {
                 continue;
             }
 
@@ -191,7 +192,8 @@ async fn wait_for_chunk(
                 format!("waiting for {phase} chunk {expected:?}: {error}").into()
             })?;
         for packet in raw_packets(&payload, limits)? {
-            if packet.id() != cobblestone_codec::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
+            if packet.id() != cobblestone_protocol84::FULL_CHUNK_DATA_ID || packet.body().len() < 8
+            {
                 continue;
             }
             let body = packet.body().as_slice();
@@ -259,7 +261,8 @@ async fn send_boundary_movement(
                 format!("waiting for entering chunks: {error}").into()
             })?;
         for packet in raw_packets(&payload, limits)? {
-            if packet.id() != cobblestone_codec::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
+            if packet.id() != cobblestone_protocol84::FULL_CHUNK_DATA_ID || packet.body().len() < 8
+            {
                 continue;
             }
             let body = packet.body().as_slice();

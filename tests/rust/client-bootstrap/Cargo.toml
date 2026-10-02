@@ -9,9 +9,9 @@ publish = false
 
 [dependencies]
 bytes.workspace = true
-cobblestone-codec = { path = "../../../modules/rust/codec" }
-cobblestone-core = { path = "../../../modules/rust/core" }
-cobblestone-network = { path = "../../../modules/rust/network" }
+cobblestone-protocol84 = { path = "../../../native/protocol84" }
+cobblestone-core = { path = "../../../native/core" }
+cobblestone-transport = { path = "../../../native/transport" }
 raknet-rust.workspace = true
 tokio.workspace = true
 
