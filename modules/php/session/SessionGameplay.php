@@ -6,6 +6,7 @@ namespace Cobblestone\Session;
 
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\Runtime;
+use Cobblestone\Native\Session\ViewSendResult;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\World;
 use UnexpectedValueException;
@@ -18,10 +19,6 @@ final class SessionGameplay
     private const VIEW_DELTA_HEADER_BYTES = 28;
     private const VIEW_DELTA_ENTRY_BYTES = 8;
     private const MAX_VIEW_DELTA_ENTRIES = 4096;
-    private const VIEW_SEND_BACKPRESSURED = 0;
-    private const VIEW_SEND_SENT = 1;
-    private const VIEW_SEND_GONE = 2;
-
     /** @var array<int, ChunkViewPreparation> */
     private array $preparations = [];
 
@@ -140,17 +137,14 @@ final class SessionGameplay
     private function acceptViewSendStatus(
         int $sessionId,
         ChunkViewPreparation $preparation,
-        int $status,
+        ViewSendResult $status,
     ): bool {
-        if ($status === self::VIEW_SEND_BACKPRESSURED) {
+        if ($status === ViewSendResult::Backpressured) {
             return false;
         }
-        if ($status === self::VIEW_SEND_GONE) {
+        if ($status === ViewSendResult::Gone) {
             $this->clearPreparation($sessionId);
             return false;
-        }
-        if ($status !== self::VIEW_SEND_SENT) {
-            throw new UnexpectedValueException('native prepared view send returned an invalid status');
         }
 
         $preparation->markSent();

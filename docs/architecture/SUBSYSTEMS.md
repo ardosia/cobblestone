@@ -689,15 +689,17 @@ Target direction:
 
 ### Native ABI capabilities
 
-Status: current PHP runtime probes many function names manually.
+Status: versioned ABI identity implemented; typed result mapping started.
 
 Target design: DATA_API.md.
 
-Target direction:
+Current direction:
 
-- one versioned ABI/capability identity;
-- validate once at startup;
-- centralize native result-code mapping.
+- `cobblestone_core_abi()` publishes ABI version 1;
+- PHP validates ABI once at native runtime startup instead of probing every export;
+- prepared-view send status is mapped to `ViewSendResult`;
+- add capability metadata only when optional native features actually require it;
+- continue centralizing other native result codes as touched.
 
 ## Protocol-gated/reserved areas
 

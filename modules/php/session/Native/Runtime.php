@@ -6,6 +6,8 @@ namespace Cobblestone\Native\Session;
 
 final class Runtime
 {
+    private const ABI_VERSION = 1;
+
     public const DELIVERY_UNRELIABLE = 0;
     public const DELIVERY_UNRELIABLE_SEQUENCED = 1;
     public const DELIVERY_RELIABLE = 2;
@@ -25,32 +27,17 @@ final class Runtime
             throw new \RuntimeException('cobblestone_core_php extension is not loaded');
         }
 
-        foreach ([
-            'cobblestone_core_runtime_id',
-            'cobblestone_session_start',
-            'cobblestone_session_running',
-            'cobblestone_session_poll_event',
-            'cobblestone_session_send',
-            'cobblestone_session_protocol84_accept_login',
-            'cobblestone_session_protocol84_spawn_probe',
-            'cobblestone_session_protocol84_accept_login_world',
-            'cobblestone_session_protocol84_request_chunk_radius',
-            'cobblestone_session_protocol84_send_initial_chunks',
-            'cobblestone_session_protocol84_send_native_chunks',
-            'cobblestone_session_protocol84_player_spawned',
-            'cobblestone_session_protocol84_track_move_player',
-            'cobblestone_session_protocol84_plan_chunk_radius',
-            'cobblestone_session_protocol84_send_prepared_view_chunks',
-            'cobblestone_session_protocol84_commit_prepared_view',
-            'cobblestone_session_protocol84_flush_world_changes',
-            'cobblestone_session_disconnect',
-            'cobblestone_session_stop',
-        ] as $function) {
-            if (!\function_exists($function)) {
-                throw new \RuntimeException(
-                    "cobblestone_core_php is stale or incompatible: missing native function {$function}; rebuild the extension",
-                );
-            }
+        if (!\function_exists('cobblestone_core_abi')) {
+            throw new \RuntimeException(
+                'cobblestone_core_php is stale or incompatible: missing ABI identity; rebuild the extension',
+            );
+        }
+
+        $abi = cobblestone_core_abi();
+        if ($abi !== self::ABI_VERSION) {
+            throw new \RuntimeException(
+                "cobblestone_core_php ABI mismatch: expected " . self::ABI_VERSION . ", got {$abi}",
+            );
         }
 
         $runtimeId = cobblestone_core_runtime_id();
@@ -166,10 +153,10 @@ final class Runtime
         int $toChunkX,
         int $toChunkZ,
         int $toRadius,
-    ): int {
+    ): ViewSendResult {
         $this->assertRunning();
 
-        return cobblestone_session_protocol84_send_prepared_view_chunks(
+        $result = cobblestone_session_protocol84_send_prepared_view_chunks(
             $sessionId,
             $fromChunkX,
             $fromChunkZ,
@@ -178,6 +165,9 @@ final class Runtime
             $toChunkZ,
             $toRadius,
         );
+
+        return ViewSendResult::tryFrom($result)
+            ?? throw new \LogicException('invalid native prepared-view send result');
     }
 
     /** @internal */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Native\Session\Packet;
+use Cobblestone\Native\Session\ViewSendResult;
 use Cobblestone\Native\Session\Runtime;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
@@ -73,7 +74,7 @@ $server = Server::create(
         backpressureViewExpect(!$preparation->sent(), 'preparation was sent before injection');
 
         $statusMethod = new ReflectionMethod(SessionGameplay::class, 'acceptViewSendStatus');
-        $accepted = $statusMethod->invoke($gameplay, $packet->sessionId, $preparation, 0);
+        $accepted = $statusMethod->invoke($gameplay, $packet->sessionId, $preparation, ViewSendResult::Backpressured);
         backpressureViewExpect($accepted === false, 'backpressure status was unexpectedly accepted');
         backpressureViewExpect(!$preparation->sent(), 'backpressure marked the preparation as sent');
 

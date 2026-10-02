@@ -13,6 +13,7 @@ if (!extension_loaded('cobblestone_core_php')) {
 }
 
 $required = [
+    'cobblestone_core_abi',
     'cobblestone_core_runtime_id',
     'cobblestone_core_async_submit',
     'cobblestone_core_async_ready',
@@ -79,6 +80,10 @@ foreach ($required as $function) {
     if (!function_exists($function)) {
         export_fail("missing required native export: {$function}");
     }
+}
+
+if (cobblestone_core_abi() !== 1) {
+    export_fail('unexpected native ABI version');
 }
 
 $forbidden = [

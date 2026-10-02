@@ -406,20 +406,11 @@ Do not create a generic setProperty(name, mixed) control plane.
 
 ## Native ABI
 
-The PHP extension should expose one stable ABI/capability identity rather than requiring PHP to manually check a growing list of function_exists() names.
+The PHP extension exposes one stable ABI version through `cobblestone_core_abi()` rather than requiring PHP to manually check a growing list of function names.
 
-Conceptually:
+The session Runtime adapter validates that ABI once at startup. ABI version 1 is the current contract.
 
-~~~php
-$abi = cobblestone_core_abi();
-
-$abi->version();
-$abi->capabilities();
-~~~
-
-The actual extension ABI may return a compact array/native projection rather than a PHP object.
-
-The PHP Runtime adapter validates required capabilities once at startup.
+Capability bits/metadata may be added later if optional native features need staged rollout; they are not required while the extension is one fixed feature set.
 
 ## ABI compatibility
 
@@ -443,7 +434,7 @@ if ($result === 2) {
 
 through gameplay packages.
 
-The extension adapter is responsible for translating wire/FFI codes into stable semantic categories.
+The extension adapter is responsible for translating wire/FFI codes into stable semantic categories. Prepared-view send results already cross into PHP as `ViewSendResult` rather than raw 0/1/2 status integers.
 
 ## Clock
 

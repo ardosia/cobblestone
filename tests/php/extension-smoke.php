@@ -12,6 +12,11 @@ if (!extension_loaded('cobblestone_core_php')) {
     fail('cobblestone_core_php extension did not load');
 }
 
+$abi = cobblestone_core_abi();
+if ($abi !== 1) {
+    fail('native ABI version mismatch');
+}
+
 $runtimeId = cobblestone_core_runtime_id();
 if (!is_int($runtimeId) || $runtimeId <= 0) {
     fail('runtime identity was not a positive integer');
@@ -65,6 +70,7 @@ if (!cobblestone_core_probe_valid($postPanicProbe)) {
 cobblestone_core_probe_drop($postPanicProbe);
 
 printf(
-    "cobblestone-core-php: runtime_id=%d stale_handle=rejected panic=contained\n",
+    "cobblestone-core-php: abi=%d runtime_id=%d stale_handle=rejected panic=contained\n",
+    $abi,
     $runtimeId,
 );
