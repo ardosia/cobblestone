@@ -14,7 +14,7 @@ use InvalidArgumentException;
  * Regions are Cobblestone ownership/scheduling territories, not Minecraft storage-region files.
  * The size is a mechanism tuning value and is not a fixed-target gameplay rule.
  */
-final readonly class RegionMap implements RegionMapInterface
+final readonly class RegionMap
 {
     public const DEFAULT_CHUNKS_PER_REGION = 8;
 

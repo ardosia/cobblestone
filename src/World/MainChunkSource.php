@@ -9,7 +9,7 @@ use Cobblestone\Native\World\LoadStatus;
 
 use Cobblestone\World\Generator\Generator;
 
-final class MainChunkSource implements ChunkSource
+final class MainChunkSource
 {
     /** @var array<string, Chunk> */
     private array $chunks = [];

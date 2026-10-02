@@ -8,20 +8,19 @@ use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSnapshot;
-use Cobblestone\World\LightAccess;
 use Cobblestone\World\LightLayer;
 use Cobblestone\World\LightLevel;
 use Cobblestone\World\World;
 use Cobblestone\World\WorldBounds;
 
 /**
- * Staged LightAccess over one owner-runtime World.
+ * Staged lighting access over one owner-runtime World.
  *
  * Propagation reads its own staged writes. commit() preflights every touched chunk and advances
  * each chunk's light revision once, regardless of how many light cells changed. Reverted staged
  * cells are filtered before revision advancement.
  */
-final class WorldLightAccess implements LightAccess
+final class WorldLightAccess
 {
     /** @var array<string, array{layer: LightLayer, position: BlockPos, level: int}> */
     private array $staged = [];

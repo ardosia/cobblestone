@@ -6,7 +6,9 @@ require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\Generator\Generator;
-use Cobblestone\World\Mutation\MutationCoordinatorInterface;
+use Cobblestone\World\MainChunkSource;
+use Cobblestone\World\Mutation\MutationCoordinator;
+use Cobblestone\World\Region\RegionMap;
 use Cobblestone\World\World;
 
 function compositionExpect(bool $condition, string $message): void
@@ -51,16 +53,28 @@ $types = array_map(
 );
 compositionExpect(in_array(Generator::class, $types, true), 'World must accept the generator contract');
 compositionExpect(
-    in_array(MutationCoordinatorInterface::class, $types, true),
-    'World must accept the mutation coordinator contract',
+    in_array(MainChunkSource::class, $types, true),
+    'World must own the concrete main chunk source',
 );
 compositionExpect(
-    !in_array(Cobblestone\World\Mutation\MutationCoordinator::class, $types, true),
-    'World constructor must not depend on the concrete mutation coordinator',
+    in_array(MutationCoordinator::class, $types, true),
+    'World must own the concrete mutation coordinator',
+);
+
+$mutationConstructor = new ReflectionMethod(MutationCoordinator::class, '__construct');
+$mutationTypes = array_map(
+    static fn (ReflectionParameter $parameter): ?string => $parameter->getType() instanceof ReflectionNamedType
+        ? $parameter->getType()->getName()
+        : null,
+    $mutationConstructor->getParameters(),
 );
 compositionExpect(
-    !in_array(Cobblestone\World\Region\RegionMap::class, $types, true),
-    'World constructor must not depend on the concrete region map',
+    in_array(MainChunkSource::class, $mutationTypes, true),
+    'mutation coordinator must use the main chunk source',
+);
+compositionExpect(
+    in_array(RegionMap::class, $mutationTypes, true),
+    'mutation coordinator must use the concrete region map',
 );
 
 $world = WorldFactory::flat('Composition Smoke', 123);

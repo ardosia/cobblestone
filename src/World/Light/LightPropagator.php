@@ -6,7 +6,6 @@ namespace Cobblestone\World\Light;
 
 use Closure;
 use Cobblestone\World\BlockPos;
-use Cobblestone\World\LightAccess;
 use Cobblestone\World\LightLayer;
 use Cobblestone\World\LightLevel;
 use Cobblestone\World\LightUpdate;
@@ -25,7 +24,7 @@ final readonly class LightPropagator
     }
 
     /** @param Closure(LightUpdate): void $submit */
-    public function apply(LightAccess $access, LightUpdate $update, Closure $submit): void
+    public function apply(WorldLightAccess $access, LightUpdate $update, Closure $submit): void
     {
         $minY = max($update->min->y, WorldBounds::MIN_Y);
         $maxY = min($update->max->y, WorldBounds::MAX_Y);
@@ -54,7 +53,7 @@ final readonly class LightPropagator
 
     /** @param Closure(LightUpdate): void $submit */
     private function applyCell(
-        LightAccess $access,
+        WorldLightAccess $access,
         LightUpdate $update,
         int $maxY,
         BlockPos $position,
@@ -130,7 +129,7 @@ final readonly class LightPropagator
     }
 
     private function localSource(
-        LightAccess $access,
+        WorldLightAccess $access,
         LightLayer $layer,
         BlockPos $position,
         int $blockEmission,
@@ -148,7 +147,7 @@ final readonly class LightPropagator
     }
 
     private function maxNeighborLight(
-        LightAccess $access,
+        WorldLightAccess $access,
         LightLayer $layer,
         BlockPos $position,
     ): int {

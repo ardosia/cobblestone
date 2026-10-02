@@ -9,10 +9,10 @@ use Cobblestone\Native\World as NativeWorld;
 use Closure;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
-use Cobblestone\World\Mutation\MutationCoordinatorInterface;
+use Cobblestone\World\Mutation\MutationCoordinator;
 use ValueError;
 
-final class World implements BlockSource
+final class World
 {
     private BlockPos $spawn;
     private int $time = 0;
@@ -22,8 +22,8 @@ final class World implements BlockSource
         private readonly string $name,
         private readonly int $seed,
         private readonly Generator $generator,
-        private readonly ChunkSource $chunks,
-        private readonly MutationCoordinatorInterface $mutations,
+        private readonly MainChunkSource $chunks,
+        private readonly MutationCoordinator $mutations,
         private readonly ?NativeWorld $nativeStore = null,
     ) {
         if ($name === '') {
@@ -54,7 +54,7 @@ final class World implements BlockSource
     }
 
     /** @internal Mechanism access for world/session implementation code. */
-    public function chunks(): ChunkSource
+    public function chunks(): MainChunkSource
     {
         return $this->chunks;
     }

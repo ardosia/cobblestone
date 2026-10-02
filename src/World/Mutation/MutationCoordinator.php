@@ -6,8 +6,8 @@ namespace Cobblestone\World\Mutation;
 
 use Closure;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\ChunkSource;
-use Cobblestone\World\Region\RegionMapInterface;
+use Cobblestone\World\MainChunkSource;
+use Cobblestone\World\Region\RegionMap;
 use Cobblestone\World\WorldEdit;
 use LogicException;
 
@@ -17,13 +17,13 @@ use LogicException;
  * Discovery/replay and revision gates stay explicit so native region routing can later acquire the
  * complete region set before the final attempt without changing the World::edit() API.
  */
-final class MutationCoordinator implements MutationCoordinatorInterface
+final class MutationCoordinator
 {
     private bool $active = false;
 
     public function __construct(
-        private readonly ChunkSource $chunks,
-        private readonly RegionMapInterface $regions,
+        private readonly MainChunkSource $chunks,
+        private readonly RegionMap $regions,
         private readonly int $maxAttempts = 8,
     ) {
         if ($maxAttempts <= 0) {

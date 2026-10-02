@@ -8,7 +8,7 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\World\ChunkSource;
+use Cobblestone\World\MainChunkSource;
 use Cobblestone\World\WorldEdit;
 use ValueError;
 
@@ -19,7 +19,7 @@ final class StagedWorldMutation implements WorldEdit
     private array $patches = [];
 
     public function __construct(
-        private readonly ChunkSource $chunks,
+        private readonly MainChunkSource $chunks,
     ) {
     }
 
