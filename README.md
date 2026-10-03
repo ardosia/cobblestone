@@ -36,6 +36,13 @@ native/
 ├── session/
 ├── storage/
 └── extension/
+
+tests/php/
+├── unit/
+├── native/
+├── integration/
+├── fixtures/
+└── shared bootstrap/probe helpers
 ```
 
 PHP is one Composer package. The root autoloader maps `Cobblestone\\` directly to `src/`; namespaces define semantic domains and no subsystem is separately versioned or installed.
