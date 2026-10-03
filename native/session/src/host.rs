@@ -1,23 +1,126 @@
-mod command;
-mod config;
-mod error;
-mod event;
 mod runner;
 
 use std::collections::HashMap;
+use std::io;
+use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex, MutexGuard, mpsc as std_mpsc};
 use std::thread::{self, JoinHandle};
 
+use cobblestone_protocol84::CodecLimits;
+use cobblestone_transport::NetworkConfig;
 use crossbeam_channel::{Receiver, TryRecvError, bounded};
 use tokio::sync::mpsc;
 
 use crate::{SessionDelivery, SessionId, SessionPacket};
-use command::SessionCommand;
 use runner::run_host;
 
-pub use config::SessionHostConfig;
-pub use error::SessionHostError;
-pub use event::SessionHostEvent;
+pub(super) enum SessionCommand {
+    Send {
+        packet: SessionPacket,
+        delivery: SessionDelivery,
+    },
+    Disconnect,
+}
+
+/// Configuration for the native session host attached to one owning runtime.
+#[derive(Debug, Clone)]
+pub struct SessionHostConfig {
+    network: NetworkConfig,
+    limits: CodecLimits,
+    event_queue_capacity: NonZeroUsize,
+    session_command_capacity: NonZeroUsize,
+}
+
+impl SessionHostConfig {
+    /// Creates an explicit bounded host configuration.
+    #[must_use]
+    pub const fn new(
+        network: NetworkConfig,
+        limits: CodecLimits,
+        event_queue_capacity: NonZeroUsize,
+        session_command_capacity: NonZeroUsize,
+    ) -> Self {
+        Self {
+            network,
+            limits,
+            event_queue_capacity,
+            session_command_capacity,
+        }
+    }
+}
+
+/// Synchronous failures exposed by the native session host.
+#[derive(Debug, thiserror::Error)]
+pub enum SessionHostError {
+    /// The dedicated native host thread could not be started.
+    #[error("failed to spawn session host thread: {0}")]
+    ThreadSpawn(#[source] io::Error),
+    /// Tokio could not create the dedicated host runtime.
+    #[error("failed to build session host runtime: {0}")]
+    RuntimeBuild(#[source] io::Error),
+    /// The listener/session mechanism failed before the host became ready.
+    #[error("session host startup failed: {message}")]
+    Startup {
+        /// Failure text from the native session mechanism.
+        message: String,
+    },
+    /// Startup ended without reporting success or failure.
+    #[error("session host startup channel closed")]
+    StartupClosed,
+    /// No live session currently owns this process-local identity.
+    #[error("unknown or stale session id {session_id}")]
+    UnknownSession {
+        /// Requested process-local identity.
+        session_id: u64,
+    },
+    /// The bounded command queue for this session is full.
+    #[error("session {session_id} command queue is full")]
+    CommandBackpressure {
+        /// Requested process-local identity.
+        session_id: u64,
+    },
+    /// The session task has already stopped accepting commands.
+    #[error("session {session_id} command queue is closed")]
+    CommandClosed {
+        /// Requested process-local identity.
+        session_id: u64,
+    },
+    /// The owner-side event receiver has disconnected.
+    #[error("session host event channel is closed")]
+    EventChannelClosed,
+    /// The host shutdown signal could not be delivered.
+    #[error("session host shutdown channel is closed")]
+    ShutdownChannelClosed,
+    /// The dedicated session host thread panicked.
+    #[error("session host thread panicked")]
+    ThreadPanicked,
+}
+
+/// Event delivered from the native session mechanism to its owning runtime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SessionHostEvent {
+    /// A new fixed-target gameplay session was accepted.
+    Connected {
+        /// Stable process-local session identity.
+        session_id: SessionId,
+        /// Remote socket address rendered without exposing transport types.
+        peer: String,
+    },
+    /// One packet arrived after frame/Batch processing.
+    Packet {
+        /// Stable process-local session identity.
+        session_id: SessionId,
+        /// Decoded wire packet.
+        packet: SessionPacket,
+    },
+    /// A session ended or was closed by a bounded policy.
+    Disconnected {
+        /// Stable process-local session identity.
+        session_id: SessionId,
+        /// Stable human-readable mechanism reason.
+        reason: String,
+    },
+}
 
 /// Dedicated native session mechanism controlled synchronously by one owning runtime.
 ///
@@ -138,11 +241,39 @@ impl Drop for SessionHost {
     }
 }
 
-pub(in crate::host) fn lock_sessions(
+fn lock_sessions(
     sessions: &Arc<Mutex<HashMap<SessionId, mpsc::Sender<SessionCommand>>>>,
 ) -> MutexGuard<'_, HashMap<SessionId, mpsc::Sender<SessionCommand>>> {
     match sessions.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::{Ipv4Addr, SocketAddr};
+    use std::num::NonZeroUsize;
+
+    use cobblestone_protocol84::CodecLimits;
+    use cobblestone_transport::NetworkConfig;
+
+    use super::SessionHostConfig;
+
+    #[test]
+    fn host_config_keeps_explicit_bounds() {
+        let config = SessionHostConfig::new(
+            NetworkConfig::protocol8(
+                SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 19132),
+                NonZeroUsize::new(8).expect("nonzero"),
+                "host-config-test",
+            ),
+            CodecLimits::new(4096, 4096, 4096, 4096, 1024, 16),
+            NonZeroUsize::new(64).expect("nonzero"),
+            NonZeroUsize::new(8).expect("nonzero"),
+        );
+
+        assert_eq!(config.event_queue_capacity.get(), 64);
+        assert_eq!(config.session_command_capacity.get(), 8);
     }
 }
