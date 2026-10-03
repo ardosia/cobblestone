@@ -1,3 +1,4 @@
+mod async_io;
 mod async_load;
 mod async_save;
 mod metadata;
