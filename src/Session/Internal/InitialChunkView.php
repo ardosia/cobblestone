@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Session;
+namespace Cobblestone\Session\Internal;
 
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSnapshot;

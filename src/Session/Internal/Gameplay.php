@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Session;
+namespace Cobblestone\Session\Internal;
 
 use Cobblestone\Native\Session\Packet;
-use Cobblestone\Native\Session\Runtime;
+use Cobblestone\Native\Session as NativeSession;
 use Cobblestone\Native\Session\ViewSendResult;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\World;
 use UnexpectedValueException;
 
 /** @internal */
-final class SessionGameplay
+final class Gameplay
 {
     private const MOVE_PLAYER_PACKET = 0x10;
     private const REQUEST_CHUNK_RADIUS_PACKET = 0x3d;
@@ -23,7 +23,7 @@ final class SessionGameplay
     private array $preparations = [];
 
     public function __construct(
-        private readonly Runtime $sessions,
+        private readonly NativeSession $sessions,
         private readonly World $world,
         private readonly int $maxChunkRadius,
     ) {

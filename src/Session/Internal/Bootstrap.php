@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Session;
+namespace Cobblestone\Session\Internal;
 
 use Cobblestone\Native\Session\Packet;
-use Cobblestone\Native\Session\Runtime;
+use Cobblestone\Native\Session as NativeSession;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\World;
 use LogicException;
 use ValueError;
 
 /** @internal */
-final class SessionBootstrap
+final class Bootstrap
 {
     private const LOGIN_PACKET = 0x01;
     private const REQUEST_CHUNK_RADIUS_PACKET = 0x3d;
@@ -38,7 +38,7 @@ final class SessionBootstrap
     private array $pendingSpawns = [];
 
     public function __construct(
-        private readonly Runtime $sessions,
+        private readonly NativeSession $sessions,
         private readonly World $world,
         private readonly int $initialChunkRadius = 2,
     ) {

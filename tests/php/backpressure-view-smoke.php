@@ -9,10 +9,10 @@ use Cobblestone\Native\Session\ViewSendResult;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
-use Cobblestone\Session\ChunkViewPreparation;
+use Cobblestone\Session\Internal\ChunkViewPreparation;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\SessionGameplay;
+use Cobblestone\Session\Internal\Gameplay;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\Native\World as NativeWorld;
 
@@ -59,7 +59,7 @@ $server = Server::create(
 
         $gameplay = testServerGameplay($server);
 
-        $preparationsProperty = new ReflectionProperty(SessionGameplay::class, 'preparations');
+        $preparationsProperty = new ReflectionProperty(Gameplay::class, 'preparations');
         $preparations = $preparationsProperty->getValue($gameplay);
         $preparation = $preparations[$packet->sessionId] ?? null;
         backpressureViewExpect(
@@ -69,7 +69,7 @@ $server = Server::create(
         backpressureViewExpect($preparation->prepared(), 'flat-world transition was not prepared');
         backpressureViewExpect(!$preparation->sent(), 'preparation was sent before injection');
 
-        $statusMethod = new ReflectionMethod(SessionGameplay::class, 'acceptViewSendStatus');
+        $statusMethod = new ReflectionMethod(Gameplay::class, 'acceptViewSendStatus');
         $accepted = $statusMethod->invoke($gameplay, $packet->sessionId, $preparation, ViewSendResult::Backpressured);
         backpressureViewExpect($accepted === false, 'backpressure status was unexpectedly accepted');
         backpressureViewExpect(!$preparation->sent(), 'backpressure marked the preparation as sent');
@@ -159,7 +159,7 @@ try {
             );
 
             $gameplay = testServerGameplay($server);
-            $preparationsProperty = new ReflectionProperty(SessionGameplay::class, 'preparations');
+            $preparationsProperty = new ReflectionProperty(Gameplay::class, 'preparations');
             $preparations = $preparationsProperty->getValue($gameplay);
             backpressureViewExpect(
                 $preparations === [],

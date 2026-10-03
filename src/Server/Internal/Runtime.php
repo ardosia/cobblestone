@@ -9,15 +9,15 @@ use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
 use Cobblestone\Native\Session\Packet;
-use Cobblestone\Native\Session\Runtime as NativeSessions;
+use Cobblestone\Native\Session as NativeSessions;
 use Cobblestone\Server\ServerConfig;
-use Cobblestone\Session\BootstrapUpdate;
+use Cobblestone\Session\Internal\BootstrapUpdate;
 use Cobblestone\Session\Event\SessionConnected;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionLoginAccepted;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\SessionBootstrap;
-use Cobblestone\Session\SessionGameplay;
+use Cobblestone\Session\Internal\Bootstrap;
+use Cobblestone\Session\Internal\Gameplay;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\World\World;
 use LogicException;
@@ -33,8 +33,8 @@ final class Runtime
 
     private function __construct(
         private readonly NativeSessions $sessions,
-        private readonly SessionBootstrap $bootstrap,
-        private readonly SessionGameplay $gameplay,
+        private readonly Bootstrap $bootstrap,
+        private readonly Gameplay $gameplay,
         private readonly World $world,
         private readonly Dispatcher $events,
         private readonly Scheduler $scheduler,
@@ -61,8 +61,8 @@ final class Runtime
         try {
             return new self(
                 $sessions,
-                new SessionBootstrap($sessions, $world, $config->initialChunkRadius),
-                new SessionGameplay($sessions, $world, $config->initialChunkRadius),
+                new Bootstrap($sessions, $world, $config->initialChunkRadius),
+                new Gameplay($sessions, $world, $config->initialChunkRadius),
                 $world,
                 $events,
                 $scheduler,

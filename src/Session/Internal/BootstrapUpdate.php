@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Session;
+namespace Cobblestone\Session\Internal;
 
 final readonly class BootstrapUpdate
 {

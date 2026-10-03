@@ -6,6 +6,10 @@ namespace Cobblestone\Task;
 
 use Closure;
 use Fiber;
+use Cobblestone\Task\Internal\DueQueue;
+use Cobblestone\Task\Internal\NativeAwait;
+use Cobblestone\Task\Internal\Sleep;
+use Cobblestone\Native\Tasks;
 use InvalidArgumentException;
 use LogicException;
 use Throwable;
@@ -13,7 +17,7 @@ use Throwable;
 /**
  * Single-owner tick scheduler with Fiber integration.
  *
- * Scheduled work and TickSleep fibers live in due-time min-heaps, so dormant entries do not add
+ * Scheduled work and sleeping fibers live in due-time min-heaps, so dormant entries do not add
  * fixed work to every tick. Native waits remain in a compact active-wait set because the current
  * native completion proof exposes only per-task readiness polling.
  *
@@ -42,7 +46,7 @@ final class Scheduler
     /** @var array<int, int> fiber id => wake tick */
     private array $sleeping = [];
 
-    /** @var array<int, NativeTaskAwait> */
+    /** @var array<int, NativeAwait> */
     private array $nativeWaiting = [];
 
     public function __construct()
@@ -101,12 +105,12 @@ final class Scheduler
 
     public static function awaitNative(int $taskId): mixed
     {
-        return Fiber::suspend(new NativeTaskAwait($taskId));
+        return Fiber::suspend(new NativeAwait($taskId));
     }
 
     public static function sleep(int $ticks): void
     {
-        Fiber::suspend(new TickSleep($ticks));
+        Fiber::suspend(new Sleep($ticks));
     }
 
     public function tick(): void
@@ -227,13 +231,13 @@ final class Scheduler
             if ($wait === null || $fiber === null) {
                 continue;
             }
-            if (!cobblestone_core_async_ready($wait->taskId)) {
+            if (!Tasks::ready($wait->taskId)) {
                 continue;
             }
 
             unset($this->nativeWaiting[$fiberId]);
             try {
-                $yielded = $fiber->resume(cobblestone_core_async_take($wait->taskId));
+                $yielded = $fiber->resume(Tasks::take($wait->taskId));
             } catch (Throwable $error) {
                 $this->forgetFiber($fiberId);
                 throw $error;
@@ -254,14 +258,14 @@ final class Scheduler
             return;
         }
 
-        if ($yielded instanceof NativeTaskAwait) {
+        if ($yielded instanceof NativeAwait) {
             unset($this->sleeping[$fiberId]);
             $this->nativeWaiting[$fiberId] = $yielded;
 
             return;
         }
 
-        if ($yielded instanceof TickSleep) {
+        if ($yielded instanceof Sleep) {
             unset($this->nativeWaiting[$fiberId]);
             $wake = $this->tick + $yielded->ticks;
             $this->sleeping[$fiberId] = $wake;

@@ -9,10 +9,10 @@ use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
-use Cobblestone\Session\ChunkViewPreparation;
+use Cobblestone\Session\Internal\ChunkViewPreparation;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\SessionGameplay;
+use Cobblestone\Session\Internal\Gameplay;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\ChunkLease;
 use Cobblestone\World\ChunkPos;
@@ -117,7 +117,7 @@ $server = Server::create(
 
         $gameplay = testServerGameplay($server);
 
-        $preparationsProperty = new ReflectionProperty(SessionGameplay::class, 'preparations');
+        $preparationsProperty = new ReflectionProperty(Gameplay::class, 'preparations');
         $preparations = $preparationsProperty->getValue($gameplay);
         $preparation = $preparations[$packet->sessionId] ?? null;
         pendingDisconnectExpect(

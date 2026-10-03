@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Native\Session;
+namespace Cobblestone\Native;
 
-final class Runtime
+use Cobblestone\Native\Session\Connected;
+use Cobblestone\Native\Session\Disconnected;
+use Cobblestone\Native\Session\Packet;
+use Cobblestone\Native\Session\ViewSendResult;
+
+final class Session
 {
     private const ABI_VERSION = 1;
 

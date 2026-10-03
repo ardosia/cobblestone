@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Task;
+namespace Cobblestone\Task\Internal;
 
 use InvalidArgumentException;
 
 /** @internal */
-final readonly class TickSleep
+final readonly class Sleep
 {
     public function __construct(public int $ticks)
     {

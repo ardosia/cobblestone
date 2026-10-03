@@ -120,7 +120,8 @@ Current direction:
 
 - scheduling returns TaskHandle objects;
 - task() starts Fibers on the scheduler boundary rather than inline;
-- due-time heaps remain the dormant-task mechanism;
+- due-time heap, sleep marker, and native-await marker implementations live under `Task\Internal`;
+- raw async-ready/take FFI calls are centralized in `Cobblestone\Native\Tasks`;
 - cancellation is explicit and failed/repeating work does not remain active;
 - batched native-ready completion retrieval remains separate performance work.
 
@@ -170,18 +171,21 @@ Status: implemented fixed-target production join/session path.
 Current source:
 
 ~~~text
-src/Session
+src/Session/Event
+src/Session/Internal
+src/Native/Session.php
 native/session
 ~~~
 
 Target design: TRANSPORT_API.md.
 
-Target direction:
+Current direction:
 
+- semantic PHP session events remain under `Session\Event`;
+- server-owned bootstrap/gameplay/view-preparation state lives under `Session\Internal` and is not plugin API;
+- `Cobblestone\Native\Session` is the sole PHP adapter for raw native session FFI;
 - Session remains connection/bootstrap identity, not Player;
-- bounded pollBatch-style owner boundary;
-- one decode path per frame;
-- host-local session state where useful;
+- bounded pollBatch-style owner boundary remains future performance work;
 - preserve per-session ordering while moving measured CPU work off the single session owner.
 
 ### Network
@@ -246,8 +250,9 @@ Target design: API_STYLE.md, RUNTIME_API.md, TRANSPORT_API.md, DATA_API.md, WORL
 Current direction:
 
 - the PHP world FFI boundary is centralized in `Cobblestone\Native\World`; semantic World code contains no raw `cobblestone_world_*` calls;
-- ABI v1 replaces per-export capability probing for the native world adapter;
-- typed projections/results stay under `Cobblestone\Native\World\*` while 1:1 forwarding classes are removed;
+- the PHP session FFI boundary is centralized in `Cobblestone\Native\Session`, and scheduler completion probes in `Cobblestone\Native\Tasks`;
+- ABI v1 replaces per-export capability probing for native adapters;
+- typed projections/results stay under narrow `Cobblestone\Native\*` namespaces while 1:1 forwarding classes are removed;
 - owner-safe handles remain native implementation detail;
 - further batching and export-count reduction remain separate performance/API work;
 - no arbitrary Zend calls from worker threads.

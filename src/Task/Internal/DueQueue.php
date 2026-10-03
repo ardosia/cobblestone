@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Task;
+namespace Cobblestone\Task\Internal;
 
 /**
  * @internal
