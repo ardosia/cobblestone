@@ -2,18 +2,18 @@
 
 Cobblestone is a fixed-target Minecraft Windows 10 Edition Beta / MCPE 0.15.10 server.
 
-Initial compatibility target:
+Target:
 
-- game protocol: **84**
-- RakNet protocol: **8**
-- high-level gameplay/plugin language: **PHP 8.5 ZTS**
-- native mechanisms and measured hot paths: **Rust/native extensions**
+- game protocol **84**
+- RakNet protocol **8**
+- gameplay/plugin layer **PHP 8.5 ZTS**
+- native mechanisms and measured hot paths **Rust**
 
-PHP owns gameplay semantics and the ordinary plugin/developer experience. Rust owns mechanisms, concurrency infrastructure, networking, wire representation, native state, and measured hot paths.
+PHP owns gameplay semantics and the ordinary plugin/developer API. Rust owns transport, wire representation, concurrency infrastructure, native state, persistence, and measured hot paths.
 
 ## Repository layout
 
-Product code is split by responsibility, not by PHP package identity:
+Code is organized by responsibility rather than language package bureaucracy:
 
 ```text
 src/
@@ -45,25 +45,56 @@ tests/php/
 └── shared bootstrap/probe helpers
 ```
 
-PHP is one Composer package. The root autoloader maps `Cobblestone\\` directly to `src/`; namespaces define semantic domains and no subsystem is separately versioned or installed.
+PHP is one Composer package. The root autoloader maps `Cobblestone\\` to `src/`. Public API is semantic; implementation plumbing lives under explicit `Internal` or `Native` boundaries.
 
-Native mechanisms live under `native/`. Protocol 84 and RakNet transport have explicit crate identities, while the extension remains the narrow Zend bridge and keeps the `cobblestone_core_php` module/library ABI name.
+The native workspace is split by mechanism ownership:
 
-`src/World` owns fixed 0.15.10 16×16×128 world/chunk semantics. Generation, lighting, and mutation live under `src/World/Generator`, `src/World/Light`, and `src/World/Mutation` as subdomains of the same semantic world layer rather than separate packages. The server composition root creates a region-sharded native `WorldStore` when the extension is available; PHP `Chunk` objects remain owner-runtime semantic facades over native terrain/light planes, revisions, lifecycle metadata, immutable snapshots, pin counts, dirty watermarks, and atomic patches. Scalar `BlockStateId` values are the hot-path state currency; `BlockState` is the ergonomic wrapper. `docs/provenance/WORLD_API_PARITY.md` tracks semantic parity against the pinned Ardosia world substrate and records the deliberate runtime adaptations.
+- `runtime`: handles, ownership, workers, completion primitives, region routing
+- `world`: authoritative native chunk/world state, revisions, residency, snapshots, patches
+- `protocol84`: fixed-target packet, NBT, Batch, chunk, login, and gameplay wire logic
+- `transport`: RakNet 8 / UDP reliability and connection transport
+- `session`: ordered native connection/session host
+- `storage`: world metadata, region files, async load/save, compaction
+- `extension`: narrow Zend bridge; the PHP module/library ABI name remains `cobblestone_core_php`
 
-`src/Command`, `src/Event`, `src/Plugin`, `src/Task`, and `src/Server` are semantic namespaces inside the single Composer package. `src/Log` provides the PSR-3/Monolog implementation. Monotonic tick pacing remains under `src/Tick`, while the owner-runtime task scheduler keeps scheduled tasks and sleeping Fibers in stable due-time min-heaps; its heap/await marker types live under `Task\\Internal`, so dormant work is not scanned every tick. `Server::run()` owns the normal tick lifecycle and delegates signal/shutdown mechanics to an internal runner instead of exposing execution plumbing to the CLI.
+## Runtime shape
 
-The production join path reads immutable native world snapshots directly inside the extension, reuses revision-keyed protocol-84 FullChunkData encodings, and sends one bounded initial-radius Batch around the real Flat spawn. Persistent joins now prepare the requested view through one reusable native load batch and defer spawn across server ticks until each chunk is either imported from durable storage or confirmed missing and generated; no disk wait or per-chunk polling loop runs on the PHP owner runtime. Live mutations stay on the same coarse boundary: native patch commits append to a bounded change journal, one flush call per server tick coalesces/routes viewer updates, small block-only changes use protocol-84 UpdateBlock, and complete chunk snapshots are used when light/biome/extra-data or large terrain changes require them. PHP still owns gameplay semantics and never marshals per-block network deltas. Obsolete synthetic bootstrap compatibility exports were removed when native ABI version 1 became explicit. `docs/architecture/WORLD_SYNC.md` records the measured thresholds. `native/storage` implements `world.cwm`, the custom v1 chunk-record/dual-index region durability core, and bounded native async save/load services described in `docs/architecture/WORLD_STORAGE.md`. Loaded native chunks are adopted into PHP residency without rewriting terrain, while unresolved synchronous access raises `ChunkLoadPending` instead of clobbering unknown durable state.
+`Server` is the ordinary public facade. Construction is side-effect free; `Server::run()` owns normal execution and delegates tick/session mechanics behind internal runtime boundaries.
+
+Commands, events, plugins, tasks, and world operations are exposed as direct semantic operations rather than manager/registry chains. Server-owned session bootstrap/gameplay state and scheduler implementation markers are internal.
+
+`World` owns fixed 16×16×128 MCPE 0.15.10 world semantics. Generation, lighting, and mutation live under the same World domain. `Chunk` is backend-agnostic through an internal two-implementation state boundary: native `WorldStore` state when the extension is available, or the parity-tested PHP fallback.
+
+The PHP/native boundary stays coarse. Native snapshots and atomic patches avoid per-cell marshaling where possible; world/session/task raw FFI calls are centralized under `Cobblestone\Native`.
+
+## Persistence
+
+The production CLI uses the custom persistent world store at `worlds/world` by default.
+
+Useful environment variables:
+
+- `COBBLESTONE_WORLD_DIR`
+- `COBBLESTONE_WORLD_NAME`
+- `COBBLESTONE_WORLD_SEED`
+- `COBBLESTONE_FLAT_PRESET`
+- `COBBLESTONE_SAVE_WORKERS`
+- `COBBLESTONE_LOAD_WORKERS`
+- `COBBLESTONE_COMPACTION_MIN_DEAD_BYTES`
+- `COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT`
+
+Stored `world.cwm` metadata wins over creation defaults when reopening a world. Save/load worker counts must be 1..32. Region compaction is gated by configured reclaimable-dead-byte and dead-percent thresholds.
+
+See `docs/architecture/WORLD_STORAGE.md` for the storage model and `docs/architecture/WORLD_SYNC.md` for chunk/view synchronization behavior.
 
 ## Developer workflow
 
-First checkout or after PHP dependency-graph changes:
+First checkout or after PHP dependency changes:
 
 ```text
 composer setup
 ```
 
-Normal commands:
+Common commands:
 
 ```text
 composer modules
@@ -84,14 +115,19 @@ composer native:build
 composer test:php
 ```
 
-`composer modules` reports the PHP source root and current Rust crates.
+`composer verify` is the broad local validation command. GitHub Actions are currently manual-dispatch only.
 
-The production CLI uses the custom persistent world store by default at `worlds/world` (ignored by Git). `COBBLESTONE_WORLD_DIR` selects another directory; `COBBLESTONE_WORLD_NAME`, `COBBLESTONE_WORLD_SEED`, and `COBBLESTONE_FLAT_PRESET` are creation defaults only and stored `world.cwm` metadata wins on reopen. `COBBLESTONE_SAVE_WORKERS` and `COBBLESTONE_LOAD_WORKERS` select 1..32 native storage workers and default to 2 each. Production region compaction uses a conservative default gate of at least 64 MiB reclaimable dead records and at least 50% dead record bytes. `COBBLESTONE_COMPACTION_MIN_DEAD_BYTES` and `COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT` override those gates; zero disables that criterion, both zero disable scheduling, and every enabled criterion must match before native storage workers queue a compaction.
+## Architecture
 
-Automatic GitHub Actions runs are temporarily disabled while the current repository/package cleanup is validated locally. The workflow remains available through manual dispatch.
+Durable engineering design lives under `docs/architecture/`. Start with:
 
-## Engineering state
+- `FOUNDATION.md`
+- `API_STYLE.md`
+- `RUNTIME_API.md`
+- `COMMANDS.md`
+- `WORLD_API.md`
+- `TRANSPORT_API.md`
+- `DATA_API.md`
+- `SUBSYSTEMS.md`
 
-Architecture is documented in `docs/architecture/FOUNDATION.md`.
-
-The PHP package workspace and initial Flat world API were locally verified on PHP 8.5.11 ZTS at revision `9f4786380afe307d8b4c6eb610b6f449a7e6a72f`. The logging/tick/shutdown/mutation/region foundation is locally verified on PHP 8.5.11 ZTS at revision `ff5411bdff963b976d6a2232b62c288249d7fe94`. The fixed 0.15.10 client has joined through the production PHP-owned server/session stack. `world-protocol84-stream-v1` is complete: real PHP Flat chunk snapshots are encoded as protocol-84 `ORDER_LAYERED` terrain, the real client renders the expected horizontal Flat world, and local `composer verify` passed on revision `3fba73581de40e1c22bed40be5b6db695ba2b39d`.
+Provenance and compatibility notes live under `docs/provenance/`.
