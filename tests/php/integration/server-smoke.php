@@ -9,7 +9,7 @@ use Cobblestone\Server\ServerState;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Tests\ServerSmokePlugin;
 
-require_once __DIR__ . '/bootstrap.php';
+require_once dirname(__DIR__) . '/bootstrap.php';
 
 function server_fail(string $message): never
 {
@@ -37,7 +37,7 @@ if ($started) {
     server_fail('server started event fired during construction');
 }
 
-$pluginFile = __DIR__ . '/fixtures/ServerSmokePlugin.php';
+$pluginFile = dirname(__DIR__) . '/fixtures/ServerSmokePlugin.php';
 $server->loadPlugin($pluginFile, ServerSmokePlugin::class);
 
 if ((ServerSmokePlugin::$state['enabled'] ?? false) !== true) {

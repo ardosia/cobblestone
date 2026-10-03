@@ -148,7 +148,7 @@ function testPhp(): void
         'world-smoke.php',
         'world-mutation-smoke.php',
     ] as $test) {
-        run([PHP_BINARY, ROOT . '/tests/php/' . $test]);
+        run([PHP_BINARY, ROOT . '/tests/php/unit/' . $test]);
     }
 
     foreach ([
@@ -156,20 +156,25 @@ function testPhp(): void
         'extension-smoke.php',
         'native-world-smoke.php',
         'native-storage-smoke.php',
+        'fiber-smoke.php',
+        'session-runtime-smoke.php',
+    ] as $test) {
+        runWithExtension(ROOT . '/tests/php/native/' . $test);
+    }
+
+    foreach ([
         'world-sync-smoke.php',
         'multi-view-smoke.php',
         'pending-disconnect-smoke.php',
         'backpressure-view-smoke.php',
         'persistent-join-smoke.php',
-        'fiber-smoke.php',
-        'session-runtime-smoke.php',
         'server-smoke.php',
     ] as $test) {
-        runWithExtension(ROOT . '/tests/php/' . $test);
+        runWithExtension(ROOT . '/tests/php/integration/' . $test);
         if ($test === 'world-sync-smoke.php') {
-            runWithExtension(ROOT . '/tests/php/' . $test, ['--transition-only']);
-            runWithExtension(ROOT . '/tests/php/' . $test, ['--radius-cycle']);
-            runWithExtension(ROOT . '/tests/php/' . $test, ['--stream-torture']);
+            runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--transition-only']);
+            runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--radius-cycle']);
+            runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--stream-torture']);
         }
     }
 }

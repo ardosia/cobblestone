@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/bootstrap.php';
+require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\ViewSendResult;
@@ -107,7 +107,7 @@ $server->on(
 
 $server->start();
 
-$root = dirname(__DIR__, 2);
+$root = dirname(__DIR__, 3);
 $process = proc_open(
     [
         'cargo',

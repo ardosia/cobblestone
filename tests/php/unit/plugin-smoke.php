@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/bootstrap.php';
+require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Command\CommandParseException;
 use Cobblestone\Command\Internal\CommandTree;
@@ -57,7 +57,7 @@ try {
 }
 
 try {
-    $plugins->load(__DIR__ . '/fixtures/FailingSmokePlugin.php', FailingSmokePlugin::class);
+    $plugins->load(dirname(__DIR__) . '/fixtures/FailingSmokePlugin.php', FailingSmokePlugin::class);
     throw new RuntimeException('failing plugin unexpectedly enabled');
 } catch (RuntimeException $error) {
     pluginExpect($error->getMessage() === 'expected plugin enable failure', 'wrong plugin enable failure');

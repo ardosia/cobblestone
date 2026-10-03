@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/bootstrap.php';
+require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
@@ -57,7 +57,7 @@ $server->on(
 
 $server->start();
 
-$root = dirname(__DIR__, 2);
+$root = dirname(__DIR__, 3);
 $clients = [];
 foreach (['east' => '--hold-east', 'west' => '--hold-west'] as $name => $mode) {
     $command = [

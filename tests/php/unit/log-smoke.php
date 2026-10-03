@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/bootstrap.php';
+require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Log\ContextLogger;
 use Cobblestone\Log\ConsoleFormatter;

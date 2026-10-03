@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/bootstrap.php';
+require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\Generator\Generator;
@@ -18,7 +18,7 @@ function compositionExpect(bool $condition, string $message): void
     }
 }
 
-$root = dirname(__DIR__, 2);
+$root = dirname(__DIR__, 3);
 $composer = json_decode(
     (string) file_get_contents($root . '/composer.json'),
     true,

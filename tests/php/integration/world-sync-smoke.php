@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/bootstrap.php';
+require dirname(__DIR__) . '/bootstrap.php';
 
 $transitionOnly = in_array('--transition-only', $argv, true);
 $radiusCycle = in_array('--radius-cycle', $argv, true);
@@ -110,7 +110,7 @@ $server->on(
 
 $server->start();
 
-$root = dirname(__DIR__, 2);
+$root = dirname(__DIR__, 3);
 $command = [
     'cargo',
     'run',
