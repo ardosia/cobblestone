@@ -137,6 +137,7 @@ function testPhp(): void
     run([PHP_BINARY, ROOT . '/tests/php/zts-probe.php']);
 
     foreach ([
+        'biome-smoke.php',
         'command-smoke.php',
         'log-smoke.php',
         'plugin-smoke.php',
