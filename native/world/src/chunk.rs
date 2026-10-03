@@ -34,18 +34,18 @@ pub(super) struct ChunkData {
     pub(super) states: Vec<u16>,
     pub(super) sky_light: Vec<u8>,
     pub(super) block_light: Vec<u8>,
-    pub(super) biomes: Vec<u8>,
+    pub(super) biomes: Vec<u32>,
     pub(super) height_map: Vec<u8>,
     pub(super) extra_data: BTreeMap<u16, u16>,
 }
 
 impl ChunkData {
-    pub(super) fn empty(biome: u8) -> Self {
+    pub(super) fn empty(biome_word: u32) -> Self {
         Self {
             states: vec![0; CHUNK_BLOCK_COUNT],
             sky_light: vec![0; CHUNK_NIBBLE_BYTES],
             block_light: vec![0; CHUNK_NIBBLE_BYTES],
-            biomes: vec![biome; CHUNK_COLUMN_COUNT],
+            biomes: vec![biome_word; CHUNK_COLUMN_COUNT],
             height_map: vec![0; CHUNK_COLUMN_COUNT],
             extra_data: BTreeMap::new(),
         }
@@ -65,7 +65,7 @@ pub(super) struct ChunkRecord {
 }
 
 impl ChunkRecord {
-    pub(super) fn empty(biome: u8) -> Self {
+    pub(super) fn empty(biome_word: u32) -> Self {
         Self {
             terrain_revision: 0,
             light_revision: 0,
@@ -74,7 +74,7 @@ impl ChunkRecord {
             persisted_lifecycle_flags: None,
             pin_count: 0,
             lifecycle_flags: 0,
-            data: Arc::new(ChunkData::empty(biome)),
+            data: Arc::new(ChunkData::empty(biome_word)),
         }
     }
 
@@ -148,7 +148,7 @@ impl ChunkSnapshot {
         &self.data.block_light
     }
 
-    pub fn biomes(&self) -> &[u8] {
+    pub fn biomes(&self) -> &[u32] {
         &self.data.biomes
     }
 
@@ -169,7 +169,7 @@ pub struct ChunkImport {
     pub states: Vec<u16>,
     pub sky_light: Vec<u8>,
     pub block_light: Vec<u8>,
-    pub biomes: Vec<u8>,
+    pub biomes: Vec<u32>,
     pub height_map: Vec<u8>,
     pub extra_data: BTreeMap<u16, u16>,
 }
@@ -181,7 +181,7 @@ pub struct ChunkPatch {
     pub expected_light_revision: u64,
     pub next_light_revision: u64,
     pub blocks: Vec<(u16, u16)>,
-    pub biomes: Vec<(u8, u8)>,
+    pub biomes: Vec<(u8, u32)>,
     pub extra_data: Vec<(u16, u16)>,
     pub sky_light: Vec<(u16, u8)>,
     pub block_light: Vec<(u16, u8)>,

@@ -10,7 +10,7 @@ final readonly class ChunkDataSnapshot
     public function __construct(
         private string $blockIds,
         private string $blockData,
-        private string $biomes,
+        private string $biomeWords,
     ) {
         if (strlen($blockIds) !== ChunkSnapshot::BLOCK_COUNT) {
             throw new \ValueError('chunk terrain snapshot block-id length mismatch');
@@ -18,8 +18,8 @@ final readonly class ChunkDataSnapshot
         if (strlen($blockData) !== ChunkSnapshot::NIBBLE_BYTES) {
             throw new \ValueError('chunk terrain snapshot block-data length mismatch');
         }
-        if (strlen($biomes) !== ChunkSnapshot::COLUMN_COUNT) {
-            throw new \ValueError('chunk terrain snapshot biome length mismatch');
+        if (strlen($biomeWords) !== ChunkSnapshot::COLUMN_COUNT * 4) {
+            throw new \ValueError('chunk terrain snapshot biome-word length mismatch');
         }
     }
 
@@ -47,12 +47,25 @@ final readonly class ChunkDataSnapshot
         return $stateId === null ? null : BlockState::fromId($stateId);
     }
 
-    public function biome(int $x, int $z): ?BiomeId
+    public function biomeColumn(int $x, int $z): ?BiomeColumn
     {
         if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
             return null;
         }
 
-        return new BiomeId(ord($this->biomes[($z << 4) | $x]));
+        $offset = (($z << 4) | $x) * 4;
+        $parts = unpack('Nword', substr($this->biomeWords, $offset, 4));
+
+        return $parts === false ? null : BiomeColumn::fromWord($parts['word']);
+    }
+
+    public function biome(int $x, int $z): ?BiomeId
+    {
+        return $this->biomeColumn($x, $z)?->id;
+    }
+
+    public function biomeColor(int $x, int $z): ?int
+    {
+        return $this->biomeColumn($x, $z)?->color;
     }
 }

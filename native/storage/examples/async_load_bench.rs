@@ -25,7 +25,7 @@ fn snapshots() -> Vec<cobblestone_world::ChunkSnapshot> {
             ((region % 4) * 16 + local) as i32,
             ((region / 4) * 16) as i32,
         );
-        store.ensure_chunk(position, 1);
+        store.ensure_chunk(position, 1).unwrap();
         store.fill_layers(position, 0, 1, 7 << 4).unwrap();
         store.fill_layers(position, 1, 2, 3 << 4).unwrap();
         store.fill_layers(position, 3, 1, 2 << 4).unwrap();

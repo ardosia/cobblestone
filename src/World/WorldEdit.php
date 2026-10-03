@@ -21,9 +21,17 @@ interface WorldEdit
 
     public function setBlock(BlockPos $position, BlockState $state): BlockState;
 
+    public function biomeColumnAt(int $x, int $z): BiomeColumn;
+
     public function biomeAt(int $x, int $z): BiomeId;
 
+    public function biomeColorAt(int $x, int $z): int;
+
+    public function setBiomeColumnAt(int $x, int $z, BiomeColumn $biome): BiomeColumn;
+
     public function setBiomeAt(int $x, int $z, BiomeId $biome): BiomeId;
+
+    public function setBiomeColorAt(int $x, int $z, int $color): int;
 
     public function blockExtraData(BlockPos $position): int;
 

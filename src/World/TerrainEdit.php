@@ -34,14 +34,34 @@ final class TerrainEdit
         return $this->patch->setBlock($this->terrain, $x, $y, $z, $state);
     }
 
+    public function biomeColumn(int $x, int $z): ?BiomeColumn
+    {
+        return $this->patch->biomeColumn($this->terrain, $x, $z);
+    }
+
     public function biome(int $x, int $z): ?BiomeId
     {
         return $this->patch->biome($this->terrain, $x, $z);
     }
 
+    public function biomeColor(int $x, int $z): ?int
+    {
+        return $this->patch->biomeColor($this->terrain, $x, $z);
+    }
+
+    public function setBiomeColumn(int $x, int $z, BiomeColumn $biome): ?BiomeColumn
+    {
+        return $this->patch->setBiomeColumn($this->terrain, $x, $z, $biome);
+    }
+
     public function setBiome(int $x, int $z, BiomeId $biome): ?BiomeId
     {
         return $this->patch->setBiome($this->terrain, $x, $z, $biome);
+    }
+
+    public function setBiomeColor(int $x, int $z, int $color): ?int
+    {
+        return $this->patch->setBiomeColor($this->terrain, $x, $z, $color);
     }
 
     public function commit(): bool

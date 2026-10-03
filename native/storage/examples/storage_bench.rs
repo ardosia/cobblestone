@@ -40,7 +40,9 @@ fn snapshot_at(
                 .collect(),
             (0..CHUNK_NIBBLE_BYTES).map(|_| next() as u8).collect(),
             (0..CHUNK_NIBBLE_BYTES).map(|_| next() as u8).collect(),
-            (0..CHUNK_COLUMN_COUNT).map(|_| next() as u8).collect(),
+            (0..CHUNK_COLUMN_COUNT)
+                .map(|_| (1_u32 << 24) | (next() & 0x00ff_ffff))
+                .collect(),
             (0..CHUNK_COLUMN_COUNT)
                 .map(|_| (next() & 0x7f) as u8)
                 .collect(),
@@ -62,7 +64,7 @@ fn snapshot_at(
             states,
             sky,
             vec![0_u8; CHUNK_NIBBLE_BYTES],
-            vec![1_u8; CHUNK_COLUMN_COUNT],
+            vec![0x0192_bc59_u32; CHUNK_COLUMN_COUNT],
             vec![3_u8; CHUNK_COLUMN_COUNT],
         )
     };

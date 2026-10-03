@@ -5,6 +5,8 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\WorldFactory;
+use Cobblestone\World\BiomeColumn;
+use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\ChunkPos;
@@ -81,6 +83,32 @@ worldExpect(worldNibble($snapshot->skyLight, 1024) === 15, 'snapshot first-air s
 worldExpect(ord($snapshot->biomes[0]) === 1, 'snapshot biome-id byte mismatch');
 worldExpect(ord($snapshot->heightMap[0]) === 3, 'snapshot height-map byte mismatch');
 worldExpect($snapshot->extraData === [], 'fresh snapshot should not contain extra data');
+
+worldExpect($chunk->biomeColor(0, 0) === 0x92bc59, 'flat default biome color mismatch');
+$biomeX = -16;
+$biomeZ = 32;
+worldExpect(
+    $world->setBiomeColorAt($biomeX, $biomeZ, 0x123456) === 0x92bc59,
+    'world biome color previous value mismatch',
+);
+worldExpect($world->biomeAt($biomeX, $biomeZ)->value === 1, 'biome color edit changed biome id');
+worldExpect(
+    $world->setBiomeAt($biomeX, $biomeZ, new BiomeId(BiomeId::DESERT))->value === BiomeId::PLAINS,
+    'world biome id previous value mismatch',
+);
+worldExpect($world->biomeColorAt($biomeX, $biomeZ) === 0x123456, 'biome id edit did not preserve color');
+$previousBiomeColumn = $world->setBiomeColumnAt(
+    $biomeX,
+    $biomeZ,
+    new BiomeColumn(new BiomeId(BiomeId::FOREST), 0xabcdef),
+);
+worldExpect($previousBiomeColumn->word() === 0x02123456, 'full biome-column previous value mismatch');
+worldExpect($world->biomeColumnAt($biomeX, $biomeZ)->word() === 0x04abcdef, 'full biome-column write mismatch');
+$biomeSnapshot = $chunk->snapshot();
+worldExpect($biomeSnapshot->biomeWord(0, 0) === 0x04abcdef, 'snapshot biome word mismatch');
+worldExpect($biomeSnapshot->biomeId(0, 0) === BiomeId::FOREST, 'snapshot biome id mismatch');
+worldExpect($biomeSnapshot->biomeColor(0, 0) === 0xabcdef, 'snapshot biome color mismatch');
+worldExpect(ord($biomeSnapshot->biomes[0]) === BiomeId::FOREST, 'snapshot compatibility biome id mismatch');
 
 $global = new BlockPos(-1, 10, 47);
 worldExpect($global->chunk()->x === -1 && $global->chunk()->z === 2, 'global-to-chunk mapping mismatch');

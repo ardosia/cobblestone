@@ -17,6 +17,15 @@ function biomeExpect(bool $condition, string $message): void
 }
 
 $ids = BiomeCatalog::ids();
+$expectedIds = [
+    0, 1, 2, 3, 4, 5, 6, 7, 8,
+    10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+    33, 34, 35, 36, 37, 38, 39,
+    129, 130, 131, 132, 133, 134, 140, 149, 151, 155,
+    156, 157, 158, 160, 161, 162, 163, 164, 165, 166, 167,
+];
+biomeExpect($ids === $expectedIds, 'fixed-target biome catalog IDs differ from the 0.15.10 registration table');
 biomeExpect(count($ids) === 60, 'fixed-target biome catalog count mismatch');
 biomeExpect($ids[0] === 0 && $ids[array_key_last($ids)] === 167, 'biome catalog ordering mismatch');
 biomeExpect(!in_array(9, $ids, true), 'dormant End biome must not be registered as a 0.15.10 world biome');

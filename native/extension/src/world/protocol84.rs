@@ -74,7 +74,7 @@ pub(crate) fn protocol84_chunk(handle_value: i64, position: ChunkCoord) -> PhpRe
         block_data: &block_data,
         sky_light: snapshot.sky_light(),
         block_light: snapshot.block_light(),
-        biomes: snapshot.biomes(),
+        biome_words: snapshot.biomes(),
         height_map: snapshot.height_map(),
         extra_data: &extra_data,
     })

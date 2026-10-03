@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\World\Mutation;
 
-use Cobblestone\World\BiomeId;
+use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\Chunk;
 
 /** @internal */
@@ -12,7 +12,7 @@ final class PreparedChunkPatch
 {
     /**
      * @param array<int, int> $blocks scalar BlockStateId tokens
-     * @param array<int, BiomeId> $biomes
+     * @param array<int, BiomeColumn> $biomes
      * @param array<int, int> $extraData
      * @param array<int, int> $skyLight
      * @param array<int, int> $blockLight

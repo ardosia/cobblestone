@@ -7,6 +7,7 @@ namespace Cobblestone\Native;
 use Cobblestone\Native\World\LoadStatus;
 use Cobblestone\Native\World\Metadata;
 use Cobblestone\Native\World\StorageProjection;
+use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\ChunkPos;
@@ -384,6 +385,33 @@ final class World
         );
     }
 
+    public function biomeWord(ChunkPos $position, int $x, int $z): int
+    {
+        return cobblestone_world_biome_word(
+            $this->requireHandle(),
+            $position->x,
+            $position->z,
+            $x,
+            $z,
+        );
+    }
+
+    public function setBiomeWord(ChunkPos $position, int $x, int $z, int $word): int
+    {
+        if ($word < 0 || $word > 0xffffffff) {
+            throw new \ValueError('fixed-target biome word must fit unsigned 32 bits');
+        }
+
+        return cobblestone_world_set_biome_word(
+            $this->requireHandle(),
+            $position->x,
+            $position->z,
+            $x,
+            $z,
+            $word,
+        );
+    }
+
     public function biome(ChunkPos $position, int $x, int $z): int
     {
         return cobblestone_world_biome(
@@ -522,7 +550,7 @@ final class World
 
     /**
      * @param array<int, int> $blocks linear block index => scalar state id
-     * @param array<int, BiomeId> $biomes column index => biome
+     * @param array<int, BiomeColumn> $biomes column index => biome column
      * @param array<int, int> $extraData linear block index => extra data
      * @param array<int, int> $skyLight linear block index => light
      * @param array<int, int> $blockLight linear block index => light
@@ -557,7 +585,7 @@ final class World
             $payload .= pack('vv', $index, $stateId);
         }
         foreach ($biomes as $index => $biome) {
-            $payload .= pack('CC', $index, $biome->value);
+            $payload .= pack('CV', $index, $biome->word());
         }
         foreach ($extraData as $index => $value) {
             $payload .= pack('vv', $index, $value);
@@ -581,7 +609,7 @@ final class World
      * Materializes one immutable chunk projection for compatibility/debug consumers.
      *
      * Layout: terrainRevision(u64le), lightRevision(u64le), blockIds, blockData, skyLight,
-     * blockLight, biomes, heightMap, extraCount(u32le), then extraData key/value u16le pairs.
+     * blockLight, biomeWords(256*u32be), heightMap, extraCount(u32le), then extraData key/value u16le pairs.
      */
     public function snapshotProjection(ChunkPos $position): string
     {

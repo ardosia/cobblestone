@@ -67,7 +67,7 @@ final class BiomeCatalog
         157 => ['name' => 'Roofed Forest M', 'color' => 0x517a32],
         158 => ['name' => 'Cold Taiga M', 'color' => 0x80b497],
         160 => ['name' => 'Mega Spruce Taiga', 'color' => 0x87b684],
-        161 => ['name' => 'Mega Spruce Taiga Hills', 'color' => 0x87b780],
+        161 => ['name' => 'Redwood Taiga Hills M', 'color' => 0x87b780],
         162 => ['name' => 'Extreme Hills+ M', 'color' => 0x8ab589],
         163 => ['name' => 'Savanna M', 'color' => 0x83c344],
         164 => ['name' => 'Savanna Plateau M', 'color' => 0x83c344],

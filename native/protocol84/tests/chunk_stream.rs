@@ -9,7 +9,7 @@ struct FlatChunkFixture {
     block_data: Vec<u8>,
     sky_light: Vec<u8>,
     block_light: Vec<u8>,
-    biomes: Vec<u8>,
+    biome_words: Vec<u32>,
     height_map: Vec<u8>,
 }
 
@@ -36,7 +36,7 @@ impl FlatChunkFixture {
             block_data,
             sky_light,
             block_light: vec![0_u8; CHUNK_NIBBLE_BYTES],
-            biomes: vec![1_u8; CHUNK_COLUMN_COUNT],
+            biome_words: vec![0x0192_bc59_u32; CHUNK_COLUMN_COUNT],
             height_map: vec![3_u8; CHUNK_COLUMN_COUNT],
         }
     }
@@ -54,7 +54,7 @@ impl FlatChunkFixture {
             block_data: &self.block_data,
             sky_light: &self.sky_light,
             block_light: &self.block_light,
-            biomes: &self.biomes,
+            biome_words: &self.biome_words,
             height_map: &self.height_map,
             extra_data,
         }
@@ -129,6 +129,22 @@ fn real_default_flat_chunk_encodes_historical_layered_layout() {
 }
 
 #[test]
+fn stored_biome_word_is_emitted_verbatim() {
+    let mut fixture = FlatChunkFixture::default_world();
+    fixture.biome_words[0] = 0x0412_3456;
+
+    let packet = encode_protocol84_full_chunk_data(fixture.snapshot(0, 0, &[]))
+        .expect("encode custom biome word");
+    let payload = &packet.body().as_slice()[13..];
+    let biome_offset = CHUNK_BLOCK_COUNT + CHUNK_NIBBLE_BYTES * 3 + CHUNK_COLUMN_COUNT;
+
+    assert_eq!(
+        &payload[biome_offset..biome_offset + 4],
+        &0x0412_3456_u32.to_be_bytes()
+    );
+}
+
+#[test]
 fn sparse_extra_data_uses_historical_little_endian_entries() {
     let fixture = FlatChunkFixture::default_world();
     let extra = [(0x0000_ff7f_u32, 0xbeef_u16)];
@@ -148,7 +164,7 @@ fn sparse_extra_data_uses_historical_little_endian_entries() {
 }
 
 #[test]
-fn malformed_planes_and_unsupported_biomes_fail_explicitly() {
+fn malformed_planes_fail_explicitly() {
     let fixture = FlatChunkFixture::default_world();
     let short_blocks = vec![0_u8; CHUNK_BLOCK_COUNT - 1];
 
@@ -160,7 +176,7 @@ fn malformed_planes_and_unsupported_biomes_fail_explicitly() {
             block_data: &fixture.block_data,
             sky_light: &fixture.sky_light,
             block_light: &fixture.block_light,
-            biomes: &fixture.biomes,
+            biome_words: &fixture.biome_words,
             height_map: &fixture.height_map,
             extra_data: &[],
         }),
@@ -169,12 +185,5 @@ fn malformed_planes_and_unsupported_biomes_fail_explicitly() {
             expected: CHUNK_BLOCK_COUNT,
             actual: CHUNK_BLOCK_COUNT - 1,
         })
-    );
-
-    let mut fixture = FlatChunkFixture::default_world();
-    fixture.biomes[0] = 255;
-    assert_eq!(
-        encode_protocol84_full_chunk_data(fixture.snapshot(0, 0, &[])),
-        Err(CodecError::UnsupportedChunkBiome { id: 255 })
     );
 }

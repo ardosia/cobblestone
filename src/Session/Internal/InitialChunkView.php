@@ -126,7 +126,7 @@ final class InitialChunkView
             $parts[] = $snapshot->blockData;
             $parts[] = $snapshot->skyLight;
             $parts[] = $snapshot->blockLight;
-            $parts[] = $snapshot->biomes;
+            $parts[] = $snapshot->biomeWords;
             $parts[] = $snapshot->heightMap;
 
             $extraData = $snapshot->extraData;

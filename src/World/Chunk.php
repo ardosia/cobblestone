@@ -167,19 +167,47 @@ final class Chunk
         return $this->state->setBlockLight($x, $y, $z, $level);
     }
 
-    public function biome(int $x, int $z): BiomeId
+    public function biomeColumn(int $x, int $z): BiomeColumn
     {
         self::assertColumnCoordinates($x, $z);
 
-        return $this->state->biome($x, $z);
+        return $this->state->biomeColumn($x, $z);
+    }
+
+    public function biome(int $x, int $z): BiomeId
+    {
+        return $this->biomeColumn($x, $z)->id;
+    }
+
+    public function biomeColor(int $x, int $z): int
+    {
+        return $this->biomeColumn($x, $z)->color;
+    }
+
+    /** @internal Initialization or prepared-mutation commit primitive. */
+    public function setBiomeColumn(int $x, int $z, BiomeColumn $biome): BiomeColumn
+    {
+        self::assertColumnCoordinates($x, $z);
+
+        return $this->state->setBiomeColumn($x, $z, $biome);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
     {
-        self::assertColumnCoordinates($x, $z);
+        $previous = $this->biomeColumn($x, $z);
+        $this->setBiomeColumn($x, $z, $previous->withId($biome));
 
-        return $this->state->setBiome($x, $z, $biome);
+        return $previous->id;
+    }
+
+    /** @internal Initialization or prepared-mutation commit primitive. */
+    public function setBiomeColor(int $x, int $z, int $color): int
+    {
+        $previous = $this->biomeColumn($x, $z);
+        $this->setBiomeColumn($x, $z, $previous->withColor($color));
+
+        return $previous->color;
     }
 
     public function highestBlockAt(int $x, int $z): int
@@ -238,7 +266,7 @@ final class Chunk
 
     /**
      * @param array<int, int> $blocks
-     * @param array<int, BiomeId> $biomes
+     * @param array<int, BiomeColumn> $biomes
      * @param array<int, int> $extraData
      * @param array<int, int> $skyLight
      * @param array<int, int> $blockLight

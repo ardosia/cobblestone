@@ -31,8 +31,8 @@ pub struct Protocol84ChunkSnapshot<'a> {
     pub sky_light: &'a [u8],
     /// Semantic block-light nibble plane.
     pub block_light: &'a [u8],
-    /// Per-column semantic biome IDs in Z/X order.
-    pub biomes: &'a [u8],
+    /// Per-column fixed-target biome words: high byte ID, low 24 bits RGB.
+    pub biome_words: &'a [u32],
     /// Per-column height map in Z/X order.
     pub height_map: &'a [u8],
     /// Sparse fixed-target block-extra-data entries keyed by (z << 12) | (x << 8) | y.
@@ -51,8 +51,8 @@ pub fn encode_protocol84_chunk_unload(_chunk_x: i32, _chunk_z: i32) -> Option<Ra
 /// Encodes one semantic chunk snapshot as protocol-84 FullChunkData using layered order.
 ///
 /// Protocol-84 ORDER_LAYERED consumes the same Y/Z/X block and nibble plane order used by the
-/// semantic snapshot. Height map stays byte-per-column, biome IDs become fixed-target biome
-/// ID/color words, and sparse extra data is little-endian.
+/// semantic snapshot. Height map stays byte-per-column, stored biome words are emitted
+/// big-endian unchanged, and sparse extra data is little-endian.
 pub fn encode_protocol84_full_chunk_data(
     snapshot: Protocol84ChunkSnapshot<'_>,
 ) -> Result<RawPacket, CodecError> {
@@ -64,7 +64,13 @@ pub fn encode_protocol84_full_chunk_data(
         snapshot.block_light,
         CHUNK_NIBBLE_BYTES,
     )?;
-    require_len("chunk biomes", snapshot.biomes, CHUNK_COLUMN_COUNT)?;
+    if snapshot.biome_words.len() != CHUNK_COLUMN_COUNT {
+        return Err(CodecError::InvalidChunkPlaneLength {
+            field: "chunk biome words",
+            expected: CHUNK_COLUMN_COUNT,
+            actual: snapshot.biome_words.len(),
+        });
+    }
     require_len("chunk height map", snapshot.height_map, CHUNK_COLUMN_COUNT)?;
 
     let extra_bytes =
@@ -91,8 +97,8 @@ pub fn encode_protocol84_full_chunk_data(
     payload.extend_from_slice(snapshot.block_light);
     payload.extend_from_slice(snapshot.height_map);
 
-    for &biome in snapshot.biomes {
-        payload.extend_from_slice(&fixed_target_biome_word(biome)?.to_be_bytes());
+    for &word in snapshot.biome_words {
+        payload.extend_from_slice(&word.to_be_bytes());
     }
 
     let extra_count =
@@ -136,14 +142,6 @@ fn require_len(field: &'static str, bytes: &[u8], expected: usize) -> Result<(),
             expected,
             actual: bytes.len(),
         })
-    }
-}
-
-fn fixed_target_biome_word(id: u8) -> Result<u32, CodecError> {
-    match id {
-        // 0.15.10 Plains: biome ID 1 in the high byte, historical grass RGB 0x92bc59.
-        1 => Ok(0x0192_bc59),
-        _ => Err(CodecError::UnsupportedChunkBiome { id }),
     }
 }
 

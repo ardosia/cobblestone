@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use super::{
     CHUNK_COLUMN_COUNT, ChunkCoord, ChunkPatch, MAX_POINT_BLOCK_CHANGES, WorldChangeKind,
-    WorldStore, WorldStoreError, linear_index_to_extra_key, recalculate_column_height,
-    validate_block_index, validate_column_index, validate_light, validate_state, write_nibble,
+    WorldStore, WorldStoreError, biome_id, biome_id_is_supported, linear_index_to_extra_key,
+    recalculate_column_height, validate_block_index, validate_column_index, validate_light,
+    validate_state, write_nibble,
 };
 
 impl WorldStore {
@@ -16,8 +17,12 @@ impl WorldStore {
             validate_block_index(index)?;
             validate_state(state)?;
         }
-        for &(index, _) in &patch.biomes {
+        for &(index, word) in &patch.biomes {
             validate_column_index(index)?;
+            let id = biome_id(word);
+            if !biome_id_is_supported(id) {
+                return Err(WorldStoreError::InvalidBiome(id));
+            }
         }
         for &(index, _) in &patch.extra_data {
             validate_block_index(index)?;

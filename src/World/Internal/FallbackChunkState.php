@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cobblestone\World\Internal;
 
 use Cobblestone\Native\World as NativeWorld;
+use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkCoordinateKey;
@@ -26,7 +27,7 @@ final class FallbackChunkState implements ChunkState
 {
     /** @var array<int, ChunkSection> */
     private array $sections;
-    private string $biomes;
+    private string $biomeWords;
     private string $heightMap;
 
     private bool $generated = false;
@@ -52,7 +53,7 @@ final class FallbackChunkState implements ChunkState
         }
 
         $columns = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE;
-        $this->biomes = str_repeat(chr($biome->value), $columns);
+        $this->biomeWords = str_repeat(pack('N', $biome->column()->word()), $columns);
         $this->heightMap = str_repeat("\x00", $columns);
     }
 
@@ -78,7 +79,7 @@ final class FallbackChunkState implements ChunkState
             $blockData,
             $skyLight,
             $blockLight,
-            $this->biomes,
+            $this->biomeWords,
             $this->heightMap,
             $this->extraData,
             $this->lightRevision,
@@ -208,16 +209,27 @@ final class FallbackChunkState implements ChunkState
         return $this->sections[$section]->setBlockLight($x, $y & 0x0f, $z, $level);
     }
 
-    public function biome(int $x, int $z): BiomeId
+    public function biomeColumn(int $x, int $z): BiomeColumn
     {
-        return new BiomeId(ord($this->biomes[self::columnIndex($x, $z)]));
+        $offset = self::columnIndex($x, $z) * 4;
+        $parts = unpack('Nword', substr($this->biomeWords, $offset, 4));
+        if ($parts === false || !is_int($parts['word'])) {
+            throw new LogicException('fallback biome word became invalid');
+        }
+
+        return BiomeColumn::fromWord($parts['word']);
     }
 
-    public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
+    public function setBiomeColumn(int $x, int $z, BiomeColumn $biome): BiomeColumn
     {
         $index = self::columnIndex($x, $z);
-        $previous = new BiomeId(ord($this->biomes[$index]));
-        $this->biomes[$index] = chr($biome->value);
+        $previous = $this->biomeColumn($x, $z);
+        $this->biomeWords = substr_replace(
+            $this->biomeWords,
+            pack('N', $biome->word()),
+            $index * 4,
+            4,
+        );
 
         return $previous;
     }
@@ -359,7 +371,7 @@ final class FallbackChunkState implements ChunkState
         }
         foreach ($biomes as $key => $biome) {
             [$x, $z] = ChunkCoordinateKey::decodeColumn($key);
-            $this->setBiome($x, $z, $biome);
+            $this->setBiomeColumn($x, $z, $biome);
         }
         foreach ($extraData as $key => $data) {
             [$x, $y, $z] = ChunkCoordinateKey::decodeBlock($key);

@@ -1,3 +1,4 @@
+mod biome;
 mod change_log;
 mod chunk;
 mod patch;
@@ -11,6 +12,10 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use cobblestone_runtime::RegionId;
 
+pub use biome::{
+    BIOME_COLOR_MASK, biome_color, biome_id, biome_id_is_supported, default_biome_word,
+    with_biome_color, with_biome_id,
+};
 use change_log::WorldChangeLog;
 pub use change_log::{
     MAX_POINT_BLOCK_CHANGES, WORLD_CHANGE_LOG_CAPACITY, WorldChange, WorldChangeKind,
@@ -30,6 +35,7 @@ pub enum WorldStoreError {
     InvalidState(u16),
     InvalidBlockIndex(u16),
     InvalidColumnIndex(u8),
+    InvalidBiome(u8),
     InvalidLight(u8),
     InvalidLayerRange { start_y: u8, count: u8 },
     InvalidImport(&'static str),
@@ -59,6 +65,7 @@ impl fmt::Display for WorldStoreError {
             Self::InvalidColumnIndex(index) => {
                 write!(f, "chunk column index {index} is out of range")
             }
+            Self::InvalidBiome(id) => write!(f, "unsupported MCPE 0.15.10 biome id {id}"),
             Self::InvalidLight(level) => write!(f, "light level {level} is out of range"),
             Self::InvalidLayerRange { start_y, count } => {
                 write!(
@@ -229,6 +236,11 @@ fn validate_import(import: &ChunkImport) -> Result<(), WorldStoreError> {
     if import.biomes.len() != CHUNK_COLUMN_COUNT {
         return Err(WorldStoreError::InvalidImport("biome"));
     }
+    for &word in &import.biomes {
+        if !biome_id_is_supported(biome_id(word)) {
+            return Err(WorldStoreError::InvalidBiome(biome_id(word)));
+        }
+    }
     if import.height_map.len() != CHUNK_COLUMN_COUNT {
         return Err(WorldStoreError::InvalidImport("height-map"));
     }
@@ -371,7 +383,7 @@ mod tests {
     fn snapshots_are_immutable_across_later_writes() {
         let store = WorldStore::new();
         let pos = ChunkCoord::new(0, 0);
-        store.ensure_chunk(pos, 1);
+        store.ensure_chunk(pos, 1).unwrap();
         store.set_block_state(pos, 1, 2, 3, 0x10).unwrap();
         let first = store.snapshot(pos).unwrap();
 
@@ -385,7 +397,7 @@ mod tests {
     fn batch_patch_advances_revision_domains_once() {
         let store = WorldStore::new();
         let pos = ChunkCoord::new(-1, 7);
-        store.ensure_chunk(pos, 1);
+        store.ensure_chunk(pos, 1).unwrap();
 
         store
             .apply_patch(
@@ -410,7 +422,7 @@ mod tests {
     fn change_log_keeps_point_blocks_and_escalates_light_to_full_chunk() {
         let store = WorldStore::new();
         let pos = ChunkCoord::new(2, -3);
-        store.ensure_chunk(pos, 1);
+        store.ensure_chunk(pos, 1).unwrap();
         let initial = store.current_change_sequence();
 
         store
@@ -492,7 +504,7 @@ mod tests {
     fn pins_dirty_watermarks_and_lifecycle_gate_eviction() {
         let store = WorldStore::new();
         let pos = ChunkCoord::new(4, -2);
-        store.ensure_chunk(pos, 1);
+        store.ensure_chunk(pos, 1).unwrap();
 
         assert!(store.is_dirty(pos).unwrap());
         assert_eq!(store.try_evict_chunk(pos).unwrap(), ChunkEviction::Dirty);

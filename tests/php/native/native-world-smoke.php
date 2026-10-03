@@ -5,6 +5,8 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\WorldFactory;
+use Cobblestone\World\BiomeColumn;
+use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\Chunk;
@@ -195,5 +197,27 @@ nativeWorldExpect(
     $chunk->blockStateId(10, 20, 8) === BlockStateId::fromLegacy(4),
     'native terrain edit state did not commit',
 );
+
+nativeWorldExpect($chunk->biomeColor(0, 0) === 0x92bc59, 'native flat biome color mismatch');
+nativeWorldExpect(
+    $world->setBiomeColorAt(0, 0, 0x123456) === 0x92bc59,
+    'native biome color previous value mismatch',
+);
+nativeWorldExpect(
+    $world->setBiomeAt(0, 0, new BiomeId(BiomeId::DESERT))->value === BiomeId::PLAINS,
+    'native biome id previous value mismatch',
+);
+nativeWorldExpect($world->biomeColorAt(0, 0) === 0x123456, 'native biome id edit did not preserve color');
+nativeWorldExpect(
+    $world->setBiomeColumnAt(
+        0,
+        0,
+        new BiomeColumn(new BiomeId(BiomeId::FOREST), 0xabcdef),
+    )->word() === 0x02123456,
+    'native full biome-column previous value mismatch',
+);
+$biomeSnapshot = $chunk->snapshot();
+nativeWorldExpect($biomeSnapshot->biomeWord(0, 0) === 0x04abcdef, 'native snapshot biome word mismatch');
+nativeWorldExpect($biomeSnapshot->biomeColor(0, 0) === 0xabcdef, 'native snapshot biome color mismatch');
 
 fwrite(STDOUT, "native-world-smoke: passed\n");

@@ -449,11 +449,19 @@ Plugins should not marshal viewer packet deltas block by block.
 
 ## Biomes and extra data
 
-Biome and block-extra-data state remain part of chunk semantics where protocol/source parity requires them.
+MCPE 0.15.10 stores one 32-bit biome word per X/Z column, not only a biome ID. The high byte is the registered biome ID and the low 24 bits are an independently mutable RGB color. Cobblestone therefore models:
 
-Public APIs should use semantic typed values when meaningful.
+- `BiomeId` as one of the 60 biomes registered by the exact 0.15.10 target;
+- `BiomeColumn` as immutable placed column state containing `BiomeId + RGB`; and
+- the chunk biome plane as 256 full biome words.
 
-Raw numeric maps may remain available only in advanced/compatibility surfaces.
+`Chunk::biome()` / `World::biomeAt()` remain ergonomic identity reads. `setBiome()` changes only the high-byte identity and preserves the existing RGB, matching the historical chunk semantics. `biomeColor()` / `setBiomeColor()` expose the independent color channel, while `biomeColumn()` / `setBiomeColumn()` replace both together.
+
+Flat generation initializes each column from the catalog default color, but later ID/color mutation is not re-derived from a global lookup. Immutable snapshots retain the full words and expose the old 256-byte ID projection only as a compatibility view.
+
+Protocol 84 FullChunkData emits the stored words big-endian unchanged. The world layer must never regenerate biome color during packet encoding.
+
+Block-extra-data remains separate sparse per-block semantic state. Raw numeric maps may remain available only in advanced/compatibility surfaces.
 
 ## World time and environment
 

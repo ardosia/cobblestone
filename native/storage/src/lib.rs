@@ -38,7 +38,8 @@ pub use region::{
 
 pub const STORAGE_FORMAT_VERSION: u16 = 1;
 pub const CHUNK_RECORD_VERSION: u16 = 1;
-pub const SEMANTIC_PAYLOAD_VERSION: u16 = 1;
+pub const LEGACY_SEMANTIC_PAYLOAD_VERSION: u16 = 1;
+pub const SEMANTIC_PAYLOAD_VERSION: u16 = 2;
 pub const MAX_CHUNK_PAYLOAD_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_CHUNK_RECORD_BYTES: usize = MAX_CHUNK_PAYLOAD_BYTES + 64 * 1024;
 

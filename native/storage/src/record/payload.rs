@@ -2,13 +2,20 @@ use std::collections::BTreeMap;
 
 use cobblestone_world::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, ChunkSnapshot, MAX_LEGACY_STATE_ID,
+    default_biome_word,
 };
 
 use super::ExtensionSection;
-use crate::{MAX_CHUNK_PAYLOAD_BYTES, StorageError};
+use crate::{
+    LEGACY_SEMANTIC_PAYLOAD_VERSION, MAX_CHUNK_PAYLOAD_BYTES, SEMANTIC_PAYLOAD_VERSION,
+    StorageError,
+};
 
+const SEMANTIC_PREFIX_BYTES: usize = CHUNK_BLOCK_COUNT + CHUNK_NIBBLE_BYTES * 3;
+const LEGACY_BIOME_BYTES: usize = CHUNK_COLUMN_COUNT;
+const BIOME_WORD_BYTES: usize = CHUNK_COLUMN_COUNT * 4;
 const SEMANTIC_BASE_BYTES: usize =
-    CHUNK_BLOCK_COUNT + CHUNK_NIBBLE_BYTES * 3 + CHUNK_COLUMN_COUNT * 2 + 4;
+    SEMANTIC_PREFIX_BYTES + BIOME_WORD_BYTES + CHUNK_COLUMN_COUNT + 4;
 
 pub(super) fn encode_semantic_payload(
     snapshot: &ChunkSnapshot,
@@ -76,7 +83,9 @@ pub(super) fn encode_semantic_payload(
     payload.extend_from_slice(&block_data);
     payload.extend_from_slice(snapshot.sky_light());
     payload.extend_from_slice(snapshot.block_light());
-    payload.extend_from_slice(snapshot.biomes());
+    for &word in snapshot.biomes() {
+        payload.extend_from_slice(&word.to_be_bytes());
+    }
     payload.extend_from_slice(snapshot.height_map());
 
     let extra_count = u32::try_from(snapshot.extra_data().len())
@@ -104,19 +113,30 @@ pub(super) fn encode_semantic_payload(
 #[allow(clippy::type_complexity)]
 pub(super) fn decode_semantic_payload(
     payload: &[u8],
+    semantic_version: u16,
 ) -> Result<
     (
         Vec<u16>,
         Vec<u8>,
         Vec<u8>,
-        Vec<u8>,
+        Vec<u32>,
         Vec<u8>,
         BTreeMap<u16, u16>,
         Vec<ExtensionSection>,
     ),
     StorageError,
 > {
-    if payload.len() < SEMANTIC_BASE_BYTES {
+    let biome_bytes = match semantic_version {
+        LEGACY_SEMANTIC_PAYLOAD_VERSION => LEGACY_BIOME_BYTES,
+        SEMANTIC_PAYLOAD_VERSION => BIOME_WORD_BYTES,
+        _ => {
+            return Err(StorageError::CorruptChunkPayload(
+                "unsupported semantic payload version",
+            ));
+        }
+    };
+    let base_bytes = SEMANTIC_PREFIX_BYTES + biome_bytes + CHUNK_COLUMN_COUNT + 4;
+    if payload.len() < base_bytes {
         return Err(StorageError::CorruptChunkPayload("truncated base planes"));
     }
 
@@ -124,7 +144,7 @@ pub(super) fn decode_semantic_payload(
     let data_end = ids_end + CHUNK_NIBBLE_BYTES;
     let sky_end = data_end + CHUNK_NIBBLE_BYTES;
     let block_end = sky_end + CHUNK_NIBBLE_BYTES;
-    let biome_end = block_end + CHUNK_COLUMN_COUNT;
+    let biome_end = block_end + biome_bytes;
     let height_end = biome_end + CHUNK_COLUMN_COUNT;
 
     let ids = &payload[..ids_end];
@@ -141,7 +161,23 @@ pub(super) fn decode_semantic_payload(
 
     let sky_light = payload[data_end..sky_end].to_vec();
     let block_light = payload[sky_end..block_end].to_vec();
-    let biomes = payload[block_end..biome_end].to_vec();
+    let biomes = match semantic_version {
+        LEGACY_SEMANTIC_PAYLOAD_VERSION => payload[block_end..biome_end]
+            .iter()
+            .map(|&id| {
+                default_biome_word(id).ok_or(StorageError::CorruptChunkPayload(
+                    "unsupported legacy biome id",
+                ))
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        SEMANTIC_PAYLOAD_VERSION => payload[block_end..biome_end]
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| u32::from_be_bytes(*bytes))
+            .collect(),
+        _ => unreachable!("semantic version validated above"),
+    };
     let height_map = payload[biome_end..height_end].to_vec();
 
     let mut cursor = height_end;
@@ -258,4 +294,39 @@ fn read_payload_u32(payload: &[u8], cursor: &mut usize) -> Result<u32, StorageEr
         .ok_or(StorageError::CorruptChunkPayload("truncated u32"))?;
     *cursor = end;
     Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn legacy_payload(biome_id: u8) -> Vec<u8> {
+        let mut payload = vec![0_u8; SEMANTIC_PREFIX_BYTES];
+        payload.extend(std::iter::repeat_n(biome_id, CHUNK_COLUMN_COUNT));
+        payload.extend(std::iter::repeat_n(0_u8, CHUNK_COLUMN_COUNT));
+        payload.extend_from_slice(&0_u32.to_le_bytes());
+        payload
+    }
+
+    #[test]
+    fn legacy_v1_biome_ids_migrate_to_explicit_default_words() {
+        let payload = legacy_payload(1);
+        let (_, _, _, biomes, _, extra, extensions) =
+            decode_semantic_payload(&payload, LEGACY_SEMANTIC_PAYLOAD_VERSION).unwrap();
+
+        assert_eq!(biomes, vec![0x0192_bc59; CHUNK_COLUMN_COUNT]);
+        assert!(extra.is_empty());
+        assert!(extensions.is_empty());
+    }
+
+    #[test]
+    fn legacy_v1_rejects_unregistered_biome_ids_instead_of_guessing() {
+        let payload = legacy_payload(9);
+        assert!(matches!(
+            decode_semantic_payload(&payload, LEGACY_SEMANTIC_PAYLOAD_VERSION),
+            Err(StorageError::CorruptChunkPayload(
+                "unsupported legacy biome id"
+            ))
+        ));
+    }
 }

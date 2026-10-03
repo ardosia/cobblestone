@@ -56,6 +56,8 @@ $required = [
     'cobblestone_world_block_state',
     'cobblestone_world_set_block_state',
     'cobblestone_world_fill_layers',
+    'cobblestone_world_biome_word',
+    'cobblestone_world_set_biome_word',
     'cobblestone_world_biome',
     'cobblestone_world_set_biome',
     'cobblestone_world_fill_biome',

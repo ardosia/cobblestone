@@ -6,6 +6,7 @@ namespace Cobblestone\World\Internal;
 
 use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\Native\World\SnapshotDecoder;
+use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSnapshot;
@@ -86,15 +87,15 @@ final readonly class NativeChunkState implements ChunkState
         return $this->store->setBlockLight($this->position, $x, $y, $z, $level);
     }
 
-    public function biome(int $x, int $z): BiomeId
+    public function biomeColumn(int $x, int $z): BiomeColumn
     {
-        return new BiomeId($this->store->biome($this->position, $x, $z));
+        return BiomeColumn::fromWord($this->store->biomeWord($this->position, $x, $z));
     }
 
-    public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
+    public function setBiomeColumn(int $x, int $z, BiomeColumn $biome): BiomeColumn
     {
-        return new BiomeId(
-            $this->store->setBiome($this->position, $x, $z, $biome->value),
+        return BiomeColumn::fromWord(
+            $this->store->setBiomeWord($this->position, $x, $z, $biome->word()),
         );
     }
 

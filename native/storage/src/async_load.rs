@@ -116,7 +116,7 @@ mod tests {
 
     fn snapshot(position: ChunkCoord, state: u16) -> cobblestone_world::ChunkSnapshot {
         let store = WorldStore::new();
-        store.ensure_chunk(position, 1);
+        store.ensure_chunk(position, 1).unwrap();
         let flags = CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED;
         store.set_lifecycle_flags(position, flags).unwrap();
         store

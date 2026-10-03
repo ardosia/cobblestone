@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\World\Mutation;
 
+use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\BlockStateId;
@@ -24,7 +25,7 @@ final class ChunkPatch
     /** @var array<int, int> scalar BlockStateId tokens */
     private array $blocks = [];
 
-    /** @var array<int, BiomeId> */
+    /** @var array<int, BiomeColumn> */
     private array $biomes = [];
 
     /** @var array<int, int> */
@@ -81,19 +82,45 @@ final class ChunkPatch
         );
     }
 
-    public function biome(int $x, int $z): BiomeId
+    public function biomeColumn(int $x, int $z): BiomeColumn
     {
         $key = self::columnKey($x, $z);
 
-        return $this->biomes[$key] ?? $this->biomeAtKey($key);
+        return $this->biomes[$key] ?? $this->biomeColumnAtKey($key);
+    }
+
+    public function biome(int $x, int $z): BiomeId
+    {
+        return $this->biomeColumn($x, $z)->id;
+    }
+
+    public function biomeColor(int $x, int $z): int
+    {
+        return $this->biomeColumn($x, $z)->color;
+    }
+
+    public function setBiomeColumn(int $x, int $z, BiomeColumn $biome): BiomeColumn
+    {
+        $previous = $this->biomeColumn($x, $z);
+        $this->biomes[self::columnKey($x, $z)] = $biome;
+
+        return $previous;
     }
 
     public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
     {
-        $previous = $this->biome($x, $z);
-        $this->biomes[self::columnKey($x, $z)] = $biome;
+        $previous = $this->biomeColumn($x, $z);
+        $this->setBiomeColumn($x, $z, $previous->withId($biome));
 
-        return $previous;
+        return $previous->id;
+    }
+
+    public function setBiomeColor(int $x, int $z, int $color): int
+    {
+        $previous = $this->biomeColumn($x, $z);
+        $this->setBiomeColumn($x, $z, $previous->withColor($color));
+
+        return $previous->color;
     }
 
     public function blockExtraData(int $x, int $y, int $z): int
@@ -165,7 +192,7 @@ final class ChunkPatch
         );
         $biomes = array_filter(
             $this->biomes,
-            fn (BiomeId $biome, int $key): bool => $biome->value !== $this->biomeAtKey($key)->value,
+            fn (BiomeColumn $biome, int $key): bool => $biome->word() !== $this->biomeColumnAtKey($key)->word(),
             ARRAY_FILTER_USE_BOTH,
         );
         $extraData = array_filter(
@@ -223,18 +250,16 @@ final class ChunkPatch
         return $this->chunk->blockStateId($x, $y, $z);
     }
 
-    private function biomeAtKey(int $key): BiomeId
+    private function biomeColumnAtKey(int $key): BiomeColumn
     {
         [$x, $z] = self::decodeColumnKey($key);
         $snapshot = $this->snapshotForRead();
         if ($snapshot !== null) {
-            $biome = $snapshot->biomeId($x, $z)
+            return $snapshot->biomeColumn($x, $z)
                 ?? throw new MutationConflict('snapshot biome coordinates became invalid');
-
-            return new BiomeId($biome);
         }
 
-        return $this->chunk->biome($x, $z);
+        return $this->chunk->biomeColumn($x, $z);
     }
 
     private function extraDataAtKey(int $key): int

@@ -53,7 +53,7 @@ fn flat_chunk() -> RawPacket {
         }
     }
     let block = vec![0_u8; CHUNK_NIBBLE_BYTES];
-    let biomes = vec![1_u8; CHUNK_COLUMN_COUNT];
+    let biome_words = vec![0x0192_bc59_u32; CHUNK_COLUMN_COUNT];
     let heights = vec![3_u8; CHUNK_COLUMN_COUNT];
     encode_protocol84_full_chunk_data(Protocol84ChunkSnapshot {
         chunk_x: 0,
@@ -62,7 +62,7 @@ fn flat_chunk() -> RawPacket {
         block_data: &data,
         sky_light: &sky,
         block_light: &block,
-        biomes: &biomes,
+        biome_words: &biome_words,
         height_map: &heights,
         extra_data: &[],
     })
@@ -89,7 +89,7 @@ fn noisy_chunk() -> RawPacket {
     let block = (0..CHUNK_NIBBLE_BYTES)
         .map(|_| next() as u8)
         .collect::<Vec<_>>();
-    let biomes = vec![1_u8; CHUNK_COLUMN_COUNT];
+    let biome_words = vec![0x0192_bc59_u32; CHUNK_COLUMN_COUNT];
     let heights = (0..CHUNK_COLUMN_COUNT)
         .map(|_| (next() & 0x7f) as u8)
         .collect::<Vec<_>>();
@@ -100,7 +100,7 @@ fn noisy_chunk() -> RawPacket {
         block_data: &data,
         sky_light: &sky,
         block_light: &block,
-        biomes: &biomes,
+        biome_words: &biome_words,
         height_map: &heights,
         extra_data: &[],
     })

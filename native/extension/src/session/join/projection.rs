@@ -94,7 +94,13 @@ pub(super) fn decode_initial_chunk_projection(
         let block_data = reader.read_exact(CHUNK_NIBBLE_BYTES)?;
         let sky_light = reader.read_exact(CHUNK_NIBBLE_BYTES)?;
         let block_light = reader.read_exact(CHUNK_NIBBLE_BYTES)?;
-        let biomes = reader.read_exact(CHUNK_COLUMN_COUNT)?;
+        let biome_bytes = reader.read_exact(CHUNK_COLUMN_COUNT * 4)?;
+        let biome_words = biome_bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| u32::from_be_bytes(*bytes))
+            .collect::<Vec<_>>();
         let height_map = reader.read_exact(CHUNK_COLUMN_COUNT)?;
 
         let extra_count = usize::try_from(reader.read_u32_le()?)
@@ -116,7 +122,7 @@ pub(super) fn decode_initial_chunk_projection(
             block_data,
             sky_light,
             block_light,
-            biomes,
+            biome_words: &biome_words,
             height_map,
             extra_data: &extra_data,
         };

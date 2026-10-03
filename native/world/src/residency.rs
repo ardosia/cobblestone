@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use super::{
     ChunkCoord, ChunkEviction, ChunkImport, ChunkRecord, ChunkSnapshot, WorldStore,
-    WorldStoreError, read_lock, validate_import, validate_lifecycle_flags, write_lock,
+    WorldStoreError, default_biome_word, read_lock, validate_import, validate_lifecycle_flags,
+    write_lock,
 };
 
 impl WorldStore {
@@ -15,14 +16,15 @@ impl WorldStore {
         read_lock(&region.chunks).contains_key(&position)
     }
 
-    pub fn ensure_chunk(&self, position: ChunkCoord, biome: u8) -> bool {
+    pub fn ensure_chunk(&self, position: ChunkCoord, biome: u8) -> Result<bool, WorldStoreError> {
+        let biome_word = default_biome_word(biome).ok_or(WorldStoreError::InvalidBiome(biome))?;
         let region = self.region_or_create(position);
         let mut chunks = write_lock(&region.chunks);
         if chunks.contains_key(&position) {
-            return false;
+            return Ok(false);
         }
-        chunks.insert(position, ChunkRecord::empty(biome));
-        true
+        chunks.insert(position, ChunkRecord::empty(biome_word));
+        Ok(true)
     }
 
     pub fn import_chunk_if_absent(

@@ -141,12 +141,31 @@ final class World
         return BlockState::fromId($this->setBlockStateId($position, $state->fullId()));
     }
 
-    public function biomeAt(int $x, int $z): BiomeId
+    public function biomeColumnAt(int $x, int $z): BiomeColumn
     {
         $position = ChunkPos::fromBlock($x, $z);
         $chunk = $this->chunks->getOrGenerate($position);
 
-        return $chunk->biome(ChunkPos::localCoordinate($x), ChunkPos::localCoordinate($z));
+        return $chunk->biomeColumn(ChunkPos::localCoordinate($x), ChunkPos::localCoordinate($z));
+    }
+
+    public function biomeAt(int $x, int $z): BiomeId
+    {
+        return $this->biomeColumnAt($x, $z)->id;
+    }
+
+    public function biomeColorAt(int $x, int $z): int
+    {
+        return $this->biomeColumnAt($x, $z)->color;
+    }
+
+    public function setBiomeColumnAt(int $x, int $z, BiomeColumn $biome): BiomeColumn
+    {
+        $chunkPosition = ChunkPos::fromBlock($x, $z);
+        return $this->mutations->run(
+            static fn (WorldEdit $edit): BiomeColumn => $edit->setBiomeColumnAt($x, $z, $biome),
+            [$chunkPosition],
+        );
     }
 
     public function setBiomeAt(int $x, int $z, BiomeId $biome): BiomeId
@@ -154,6 +173,15 @@ final class World
         $chunkPosition = ChunkPos::fromBlock($x, $z);
         return $this->mutations->run(
             static fn (WorldEdit $edit): BiomeId => $edit->setBiomeAt($x, $z, $biome),
+            [$chunkPosition],
+        );
+    }
+
+    public function setBiomeColorAt(int $x, int $z, int $color): int
+    {
+        $chunkPosition = ChunkPos::fromBlock($x, $z);
+        return $this->mutations->run(
+            static fn (WorldEdit $edit): int => $edit->setBiomeColorAt($x, $z, $color),
             [$chunkPosition],
         );
     }

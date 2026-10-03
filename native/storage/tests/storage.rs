@@ -36,7 +36,7 @@ fn world_and_snapshots() -> (
 ) {
     let store = WorldStore::new();
     let position = ChunkCoord::new(-1, 17);
-    store.ensure_chunk(position, 1);
+    store.ensure_chunk(position, 1).unwrap();
     store.fill_layers(position, 0, 4, 0x10).unwrap();
     store.fill_sky_light_from(position, 4, 15).unwrap();
     store
@@ -110,7 +110,12 @@ fn noisy_snapshot() -> cobblestone_world::ChunkSnapshot {
                     .collect(),
                 sky_light: (0..CHUNK_NIBBLE_BYTES).map(|_| next() as u8).collect(),
                 block_light: (0..CHUNK_NIBBLE_BYTES).map(|_| next() as u8).collect(),
-                biomes: (0..CHUNK_COLUMN_COUNT).map(|_| next() as u8).collect(),
+                biomes: (0..CHUNK_COLUMN_COUNT)
+                    .map(|_| {
+                        let colors = next() & 0x00ff_ffff;
+                        (1_u32 << 24) | colors
+                    })
+                    .collect(),
                 height_map: (0..CHUNK_COLUMN_COUNT)
                     .map(|_| (next() & 0x7f) as u8)
                     .collect(),

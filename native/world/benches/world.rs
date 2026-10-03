@@ -12,7 +12,7 @@ fn bench_world_change_journal() {
 
     let store = WorldStore::new();
     let position = ChunkCoord::new(0, 0);
-    assert!(store.ensure_chunk(position, 1));
+    assert!(store.ensure_chunk(position, 1).unwrap());
 
     let started = Instant::now();
     for revision in 0..PATCHES {

@@ -80,7 +80,7 @@ fn parse_patch(bytes: &[u8]) -> PhpResult<NativeChunkPatch> {
 
     let mut biomes = Vec::new();
     for _ in 0..biome_count {
-        biomes.push((reader.u8("biome index")?, reader.u8("biome value")?));
+        biomes.push((reader.u8("biome index")?, reader.u32("biome word")?));
     }
 
     let mut extra_data = Vec::new();

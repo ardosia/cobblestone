@@ -9,7 +9,7 @@ final readonly class PreparedTerrainPatch
 {
     /**
      * @param array<int, int> $blocks scalar BlockStateId tokens
-     * @param array<int, BiomeId> $biomes
+     * @param array<int, BiomeColumn> $biomes
      */
     public function __construct(
         private int $baseRevision,
@@ -32,7 +32,7 @@ final readonly class PreparedTerrainPatch
         return $this->blocks;
     }
 
-    /** @internal @return array<int, BiomeId> */
+    /** @internal @return array<int, BiomeColumn> */
     public function biomes(): array
     {
         return $this->biomes;

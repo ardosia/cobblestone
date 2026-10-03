@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Cobblestone\World\Internal;
 
 use Cobblestone\Native\World as NativeWorld;
-use Cobblestone\World\BiomeId;
+use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\ChunkSnapshot;
 use Cobblestone\World\ChunkUnloadStatus;
 use Cobblestone\World\LightSnapshot;
@@ -37,9 +37,9 @@ interface ChunkState
 
     public function setBlockLight(int $x, int $y, int $z, int $level): int;
 
-    public function biome(int $x, int $z): BiomeId;
+    public function biomeColumn(int $x, int $z): BiomeColumn;
 
-    public function setBiome(int $x, int $z, BiomeId $biome): BiomeId;
+    public function setBiomeColumn(int $x, int $z, BiomeColumn $biome): BiomeColumn;
 
     public function highestBlockAt(int $x, int $z): int;
 
@@ -60,7 +60,7 @@ interface ChunkState
 
     /**
      * @param array<int, int> $blocks
-     * @param array<int, BiomeId> $biomes
+     * @param array<int, BiomeColumn> $biomes
      * @param array<int, int> $extraData
      * @param array<int, int> $skyLight
      * @param array<int, int> $blockLight

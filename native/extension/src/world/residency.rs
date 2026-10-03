@@ -16,7 +16,10 @@ pub fn cobblestone_world_ensure_chunk(
     php_boundary(|| {
         let position = position(chunk_x, chunk_z)?;
         let state = resolve_world_state(handle_value)?;
-        let inserted = state.store.ensure_chunk(position, byte(biome, "biome")?);
+        let inserted = state
+            .store
+            .ensure_chunk(position, byte(biome, "biome")?)
+            .map_err(|error| php_error(error.to_string()))?;
         if inserted {
             let mut persistence = match state.persistence.lock() {
                 Ok(guard) => guard,

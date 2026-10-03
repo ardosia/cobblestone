@@ -92,7 +92,7 @@ mod view_delta_tests {
         let store = Arc::new(WorldStore::new());
         let pinned_chunks = view_positions(center, radius);
         for &position in &pinned_chunks {
-            store.ensure_chunk(position, 1);
+            store.ensure_chunk(position, 1).unwrap();
             store.pin_chunk(position).expect("pin initial view chunk");
         }
 
@@ -204,7 +204,7 @@ mod view_delta_tests {
         let delta =
             chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
         for &position in &delta.entering {
-            view.store.ensure_chunk(position, 1);
+            view.store.ensure_chunk(position, 1).unwrap();
         }
 
         let shared_leaving = delta.leaving[0];
@@ -233,7 +233,7 @@ mod view_delta_tests {
             chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
 
         for &position in &delta.entering[..2] {
-            view.store.ensure_chunk(position, 1);
+            view.store.ensure_chunk(position, 1).unwrap();
         }
 
         assert!(apply_view_delta(&mut view, &delta).is_err());
@@ -254,7 +254,7 @@ mod view_delta_tests {
         let delta =
             chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
         for &position in &delta.entering {
-            view.store.ensure_chunk(position, 1);
+            view.store.ensure_chunk(position, 1).unwrap();
         }
 
         apply_view_delta(&mut view, &delta).expect("apply view delta");
@@ -283,7 +283,7 @@ mod view_delta_tests {
         let delta =
             chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
         for &position in &delta.entering {
-            view.store.ensure_chunk(position, 1);
+            view.store.ensure_chunk(position, 1).unwrap();
         }
         apply_view_delta(&mut view, &delta).expect("apply view delta");
 

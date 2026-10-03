@@ -47,6 +47,29 @@ For lighting, the recovered Ardosia light-block/emission properties are mapped o
 
 This yields the same 191 supported fixed-target block identities while retaining Cobblestone's protocol-native state token. Unknown/unmapped legacy IDs are not guessed: the light catalog returns unsupported.
 
+## Fixed-target biome-column parity
+
+The Ardosia substrate does not define the legacy MCPE biome-word wire/storage model, so this portion is pinned directly to the fixed target.
+
+Primary oracle:
+
+- uploaded `Minecraft.Win10.DX11.exe`, FileVersion/ProductVersion `0.15.10.0`;
+- its biome registration/name table and biome RTTI establish the 60 live IDs used by this target;
+- the dormant `TheEndBiome` implementation exists in the binary, but biome ID 9 is absent from the live 0.15.10 registration table and is therefore rejected by `BiomeId`; and
+- binary biome overrides confirm fixed-target special colors including Swampland `0x6a7039` and Mesa `0x90814d`.
+
+Chunk-layout oracle:
+
+- `KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e`;
+- `legacy/old-src/level/format/generic/BaseFullChunk.php` stores 256 `BiomeColors` words;
+- the high byte is biome ID and the low 24 bits are biome color;
+- ID and color setters preserve the other component independently; and
+- FullChunkData writes those words big-endian.
+
+Default generation colors use the matching fixed-target grass-color interpolation for the registered biome temperature/rainfall values, with binary-confirmed fixed overrides for swamp and mesa and the historical roofed-forest transform. These defaults are used only when creating a new biome column. Stored RGB is authoritative afterward and is never recomputed by the protocol encoder.
+
+Cobblestone exposes this as `BiomeId` + immutable `BiomeColumn`, stores full `u32` words in both PHP/native chunk backends, persists them in semantic payload v2, migrates old payload-v1 ID bytes explicitly, and projects the stored words unchanged to protocol 84.
+
 ## Deliberate adaptations
 
 Rust's `TerrainReadGuard`, `TerrainWriteGuard`, `LightReadGuard`, and `LightWriteGuard` exist because Ardosia's resident terrain/light cells are shared behind Rust locks. Cobblestone's architecture requires one authoritative PHP runtime owner for mutable gameplay state, so exposing lock guards to ordinary PHP would violate the project API invariant. Direct owner-local terrain/light facades replace those guard types.

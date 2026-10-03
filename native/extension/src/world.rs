@@ -55,6 +55,10 @@ fn byte(value: i64, field: &'static str) -> PhpResult<u8> {
     u8::try_from(value).map_err(|_| php_error(format!("{field} must fit one byte")))
 }
 
+fn word32(value: i64, field: &'static str) -> PhpResult<u32> {
+    u32::try_from(value).map_err(|_| php_error(format!("{field} must fit unsigned 32 bits")))
+}
+
 fn local(value: i64, field: &'static str) -> PhpResult<u8> {
     let value = byte(value, field)?;
     if value > 15 {

@@ -10,7 +10,7 @@ final class TerrainPatch
     /** @var array<int, int> scalar BlockStateId tokens */
     private array $blocks = [];
 
-    /** @var array<int, BiomeId> */
+    /** @var array<int, BiomeColumn> */
     private array $biomes = [];
 
     public function blockStateId(ChunkTerrain $terrain, int $x, int $y, int $z): ?int
@@ -63,14 +63,43 @@ final class TerrainPatch
         return $previous === null ? null : BlockState::fromId($previous);
     }
 
-    public function biome(ChunkTerrain $terrain, int $x, int $z): ?BiomeId
+    public function biomeColumn(ChunkTerrain $terrain, int $x, int $z): ?BiomeColumn
     {
         $key = self::columnKey($x, $z);
         if ($key === null) {
             return null;
         }
 
-        return $this->biomes[$key] ?? $terrain->data()->biome($x, $z);
+        return $this->biomes[$key] ?? $terrain->data()->biomeColumn($x, $z);
+    }
+
+    public function biome(ChunkTerrain $terrain, int $x, int $z): ?BiomeId
+    {
+        return $this->biomeColumn($terrain, $x, $z)?->id;
+    }
+
+    public function biomeColor(ChunkTerrain $terrain, int $x, int $z): ?int
+    {
+        return $this->biomeColumn($terrain, $x, $z)?->color;
+    }
+
+    public function setBiomeColumn(
+        ChunkTerrain $terrain,
+        int $x,
+        int $z,
+        BiomeColumn $biome,
+    ): ?BiomeColumn {
+        $key = self::columnKey($x, $z);
+        if ($key === null) {
+            return null;
+        }
+
+        $previous = $this->biomeColumn($terrain, $x, $z);
+        if ($previous?->word() !== $biome->word()) {
+            $this->biomes[$key] = $biome;
+        }
+
+        return $previous;
     }
 
     public function setBiome(
@@ -79,17 +108,30 @@ final class TerrainPatch
         int $z,
         BiomeId $biome,
     ): ?BiomeId {
-        $key = self::columnKey($x, $z);
-        if ($key === null) {
+        $previous = $this->biomeColumn($terrain, $x, $z);
+        if ($previous === null) {
             return null;
         }
 
-        $previous = $this->biome($terrain, $x, $z);
-        if ($previous?->value !== $biome->value) {
-            $this->biomes[$key] = $biome;
+        $this->setBiomeColumn($terrain, $x, $z, $previous->withId($biome));
+
+        return $previous->id;
+    }
+
+    public function setBiomeColor(
+        ChunkTerrain $terrain,
+        int $x,
+        int $z,
+        int $color,
+    ): ?int {
+        $previous = $this->biomeColumn($terrain, $x, $z);
+        if ($previous === null) {
+            return null;
         }
 
-        return $previous;
+        $this->setBiomeColumn($terrain, $x, $z, $previous->withColor($color));
+
+        return $previous->color;
     }
 
     public function prepare(ChunkTerrain $terrain): PreparedTerrainPatch
@@ -108,10 +150,10 @@ final class TerrainPatch
         );
         $biomes = array_filter(
             $this->biomes,
-            function (BiomeId $biome, int $key) use ($chunk): bool {
+            function (BiomeColumn $biome, int $key) use ($chunk): bool {
                 [$x, $z] = self::decodeColumnKey($key);
 
-                return $biome->value !== $chunk->biome($x, $z)->value;
+                return $biome->word() !== $chunk->biomeColumn($x, $z)->word();
             },
             ARRAY_FILTER_USE_BOTH,
         );

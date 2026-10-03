@@ -12,6 +12,8 @@ namespace Cobblestone\World;
  */
 final readonly class ChunkSnapshot
 {
+    /** Compatibility ID plane derived from biomeWords. */
+    public string $biomes;
     public const BLOCK_COUNT = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE * WorldBounds::WORLD_HEIGHT;
     public const NIBBLE_BYTES = self::BLOCK_COUNT / 2;
     public const COLUMN_COUNT = WorldBounds::CHUNK_EDGE * WorldBounds::CHUNK_EDGE;
@@ -26,7 +28,7 @@ final readonly class ChunkSnapshot
         public string $blockData,
         public string $skyLight,
         public string $blockLight,
-        public string $biomes,
+        public string $biomeWords,
         public string $heightMap,
         public array $extraData,
         public int $lightRevision = 0,
@@ -45,9 +47,17 @@ final readonly class ChunkSnapshot
             }
         }
 
-        if (strlen($biomes) !== self::COLUMN_COUNT || strlen($heightMap) !== self::COLUMN_COUNT) {
+        if (strlen($biomeWords) !== self::COLUMN_COUNT * 4 || strlen($heightMap) !== self::COLUMN_COUNT) {
             throw new \ValueError('chunk column snapshot has invalid length');
         }
+
+        $ids = '';
+        for ($index = 0; $index < self::COLUMN_COUNT; ++$index) {
+            $id = ord($biomeWords[$index * 4]);
+            new BiomeId($id);
+            $ids .= chr($id);
+        }
+        $this->biomes = $ids;
 
         foreach ($extraData as $key => $value) {
             if (!is_int($key) || $key < 0 || $key > 0xffff) {
@@ -99,13 +109,37 @@ final readonly class ChunkSnapshot
         return $this->lightLevel($this->blockLight, $x, $y, $z);
     }
 
-    public function biomeId(int $x, int $z): ?int
+    public function biomeWord(int $x, int $z): ?int
     {
         if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
             return null;
         }
 
-        return ord($this->biomes[($z << 4) | $x]);
+        $offset = (($z << 4) | $x) * 4;
+        $parts = unpack('Nword', substr($this->biomeWords, $offset, 4));
+
+        return $parts === false ? null : $parts['word'];
+    }
+
+    public function biomeId(int $x, int $z): ?int
+    {
+        $word = $this->biomeWord($x, $z);
+
+        return $word === null ? null : ($word >> 24) & 0xff;
+    }
+
+    public function biomeColor(int $x, int $z): ?int
+    {
+        $word = $this->biomeWord($x, $z);
+
+        return $word === null ? null : $word & 0xffffff;
+    }
+
+    public function biomeColumn(int $x, int $z): ?BiomeColumn
+    {
+        $word = $this->biomeWord($x, $z);
+
+        return $word === null ? null : BiomeColumn::fromWord($word);
     }
 
     public function blockExtraDataAt(int $x, int $y, int $z): ?int
@@ -123,7 +157,7 @@ final readonly class ChunkSnapshot
 
     public function terrain(): ChunkDataSnapshot
     {
-        return new ChunkDataSnapshot($this->blockIds, $this->blockData, $this->biomes);
+        return new ChunkDataSnapshot($this->blockIds, $this->blockData, $this->biomeWords);
     }
 
     public function light(): LightSnapshot

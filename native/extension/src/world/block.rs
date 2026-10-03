@@ -3,7 +3,7 @@ use ext_php_rs::prelude::*;
 
 use crate::boundary::{php_boundary, php_error};
 
-use super::{block_y, byte, local, position, resolve_world, state_id};
+use super::{block_y, byte, local, position, resolve_world, state_id, word32};
 
 #[php_function]
 pub fn cobblestone_world_block_state(
@@ -78,6 +78,52 @@ pub fn cobblestone_world_fill_layers(
 }
 
 #[php_function]
+pub fn cobblestone_world_biome_word(
+    handle_value: i64,
+    chunk_x: i64,
+    chunk_z: i64,
+    x: i64,
+    z: i64,
+) -> PhpResult<i64> {
+    php_boundary(|| {
+        let store = resolve_world(handle_value)?;
+        Ok(i64::from(
+            store
+                .biome_word(
+                    position(chunk_x, chunk_z)?,
+                    local(x, "local x")?,
+                    local(z, "local z")?,
+                )
+                .map_err(|error| php_error(error.to_string()))?,
+        ))
+    })
+}
+
+#[php_function]
+pub fn cobblestone_world_set_biome_word(
+    handle_value: i64,
+    chunk_x: i64,
+    chunk_z: i64,
+    x: i64,
+    z: i64,
+    word: i64,
+) -> PhpResult<i64> {
+    php_boundary(|| {
+        let store = resolve_world(handle_value)?;
+        Ok(i64::from(
+            store
+                .set_biome_word(
+                    position(chunk_x, chunk_z)?,
+                    local(x, "local x")?,
+                    local(z, "local z")?,
+                    word32(word, "biome word")?,
+                )
+                .map_err(|error| php_error(error.to_string()))?,
+        ))
+    })
+}
+
+#[php_function]
 pub fn cobblestone_world_biome(
     handle_value: i64,
     chunk_x: i64,
@@ -143,6 +189,8 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_block_state))
         .function(wrap_function!(cobblestone_world_set_block_state))
         .function(wrap_function!(cobblestone_world_fill_layers))
+        .function(wrap_function!(cobblestone_world_biome_word))
+        .function(wrap_function!(cobblestone_world_set_biome_word))
         .function(wrap_function!(cobblestone_world_biome))
         .function(wrap_function!(cobblestone_world_set_biome))
         .function(wrap_function!(cobblestone_world_fill_biome))

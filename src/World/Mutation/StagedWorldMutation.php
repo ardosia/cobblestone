@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\World\Mutation;
 
+use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockState;
@@ -52,12 +53,37 @@ final class StagedWorldMutation implements WorldEdit
         return BlockState::fromId($this->setBlockStateId($position, $state->fullId()));
     }
 
+    public function biomeColumnAt(int $x, int $z): BiomeColumn
+    {
+        $chunk = ChunkPos::fromBlock($x, $z);
+        $patch = $this->patchForChunk($chunk);
+
+        return $patch->biomeColumn(ChunkPos::localCoordinate($x), ChunkPos::localCoordinate($z));
+    }
+
     public function biomeAt(int $x, int $z): BiomeId
     {
         $chunk = ChunkPos::fromBlock($x, $z);
         $patch = $this->patchForChunk($chunk);
 
         return $patch->biome(ChunkPos::localCoordinate($x), ChunkPos::localCoordinate($z));
+    }
+
+    public function biomeColorAt(int $x, int $z): int
+    {
+        return $this->biomeColumnAt($x, $z)->color;
+    }
+
+    public function setBiomeColumnAt(int $x, int $z, BiomeColumn $biome): BiomeColumn
+    {
+        $chunk = ChunkPos::fromBlock($x, $z);
+        $patch = $this->patchForChunk($chunk);
+
+        return $patch->setBiomeColumn(
+            ChunkPos::localCoordinate($x),
+            ChunkPos::localCoordinate($z),
+            $biome,
+        );
     }
 
     public function setBiomeAt(int $x, int $z, BiomeId $biome): BiomeId
@@ -69,6 +95,18 @@ final class StagedWorldMutation implements WorldEdit
             ChunkPos::localCoordinate($x),
             ChunkPos::localCoordinate($z),
             $biome,
+        );
+    }
+
+    public function setBiomeColorAt(int $x, int $z, int $color): int
+    {
+        $chunk = ChunkPos::fromBlock($x, $z);
+        $patch = $this->patchForChunk($chunk);
+
+        return $patch->setBiomeColor(
+            ChunkPos::localCoordinate($x),
+            ChunkPos::localCoordinate($z),
+            $color,
         );
     }
 

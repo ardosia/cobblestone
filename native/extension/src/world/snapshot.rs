@@ -26,7 +26,7 @@ pub fn cobblestone_world_snapshot(
                 + CHUNK_NIBBLE_BYTES
                 + snapshot.sky_light().len()
                 + snapshot.block_light().len()
-                + snapshot.biomes().len()
+                + snapshot.biomes().len() * 4
                 + snapshot.height_map().len()
                 + 4
                 + snapshot.extra_data().len() * 4,
@@ -52,7 +52,9 @@ pub fn cobblestone_world_snapshot(
         projection.extend_from_slice(&block_data);
         projection.extend_from_slice(snapshot.sky_light());
         projection.extend_from_slice(snapshot.block_light());
-        projection.extend_from_slice(snapshot.biomes());
+        for &word in snapshot.biomes() {
+            projection.extend_from_slice(&word.to_be_bytes());
+        }
         projection.extend_from_slice(snapshot.height_map());
         projection.extend_from_slice(&extra_count.to_le_bytes());
         for (&key, &value) in snapshot.extra_data() {

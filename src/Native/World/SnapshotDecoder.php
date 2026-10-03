@@ -48,7 +48,7 @@ final class SnapshotDecoder
         $blockData = $take($projection, $offset, ChunkSnapshot::NIBBLE_BYTES);
         $skyLight = $take($projection, $offset, ChunkSnapshot::NIBBLE_BYTES);
         $blockLight = $take($projection, $offset, ChunkSnapshot::NIBBLE_BYTES);
-        $biomes = $take($projection, $offset, ChunkSnapshot::COLUMN_COUNT);
+        $biomeWords = $take($projection, $offset, ChunkSnapshot::COLUMN_COUNT * 4);
         $heightMap = $take($projection, $offset, ChunkSnapshot::COLUMN_COUNT);
 
         $countParts = unpack('Vvalue', $take($projection, $offset, 4));
@@ -77,7 +77,7 @@ final class SnapshotDecoder
             $blockData,
             $skyLight,
             $blockLight,
-            $biomes,
+            $biomeWords,
             $heightMap,
             $extraData,
             $lightRevision,
