@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Cobblestone\Server\Internal;
 
 use Closure;
-use Cobblestone\Event\EventBus;
+use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
 use Cobblestone\Native\Session\Packet;
@@ -36,7 +36,7 @@ final class Runtime
         private readonly SessionBootstrap $bootstrap,
         private readonly SessionGameplay $gameplay,
         private readonly World $world,
-        private readonly EventBus $events,
+        private readonly Dispatcher $events,
         private readonly Scheduler $scheduler,
         private readonly LoggerInterface $logger,
         private readonly ?Closure $packetHandler,
@@ -47,7 +47,7 @@ final class Runtime
     public static function start(
         ServerConfig $config,
         World $world,
-        EventBus $events,
+        Dispatcher $events,
         Scheduler $scheduler,
         LoggerInterface $logger,
         ?Closure $packetHandler,

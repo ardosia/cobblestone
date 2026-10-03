@@ -129,7 +129,7 @@ foreach ($server->onlinePlayers() as $player) {
 }
 ~~~
 
-Internally these may delegate to EventBus, CommandRegistry, Scheduler, and player/session registries.
+Internally these may delegate to `Event\Internal\Dispatcher`, `Command\Internal\CommandTree`, `Scheduler`, and player/session state.
 
 Those implementation objects do not need to become the ordinary public path.
 
@@ -453,7 +453,7 @@ Plugin enable is transactional with respect to plugin-owned registrations.
 
 If enable throws after registering an event, command, and task, those registrations must be removed before the failure escapes.
 
-The PluginManager must not leave partially enabled behavior in global registries.
+The internal plugin host must not leave partially enabled behavior in global registrations.
 
 This is a correctness requirement, not only API polish.
 

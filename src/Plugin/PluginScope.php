@@ -6,9 +6,9 @@ namespace Cobblestone\Plugin;
 
 use Closure;
 use Cobblestone\Command\CommandBinding;
-use Cobblestone\Command\CommandRegistry;
+use Cobblestone\Command\Internal\CommandTree;
 use Cobblestone\Command\Literal;
-use Cobblestone\Event\EventBus;
+use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Event\Subscription;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Task\TaskHandle;
@@ -24,8 +24,8 @@ final class PluginScope
     private bool $closed = false;
 
     public function __construct(
-        private readonly EventBus $events,
-        private readonly CommandRegistry $commands,
+        private readonly Dispatcher $events,
+        private readonly CommandTree $commands,
         private readonly Scheduler $scheduler,
         private readonly LoggerInterface $logger,
     ) {
@@ -86,7 +86,7 @@ final class PluginScope
         $this->own($cleanup);
     }
 
-    /** @internal PluginManager owns scope closure. */
+    /** @internal Plugins owns scope closure. */
     public function close(): void
     {
         if ($this->closed) {

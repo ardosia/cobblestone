@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Plugin;
+namespace Cobblestone\Plugin\Internal;
 
-use Cobblestone\Command\CommandRegistry;
-use Cobblestone\Event\EventBus;
+use Cobblestone\Command\Internal\CommandTree;
+use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Log\LoggerFactory;
+use Cobblestone\Plugin\Plugin;
+use Cobblestone\Plugin\PluginScope;
 use Cobblestone\Task\Scheduler;
 use LogicException;
 use Psr\Log\LoggerInterface;
@@ -19,7 +21,8 @@ use Throwable;
  * Discovery magic stays out of the runtime. Every plugin receives an owned PluginScope; runtime and
  * thread ownership machinery remains internal.
  */
-final class PluginManager
+/** @internal */
+final class Plugins
 {
     /** @var array<class-string<Plugin>, array{plugin: Plugin, scope: PluginScope}> */
     private array $plugins = [];
@@ -27,8 +30,8 @@ final class PluginManager
     private readonly LoggerInterface $logger;
 
     public function __construct(
-        private readonly EventBus $events,
-        private readonly CommandRegistry $commands,
+        private readonly Dispatcher $events,
+        private readonly CommandTree $commands,
         private readonly Scheduler $scheduler,
         private readonly LoggerFactory $logs,
     ) {

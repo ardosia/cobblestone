@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Event;
+namespace Cobblestone\Event\Internal;
 
 use Closure;
+use Cobblestone\Event\Subscription;
 use InvalidArgumentException;
 
-final class EventBus
+/** @internal */
+final class Dispatcher
 {
     /** @var array<class-string, array<int, Closure(object): void>> */
     private array $listeners = [];

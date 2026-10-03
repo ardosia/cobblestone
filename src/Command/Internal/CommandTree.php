@@ -2,14 +2,25 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Command;
+namespace Cobblestone\Command\Internal;
 
 use Closure;
+use Cobblestone\Command\Argument;
+use Cobblestone\Command\Command;
+use Cobblestone\Command\CommandBinding;
+use Cobblestone\Command\CommandDefinitionException;
+use Cobblestone\Command\CommandParseException;
+use Cobblestone\Command\CommandReader;
+use Cobblestone\Command\CommandRequirementFailed;
+use Cobblestone\Command\CompiledNode;
+use Cobblestone\Command\Literal;
+use Cobblestone\Command\Node;
 use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
 
-final class CommandRegistry
+/** @internal */
+final class CommandTree
 {
     /** @var array<int, array{root: CompiledNode, names: list<string>}> */
     private array $registrations = [];

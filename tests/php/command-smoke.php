@@ -7,7 +7,7 @@ require __DIR__ . '/bootstrap.php';
 use Cobblestone\Command\Command;
 use Cobblestone\Command\CommandDefinitionException;
 use Cobblestone\Command\CommandParseException;
-use Cobblestone\Command\CommandRegistry;
+use Cobblestone\Command\Internal\CommandTree;
 use Cobblestone\Command\CommandRequirementFailed;
 use function Cobblestone\Command\{boolean, enumArg, greedyString, integer, literal, word};
 
@@ -24,7 +24,7 @@ function commandExpect(bool $condition, string $message): void
     }
 }
 
-$commands = new CommandRegistry();
+$commands = new CommandTree();
 $binding = $commands->register(
     literal('world', aliases: ['w'])->then(
         literal('time')->then(

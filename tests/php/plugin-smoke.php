@@ -5,11 +5,11 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 use Cobblestone\Command\CommandParseException;
-use Cobblestone\Command\CommandRegistry;
+use Cobblestone\Command\Internal\CommandTree;
 use function Cobblestone\Command\literal;
-use Cobblestone\Event\EventBus;
+use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Log\LoggerFactory;
-use Cobblestone\Plugin\PluginManager;
+use Cobblestone\Plugin\Internal\Plugins;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Tests\FailingSmokePlugin;
 
@@ -20,10 +20,10 @@ function pluginExpect(bool $condition, string $message): void
     }
 }
 
-$events = new EventBus();
-$commands = new CommandRegistry();
+$events = new Dispatcher();
+$commands = new CommandTree();
 $scheduler = new Scheduler();
-$plugins = new PluginManager(
+$plugins = new Plugins(
     $events,
     $commands,
     $scheduler,

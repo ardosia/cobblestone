@@ -6,14 +6,14 @@ namespace Cobblestone\Server;
 
 use Closure;
 use Cobblestone\Command\CommandBinding;
-use Cobblestone\Command\CommandRegistry;
+use Cobblestone\Command\Internal\CommandTree;
 use Cobblestone\Command\Literal;
-use Cobblestone\Event\EventBus;
+use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Event\Subscription;
 use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Plugin\Plugin;
-use Cobblestone\Plugin\PluginManager;
+use Cobblestone\Plugin\Internal\Plugins;
 use Cobblestone\Server\Event\ServerStarted;
 use Cobblestone\Server\Event\ServerStopping;
 use Cobblestone\Server\Internal\Runner;
@@ -32,10 +32,10 @@ use Throwable;
 
 final class Server
 {
-    private readonly EventBus $events;
-    private readonly CommandRegistry $commands;
+    private readonly Dispatcher $events;
+    private readonly CommandTree $commands;
     private readonly Scheduler $scheduler;
-    private readonly PluginManager $plugins;
+    private readonly Plugins $plugins;
     private readonly LoggerInterface $logger;
 
     private ?ServerRuntime $runtime = null;
@@ -50,10 +50,10 @@ final class Server
         private readonly ?Closure $packetHandler,
     ) {
         $this->logger = $logs->logger('Cobblestone.Server');
-        $this->events = new EventBus();
-        $this->commands = new CommandRegistry();
+        $this->events = new Dispatcher();
+        $this->commands = new CommandTree();
         $this->scheduler = new Scheduler();
-        $this->plugins = new PluginManager(
+        $this->plugins = new Plugins(
             $this->events,
             $this->commands,
             $this->scheduler,
