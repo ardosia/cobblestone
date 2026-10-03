@@ -6,10 +6,7 @@ declare(strict_types=1);
 use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
-use Cobblestone\Server\ServerRunner;
 use Cobblestone\Server\WorldFactory;
-use Cobblestone\Tick\TickLoop;
-use Cobblestone\Tick\TickLoopConfig;
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
@@ -122,16 +119,6 @@ try {
     exit(1);
 }
 
-$ticks = new TickLoop(
-    new TickLoopConfig(tickRate: $tickRate),
-    $logs->logger('Cobblestone.Tick'),
-);
-$runner = new ServerRunner(
-    $server,
-    $ticks,
-    $logs->logger('Cobblestone.ServerRunner'),
-);
-
 $logger->info(
     'Configured Cobblestone',
     [
@@ -147,7 +134,7 @@ $logger->info(
 );
 
 try {
-    $runner->run();
+    $server->run(tickRate: $tickRate);
 } catch (Throwable) {
     exit(1);
 }

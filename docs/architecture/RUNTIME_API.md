@@ -88,7 +88,7 @@ A reason may be supplied:
 $server->stop('Maintenance');
 ~~~
 
-The server runner remains responsible for reaching a safe stop boundary.
+`Server::run()` is the normal execution entrypoint and delegates to the internal runner responsible for reaching a safe stop boundary.
 
 Subsystems should not call exit().
 

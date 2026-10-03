@@ -16,9 +16,12 @@ use Cobblestone\Plugin\Plugin;
 use Cobblestone\Plugin\PluginManager;
 use Cobblestone\Server\Event\ServerStarted;
 use Cobblestone\Server\Event\ServerStopping;
+use Cobblestone\Server\Internal\Runner;
 use Cobblestone\Server\Internal\Runtime as ServerRuntime;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Task\TaskHandle;
+use Cobblestone\Tick\TickLoop;
+use Cobblestone\Tick\TickLoopConfig;
 use Cobblestone\World\ChunkLease;
 use Cobblestone\World\ChunkLoadPending;
 use Cobblestone\World\ChunkPos;
@@ -239,7 +242,24 @@ final class Server
         $this->serverRuntime()->tick($nativeEventBudget);
     }
 
-    /** @internal ServerRunner owns terminal shutdown. */
+    public function run(
+        int $tickRate = 20,
+        int $nativeEventBudget = 256,
+    ): int {
+        $ticks = new TickLoop(
+            new TickLoopConfig(tickRate: $tickRate),
+            $this->logs->logger('Cobblestone.Tick'),
+        );
+
+        return new Runner(
+            $this,
+            $ticks,
+            $this->logs->logger('Cobblestone.Server.Runner'),
+            $nativeEventBudget,
+        )->run();
+    }
+
+    /** @internal Runner owns terminal shutdown. */
     public function shutdown(): void
     {
         if ($this->state === ServerState::Stopped || $this->state === ServerState::Stopping) {

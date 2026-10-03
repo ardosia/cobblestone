@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Server;
+namespace Cobblestone\Server\Internal;
 
+use Cobblestone\Server\Server;
+use Cobblestone\Server\ServerState;
 use Cobblestone\Tick\TickLoop;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-final class ServerRunner
+/** @internal */
+final class Runner
 {
     private bool $shutdownHookRegistered = false;
 

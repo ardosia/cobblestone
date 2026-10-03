@@ -58,7 +58,7 @@ Target design: RUNTIME_API.md.
 Current direction:
 
 - construction remains side-effect free until explicit start();
-- `Server` is a public facade rather than the session packet/tick implementation;
+- `Server` is a public facade rather than the session packet/tick implementation, and `Server::run()` is the normal execution entrypoint;
 - `Server\Internal\Runtime` owns native-session routing, bootstrap/gameplay dispatch, tick ordering, and world maintenance;
 - plugin-owned registration lifetime is integrated;
 - readonly `ServerConfig` replaces the primitive creation argument bag;

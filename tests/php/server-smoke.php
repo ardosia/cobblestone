@@ -125,6 +125,20 @@ if (cobblestone_session_running()) {
     server_fail('native session runtime remained active after server stop');
 }
 
+$runServer = Server::create(
+    new ServerConfig('127.0.0.1:0', 2, 'Cobblestone Run Test'),
+);
+$runServer->after(
+    1,
+    static function () use ($runServer): void {
+        $runServer->stop('run-smoke');
+    },
+);
+$runTicks = $runServer->run(tickRate: 1_000, nativeEventBudget: 1);
+if ($runTicks < 1 || $runServer->state() !== ServerState::Stopped) {
+    server_fail('Server::run did not own start/tick/shutdown lifecycle');
+}
+
 fwrite(
     STDOUT,
     "cobblestone-server: lifecycle=verified events=verified commands=verified plugin=verified scheduler=verified fiber=owner-resumed shutdown=graceful\n",
