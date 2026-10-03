@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Cobblestone\World;
 
 use Cobblestone\Native\World as NativeWorld;
-use Cobblestone\Native\World\SnapshotDecoder;
-
+use Cobblestone\World\Internal\ChunkState;
+use Cobblestone\World\Internal\FallbackChunkState;
+use Cobblestone\World\Internal\NativeChunkState;
 use ValueError;
 
 final class Chunk
@@ -15,24 +16,18 @@ final class Chunk
     public const LIFECYCLE_POPULATED = 0x02;
     public const LIFECYCLE_LIGHT_POPULATED = 0x04;
 
-    private readonly ?ChunkFallbackState $fallbackState;
+    private readonly ChunkState $state;
 
     public function __construct(
         private readonly ChunkPos $position,
         ?BiomeId $biome = null,
-        private readonly ?NativeWorld $nativeStore = null,
+        ?NativeWorld $nativeStore = null,
         bool $nativeResident = false,
     ) {
         $biome ??= new BiomeId(1);
-        $this->fallbackState = $this->nativeStore === null ? new ChunkFallbackState($biome) : null;
-
-        if ($this->nativeStore !== null) {
-            if (!$nativeResident) {
-                $this->nativeStore->ensureChunk($this->position, $biome);
-            }
-            return;
-        }
-
+        $this->state = $nativeStore === null
+            ? new FallbackChunkState($this->position, $biome)
+            : new NativeChunkState($nativeStore, $this->position, $biome, $nativeResident);
     }
 
     public function position(): ChunkPos
@@ -42,7 +37,7 @@ final class Chunk
 
     public function revision(): int
     {
-        return $this->nativeStore?->terrainRevision($this->position) ?? $this->fallbackState()->revision();
+        return $this->state->revision();
     }
 
     public function terrainRevision(): ChunkRevision
@@ -62,41 +57,26 @@ final class Chunk
 
     public function lightRevision(): LightRevision
     {
-        return new LightRevision(
-            $this->nativeStore?->lightRevision($this->position) ?? $this->fallbackState()->lightRevision(),
-        );
+        return new LightRevision($this->state->lightRevision());
     }
 
     /** @internal Mutation commit primitive. */
     public function commitRevision(int $expected, int $next): void
     {
-        if ($this->nativeStore !== null) {
-            $this->nativeStore->commitTerrainRevision($this->position, $expected, $next);
-            return;
-        }
-
-        $this->fallbackState()->commitRevision($expected, $next);
+        $this->state->commitRevision($expected, $next);
     }
 
     /** @internal Light-commit primitive. */
     public function commitLightRevision(int $expected, int $next): void
     {
-        if ($this->nativeStore !== null) {
-            $this->nativeStore->commitLightRevision($this->position, $expected, $next);
-            return;
-        }
-
-        $this->fallbackState()->commitLightRevision($expected, $next);
+        $this->state->commitLightRevision($expected, $next);
     }
 
     public function blockStateId(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->blockStateId($this->position, $x, $y, $z);
-        }
 
-        return $this->fallbackState()->blockStateId($x, $y, $z);
+        return $this->state->blockStateId($x, $y, $z);
     }
 
     public function block(int $x, int $y, int $z): BlockState
@@ -109,11 +89,8 @@ final class Chunk
     {
         BlockStateId::assert($stateId);
         self::assertBlockCoordinates($x, $y, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->setBlockStateId($this->position, $x, $y, $z, $stateId);
-        }
 
-        return $this->fallbackState()->setBlockStateId($x, $y, $z, $stateId);
+        return $this->state->setBlockStateId($x, $y, $z, $stateId);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -125,7 +102,7 @@ final class Chunk
     /**
      * Fills complete global chunk-local Y layers with one scalar state token.
      *
-     * @internal Generator/native-fallback initialization primitive.
+     * @internal Generator initialization primitive.
      */
     public function fillBlockLayers(int $startY, int $count, int $stateId): void
     {
@@ -139,33 +116,23 @@ final class Chunk
         if ($count === 0) {
             return;
         }
-        if ($this->nativeStore !== null) {
-            $this->nativeStore->fillLayers($this->position, $startY, $count, $stateId);
-            return;
-        }
 
-        $this->fallbackState()->fillBlockLayers($startY, $count, $stateId);
+        $this->state->fillBlockLayers($startY, $count, $stateId);
     }
 
     public function skyLight(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->skyLight($this->position, $x, $y, $z);
-        }
 
-        return $this->fallbackState()->skyLight($x, $y, $z);
+        return $this->state->skyLight($x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
     public function setSkyLight(int $x, int $y, int $z, int $level): int
     {
         self::assertBlockCoordinates($x, $y, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->setSkyLight($this->position, $x, $y, $z, $level);
-        }
 
-        return $this->fallbackState()->setSkyLight($x, $y, $z, $level);
+        return $this->state->setSkyLight($x, $y, $z, $level);
     }
 
     /**
@@ -181,96 +148,64 @@ final class Chunk
         if ($level < 0 || $level > 0x0f) {
             throw new ValueError('fixed-target light level must be in range 0..15');
         }
-        if ($this->nativeStore !== null) {
-            $this->nativeStore->fillSkyLightFrom($this->position, $y, $level);
-            return;
-        }
 
-        $this->fallbackState()->fillSkyLightFrom($y, $level);
+        $this->state->fillSkyLightFrom($y, $level);
     }
 
     public function blockLight(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->blockLight($this->position, $x, $y, $z);
-        }
 
-        return $this->fallbackState()->blockLight($x, $y, $z);
+        return $this->state->blockLight($x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBlockLight(int $x, int $y, int $z, int $level): int
     {
         self::assertBlockCoordinates($x, $y, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->setBlockLight($this->position, $x, $y, $z, $level);
-        }
 
-        return $this->fallbackState()->setBlockLight($x, $y, $z, $level);
+        return $this->state->setBlockLight($x, $y, $z, $level);
     }
 
     public function biome(int $x, int $z): BiomeId
     {
-        $index = self::columnIndex($x, $z);
-        if ($this->nativeStore !== null) {
-            return new BiomeId($this->nativeStore->biome($this->position, $x, $z));
-        }
+        self::assertColumnCoordinates($x, $z);
 
-        return $this->fallbackState()->biome($index);
+        return $this->state->biome($x, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
     {
-        $index = self::columnIndex($x, $z);
-        if ($this->nativeStore !== null) {
-            return new BiomeId(
-                $this->nativeStore->setBiome($this->position, $x, $z, $biome->value),
-            );
-        }
+        self::assertColumnCoordinates($x, $z);
 
-        return $this->fallbackState()->setBiome($index, $biome);
+        return $this->state->setBiome($x, $z, $biome);
     }
 
     public function highestBlockAt(int $x, int $z): int
     {
-        self::columnIndex($x, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->heightMap($this->position, $x, $z);
-        }
+        self::assertColumnCoordinates($x, $z);
 
-        return $this->fallbackState()->highestBlockAt($x, $z);
+        return $this->state->highestBlockAt($x, $z);
     }
 
     public function heightMap(int $x, int $z): int
     {
-        $index = self::columnIndex($x, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->heightMap($this->position, $x, $z);
-        }
+        self::assertColumnCoordinates($x, $z);
 
-        return $this->fallbackState()->heightAt($index);
+        return $this->state->heightMap($x, $z);
     }
 
     public function recalculateHeightMap(): void
     {
-        if ($this->nativeStore !== null) {
-            $this->nativeStore->recalculateHeightMap($this->position);
-            return;
-        }
-
-        $this->fallbackState()->recalculateHeightMap();
+        $this->state->recalculateHeightMap();
     }
 
     public function blockExtraData(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->blockExtraData($this->position, $x, $y, $z);
-        }
 
-        return $this->fallbackState()->blockExtraData(self::extraDataKey($x, $y, $z));
+        return $this->state->blockExtraData($x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -280,41 +215,26 @@ final class Chunk
         if ($data < 0 || $data > 0xffff) {
             throw new ValueError('fixed-target block extra data must be in range 0..65535');
         }
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->setBlockExtraData($this->position, $x, $y, $z, $data);
-        }
 
-        return $this->fallbackState()->setBlockExtraData(
-            self::extraDataKey($x, $y, $z),
-            $data,
-        );
+        return $this->state->setBlockExtraData($x, $y, $z, $data);
     }
 
     /** @return array<int, int> */
     public function extraData(): array
     {
-        return $this->nativeStore !== null
-            ? $this->nativeSnapshot()->extraData
-            : $this->fallbackState()->extraData();
+        return $this->state->extraData();
     }
 
-    /**
-     * Captures immutable semantic chunk state without exposing mutable section objects.
-     */
+    /** Captures immutable semantic chunk state. */
     public function snapshot(): ChunkSnapshot
     {
-        return $this->nativeStore !== null
-            ? $this->nativeSnapshot()
-            : $this->fallbackState()->snapshot($this->position);
+        return $this->state->snapshot();
     }
 
     public function lightSnapshot(): LightSnapshot
     {
-        return $this->nativeStore !== null
-            ? $this->nativeSnapshot()->light()
-            : $this->fallbackState()->lightSnapshot();
+        return $this->state->lightSnapshot();
     }
-
 
     /**
      * @param array<int, int> $blocks
@@ -325,7 +245,7 @@ final class Chunk
      *
      * @internal Prepared mutation batch primitive.
      */
-    public function applyNativePatch(
+    public function applyPatch(
         int $expectedTerrainRevision,
         int $nextTerrainRevision,
         int $expectedLightRevision,
@@ -336,12 +256,7 @@ final class Chunk
         array $skyLight,
         array $blockLight,
     ): void {
-        if ($this->nativeStore === null) {
-            throw new \LogicException('native patch requested for a PHP-backed chunk');
-        }
-
-        $this->nativeStore->applyPatch(
-            $this->position,
+        $this->state->applyPatch(
             $expectedTerrainRevision,
             $nextTerrainRevision,
             $expectedLightRevision,
@@ -354,19 +269,9 @@ final class Chunk
         );
     }
 
-    /** @internal */
-    public function nativeStore(): ?NativeWorld
-    {
-        return $this->nativeStore;
-    }
-
     public function lifecycleFlags(): int
     {
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->lifecycleFlags($this->position);
-        }
-
-        return $this->fallbackState()->lifecycleFlags();
+        return $this->state->lifecycleFlags();
     }
 
     public function isGenerated(): bool
@@ -417,11 +322,7 @@ final class Chunk
     /** @internal Persistence/lifecycle primitive. */
     public function isDirty(): bool
     {
-        if ($this->nativeStore !== null) {
-            return $this->nativeStore->chunkDirty($this->position);
-        }
-
-        return $this->fallbackState()->isDirty();
+        return $this->state->isDirty();
     }
 
     /** @internal Persistence completion primitive. */
@@ -430,17 +331,7 @@ final class Chunk
         int $lightRevision,
         int $lifecycleFlags,
     ): void {
-        if ($this->nativeStore !== null) {
-            $this->nativeStore->markPersisted(
-                $this->position,
-                $terrainRevision,
-                $lightRevision,
-                $lifecycleFlags,
-            );
-            return;
-        }
-
-        $this->fallbackState()->markPersisted(
+        $this->state->markPersisted(
             $terrainRevision,
             $lightRevision,
             $lifecycleFlags,
@@ -457,28 +348,39 @@ final class Chunk
         );
     }
 
+    /** @internal */
+    public function pinBacking(): void
+    {
+        $this->state->pin();
+    }
+
+    /** @internal */
+    public function unpinBacking(): void
+    {
+        $this->state->unpin();
+    }
+
+    /** @internal */
+    public function tryEvictBacking(int $localPinCount): ChunkUnloadStatus
+    {
+        return $this->state->tryEvict($localPinCount);
+    }
+
+    /** @internal */
+    public function matchesNativeStore(?NativeWorld $store): bool
+    {
+        return $this->state->matchesNativeStore($store);
+    }
+
+    /** @internal Mutation prepare optimization hint. */
+    public function prefersSnapshotReads(): bool
+    {
+        return $this->state->prefersSnapshotReads();
+    }
+
     private function setLifecycleFlags(int $flags): void
     {
-        if ($this->nativeStore !== null) {
-            $this->nativeStore->setLifecycleFlags($this->position, $flags);
-            return;
-        }
-
-        $this->fallbackState()->setLifecycleFlags($flags);
-    }
-
-    private function fallbackState(): ChunkFallbackState
-    {
-        return $this->fallbackState
-            ?? throw new \LogicException('PHP fallback state requested for a native-backed chunk');
-    }
-
-    private function nativeSnapshot(): ChunkSnapshot
-    {
-        $projection = $this->nativeStore?->snapshotProjection($this->position)
-            ?? throw new \LogicException('native chunk snapshot requested without a native store');
-
-        return SnapshotDecoder::decode($this->position, $projection);
+        $this->state->setLifecycleFlags($flags);
     }
 
     private static function assertBlockCoordinates(int $x, int $y, int $z): void
@@ -492,17 +394,10 @@ final class Chunk
         }
     }
 
-    private static function columnIndex(int $x, int $z): int
+    private static function assertColumnCoordinates(int $x, int $z): void
     {
         if (!WorldBounds::containsLocal($x) || !WorldBounds::containsLocal($z)) {
             throw new ValueError('chunk column coordinates must be in range 0..15');
         }
-
-        return ($z << 4) | $x;
-    }
-
-    private static function extraDataKey(int $x, int $y, int $z): int
-    {
-        return ($z << 12) | ($x << 8) | $y;
     }
 }

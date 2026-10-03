@@ -79,47 +79,16 @@ final class PreparedChunkPatch
         ksort($skyLight);
         ksort($blockLight);
 
-        if ($this->chunk->nativeStore() !== null) {
-            $this->chunk->applyNativePatch(
-                $this->baseRevision,
-                $this->revision,
-                $this->baseLightRevision,
-                $this->lightRevision,
-                $blocks,
-                $biomes,
-                $extraData,
-                $skyLight,
-                $blockLight,
-            );
-            return;
-        }
-
-        foreach ($blocks as $key => $stateId) {
-            [$x, $y, $z] = ChunkPatch::decodeBlockKey($key);
-            $this->chunk->setBlockStateId($x, $y, $z, $stateId);
-        }
-        foreach ($biomes as $key => $biome) {
-            [$x, $z] = ChunkPatch::decodeColumnKey($key);
-            $this->chunk->setBiome($x, $z, $biome);
-        }
-        foreach ($extraData as $key => $data) {
-            [$x, $y, $z] = ChunkPatch::decodeBlockKey($key);
-            $this->chunk->setBlockExtraData($x, $y, $z, $data);
-        }
-        foreach ($skyLight as $key => $level) {
-            [$x, $y, $z] = ChunkPatch::decodeBlockKey($key);
-            $this->chunk->setSkyLight($x, $y, $z, $level);
-        }
-        foreach ($blockLight as $key => $level) {
-            [$x, $y, $z] = ChunkPatch::decodeBlockKey($key);
-            $this->chunk->setBlockLight($x, $y, $z, $level);
-        }
-
-        if ($this->terrainChanged()) {
-            $this->chunk->commitRevision($this->baseRevision, $this->revision);
-        }
-        if ($this->lightChanged()) {
-            $this->chunk->commitLightRevision($this->baseLightRevision, $this->lightRevision);
-        }
+        $this->chunk->applyPatch(
+            $this->baseRevision,
+            $this->revision,
+            $this->baseLightRevision,
+            $this->lightRevision,
+            $blocks,
+            $biomes,
+            $extraData,
+            $skyLight,
+            $blockLight,
+        );
     }
 }

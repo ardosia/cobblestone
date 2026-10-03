@@ -2,14 +2,27 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\World;
+namespace Cobblestone\World\Internal;
+
+use Cobblestone\Native\World as NativeWorld;
+use Cobblestone\World\BiomeId;
+use Cobblestone\World\Chunk;
+use Cobblestone\World\ChunkCoordinateKey;
+use Cobblestone\World\ChunkPos;
+use Cobblestone\World\ChunkSection;
+use Cobblestone\World\ChunkSnapshot;
+use Cobblestone\World\ChunkUnloadStatus;
+use Cobblestone\World\LightRevision;
+use Cobblestone\World\LightSnapshot;
+use Cobblestone\World\WorldBounds;
+
 
 /**
  * PHP-backed chunk state kept behind the public Chunk facade.
  *
  * @internal
  */
-final class ChunkFallbackState
+final class FallbackChunkState implements ChunkState
 {
     /** @var array<int, ChunkSection> */
     private array $sections;
@@ -28,7 +41,10 @@ final class ChunkFallbackState
     /** @var array<int, int> */
     private array $extraData = [];
 
-    public function __construct(BiomeId $biome)
+    public function __construct(
+        private readonly ChunkPos $position,
+        BiomeId $biome,
+    )
     {
         $this->sections = array_fill(0, WorldBounds::SECTION_COUNT, null);
         for ($index = 0; $index < WorldBounds::SECTION_COUNT; ++$index) {
@@ -40,7 +56,7 @@ final class ChunkFallbackState
         $this->heightMap = str_repeat("\x00", $columns);
     }
 
-    public function snapshot(ChunkPos $position): ChunkSnapshot
+    public function snapshot(): ChunkSnapshot
     {
         $blockIds = '';
         $blockData = '';
@@ -56,7 +72,7 @@ final class ChunkFallbackState
         }
 
         return new ChunkSnapshot(
-            $position,
+            $this->position,
             $this->revision,
             $blockIds,
             $blockData,
@@ -192,20 +208,26 @@ final class ChunkFallbackState
         return $this->sections[$section]->setBlockLight($x, $y & 0x0f, $z, $level);
     }
 
-    public function biome(int $index): BiomeId
+    public function biome(int $x, int $z): BiomeId
     {
-        return new BiomeId(ord($this->biomes[$index]));
+        return new BiomeId(ord($this->biomes[self::columnIndex($x, $z)]));
     }
 
-    public function setBiome(int $index, BiomeId $biome): BiomeId
+    public function setBiome(int $x, int $z, BiomeId $biome): BiomeId
     {
-        $previous = $this->biome($index);
+        $index = self::columnIndex($x, $z);
+        $previous = new BiomeId(ord($this->biomes[$index]));
         $this->biomes[$index] = chr($biome->value);
 
         return $previous;
     }
 
-    public function heightAt(int $index): int
+    public function heightMap(int $x, int $z): int
+    {
+        return $this->heightAt(self::columnIndex($x, $z));
+    }
+
+    private function heightAt(int $index): int
     {
         return ord($this->heightMap[$index]);
     }
@@ -266,13 +288,14 @@ final class ChunkFallbackState
         $this->lightPopulated = ($flags & Chunk::LIFECYCLE_LIGHT_POPULATED) !== 0;
     }
 
-    public function blockExtraData(int $key): int
+    public function blockExtraData(int $x, int $y, int $z): int
     {
-        return $this->extraData[$key] ?? 0;
+        return $this->extraData[self::extraDataKey($x, $y, $z)] ?? 0;
     }
 
-    public function setBlockExtraData(int $key, int $data): int
+    public function setBlockExtraData(int $x, int $y, int $z, int $data): int
     {
+        $key = self::extraDataKey($x, $y, $z);
         $previous = $this->extraData[$key] ?? 0;
         if ($data === 0) {
             unset($this->extraData[$key]);
@@ -317,6 +340,83 @@ final class ChunkFallbackState
         $this->persistedRevision = $terrainRevision;
         $this->persistedLightRevision = $lightRevision;
         $this->persistedLifecycleFlags = $lifecycleFlags;
+    }
+
+    public function applyPatch(
+        int $expectedTerrainRevision,
+        int $nextTerrainRevision,
+        int $expectedLightRevision,
+        int $nextLightRevision,
+        array $blocks,
+        array $biomes,
+        array $extraData,
+        array $skyLight,
+        array $blockLight,
+    ): void {
+        foreach ($blocks as $key => $stateId) {
+            [$x, $y, $z] = ChunkCoordinateKey::decodeBlock($key);
+            $this->setBlockStateId($x, $y, $z, $stateId);
+        }
+        foreach ($biomes as $key => $biome) {
+            [$x, $z] = ChunkCoordinateKey::decodeColumn($key);
+            $this->setBiome($x, $z, $biome);
+        }
+        foreach ($extraData as $key => $data) {
+            [$x, $y, $z] = ChunkCoordinateKey::decodeBlock($key);
+            $this->setBlockExtraData($x, $y, $z, $data);
+        }
+        foreach ($skyLight as $key => $level) {
+            [$x, $y, $z] = ChunkCoordinateKey::decodeBlock($key);
+            $this->setSkyLight($x, $y, $z, $level);
+        }
+        foreach ($blockLight as $key => $level) {
+            [$x, $y, $z] = ChunkCoordinateKey::decodeBlock($key);
+            $this->setBlockLight($x, $y, $z, $level);
+        }
+
+        if ($nextTerrainRevision !== $expectedTerrainRevision) {
+            $this->commitRevision($expectedTerrainRevision, $nextTerrainRevision);
+        }
+        if ($nextLightRevision !== $expectedLightRevision) {
+            $this->commitLightRevision($expectedLightRevision, $nextLightRevision);
+        }
+    }
+
+    public function pin(): void
+    {
+    }
+
+    public function unpin(): void
+    {
+    }
+
+    public function tryEvict(int $localPinCount): ChunkUnloadStatus
+    {
+        return match (true) {
+            $localPinCount !== 0 => ChunkUnloadStatus::Pinned,
+            $this->isDirty() => ChunkUnloadStatus::Dirty,
+            default => ChunkUnloadStatus::Unloaded,
+        };
+    }
+
+    public function matchesNativeStore(?NativeWorld $store): bool
+    {
+        return $store === null;
+    }
+
+    public function prefersSnapshotReads(): bool
+    {
+        return false;
+    }
+
+    private static function columnIndex(int $x, int $z): int
+    {
+        return ($z << 4) | $x;
+    }
+
+    private static function extraDataKey(int $x, int $y, int $z): int
+    {
+        return ($z << 12) | ($x << 8) | $y;
     }
 
     private function refreshHeightAfterBlockChange(

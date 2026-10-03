@@ -80,7 +80,7 @@ nativeWorldExpect($world->chunk($evictPosition, false) === null, 'native unloade
 
 $chunk = $world->chunk(new ChunkPos(0, 0), false);
 nativeWorldExpect($chunk !== null, 'center native chunk was not resident');
-nativeWorldExpect($chunk->nativeStore() === $store, 'chunk did not retain the world native store');
+nativeWorldExpect($chunk->matchesNativeStore($store), 'chunk did not retain the world native store');
 nativeWorldExpect($chunk->revision() === 0, 'generated native terrain revision must start at zero');
 nativeWorldExpect(
     $chunk->lightRevision()->value === 0,

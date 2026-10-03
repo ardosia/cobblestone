@@ -42,7 +42,7 @@ final class ResidentChunkCell
 
     public function acquire(): void
     {
-        $this->chunk->nativeStore()?->pinChunk($this->chunk->position());
+        $this->chunk->pinBacking();
         ++$this->pins;
     }
 
@@ -52,7 +52,7 @@ final class ResidentChunkCell
             throw new \LogicException('resident chunk cell is not pinned');
         }
 
-        $this->chunk->nativeStore()?->unpinChunk($this->chunk->position());
+        $this->chunk->unpinBacking();
         --$this->pins;
     }
 

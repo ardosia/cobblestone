@@ -107,7 +107,7 @@ final class MainChunkSource
 
     public function put(Chunk $chunk): void
     {
-        if ($chunk->nativeStore() !== $this->nativeStore) {
+        if (!$chunk->matchesNativeStore($this->nativeStore)) {
             throw new \LogicException('chunk source/store mismatch');
         }
 
@@ -134,23 +134,9 @@ final class MainChunkSource
             return ChunkUnloadStatus::Missing;
         }
 
-        if ($this->nativeStore !== null) {
-            $status = match ($this->nativeStore->tryEvictChunk($position)) {
-                0 => ChunkUnloadStatus::Missing,
-                1 => ChunkUnloadStatus::Pinned,
-                2 => ChunkUnloadStatus::Dirty,
-                3 => ChunkUnloadStatus::Unloaded,
-                default => throw new \UnexpectedValueException('invalid native chunk eviction status'),
-            };
-        } else {
-            $cell = $this->cells[$key]
-                ?? throw new \LogicException('resident chunk cell missing for PHP-backed chunk');
-            $status = match (true) {
-                $cell->pinCount() !== 0 => ChunkUnloadStatus::Pinned,
-                $chunk->isDirty() => ChunkUnloadStatus::Dirty,
-                default => ChunkUnloadStatus::Unloaded,
-            };
-        }
+        $cell = $this->cells[$key]
+            ?? throw new \LogicException('resident chunk cell missing for resident chunk');
+        $status = $chunk->tryEvictBacking($cell->pinCount());
 
         if ($status === ChunkUnloadStatus::Unloaded || $status === ChunkUnloadStatus::Missing) {
             unset($this->chunks[$key], $this->cells[$key]);

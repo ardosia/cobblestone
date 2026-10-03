@@ -49,33 +49,18 @@ final readonly class ChunkTerrain
         ksort($blocks);
         ksort($biomes);
 
-        if ($this->chunk->nativeStore() !== null) {
-            $lightRevision = $this->chunk->lightRevision()->value;
-            $this->chunk->applyNativePatch(
-                $current,
-                $prepared->revision->value,
-                $lightRevision,
-                $lightRevision,
-                $blocks,
-                $biomes,
-                [],
-                [],
-                [],
-            );
-
-            return true;
-        }
-
-        foreach ($blocks as $key => $stateId) {
-            [$x, $y, $z] = TerrainPatch::decodeBlockKey($key);
-            $this->chunk->setBlockStateId($x, $y, $z, $stateId);
-        }
-        foreach ($biomes as $key => $biome) {
-            [$x, $z] = TerrainPatch::decodeColumnKey($key);
-            $this->chunk->setBiome($x, $z, $biome);
-        }
-
-        $this->chunk->commitRevision($current, $prepared->revision->value);
+        $lightRevision = $this->chunk->lightRevision()->value;
+        $this->chunk->applyPatch(
+            $current,
+            $prepared->revision->value,
+            $lightRevision,
+            $lightRevision,
+            $blocks,
+            $biomes,
+            [],
+            [],
+            [],
+        );
 
         return true;
     }

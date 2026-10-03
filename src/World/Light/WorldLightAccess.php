@@ -192,59 +192,33 @@ final class WorldLightAccess
         foreach ($groups as $group) {
             $chunk = $group['chunk'];
             $snapshot = $group['snapshot'];
-            if ($chunk->nativeStore() !== null) {
-                $skyLight = [];
-                $blockLight = [];
-                foreach ($group['entries'] as $entry) {
-                    $position = $entry['position'];
-                    $key = ($position->y << 8)
-                        | ($position->localZ() << 4)
-                        | $position->localX();
-                    if ($entry['layer'] === LightLayer::Sky) {
-                        $skyLight[$key] = $entry['level'];
-                    } else {
-                        $blockLight[$key] = $entry['level'];
-                    }
+            $skyLight = [];
+            $blockLight = [];
+            foreach ($group['entries'] as $entry) {
+                $position = $entry['position'];
+                $key = ($position->y << 8)
+                    | ($position->localZ() << 4)
+                    | $position->localX();
+                if ($entry['layer'] === LightLayer::Sky) {
+                    $skyLight[$key] = $entry['level'];
+                } else {
+                    $blockLight[$key] = $entry['level'];
                 }
-                ksort($skyLight);
-                ksort($blockLight);
-
-                $chunk->applyNativePatch(
-                    $snapshot->revision,
-                    $snapshot->revision,
-                    $snapshot->lightRevision,
-                    $snapshot->lightRevision + 1,
-                    [],
-                    [],
-                    [],
-                    $skyLight,
-                    $blockLight,
-                );
-            } else {
-                foreach ($group['entries'] as $entry) {
-                    $position = $entry['position'];
-                    if ($entry['layer'] === LightLayer::Sky) {
-                        $chunk->setSkyLight(
-                            $position->localX(),
-                            $position->y,
-                            $position->localZ(),
-                            $entry['level'],
-                        );
-                    } else {
-                        $chunk->setBlockLight(
-                            $position->localX(),
-                            $position->y,
-                            $position->localZ(),
-                            $entry['level'],
-                        );
-                    }
-                }
-
-                $chunk->commitLightRevision(
-                    $snapshot->lightRevision,
-                    $snapshot->lightRevision + 1,
-                );
             }
+            ksort($skyLight);
+            ksort($blockLight);
+
+            $chunk->applyPatch(
+                $snapshot->revision,
+                $snapshot->revision,
+                $snapshot->lightRevision,
+                $snapshot->lightRevision + 1,
+                [],
+                [],
+                [],
+                $skyLight,
+                $blockLight,
+            );
             $changed[] = $chunk->position();
         }
 

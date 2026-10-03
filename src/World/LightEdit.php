@@ -98,42 +98,27 @@ final class LightEdit
         ksort($block);
         $next = $this->baseRevision + 1;
 
-        if ($this->chunk->nativeStore() !== null) {
-            $skyValues = [];
-            foreach ($sky as $key => $level) {
-                $skyValues[$key] = $level->value;
-            }
-            $blockValues = [];
-            foreach ($block as $key => $level) {
-                $blockValues[$key] = $level->value;
-            }
-
-            $terrainRevision = $this->chunk->revision();
-            $this->chunk->applyNativePatch(
-                $terrainRevision,
-                $terrainRevision,
-                $this->baseRevision,
-                $next,
-                [],
-                [],
-                [],
-                $skyValues,
-                $blockValues,
-            );
-
-            return true;
-        }
-
+        $skyValues = [];
         foreach ($sky as $key => $level) {
-            [$x, $y, $z] = self::decode($key);
-            $this->chunk->setSkyLight($x, $y, $z, $level->value);
+            $skyValues[$key] = $level->value;
         }
+        $blockValues = [];
         foreach ($block as $key => $level) {
-            [$x, $y, $z] = self::decode($key);
-            $this->chunk->setBlockLight($x, $y, $z, $level->value);
+            $blockValues[$key] = $level->value;
         }
 
-        $this->chunk->commitLightRevision($this->baseRevision, $next);
+        $terrainRevision = $this->chunk->revision();
+        $this->chunk->applyPatch(
+            $terrainRevision,
+            $terrainRevision,
+            $this->baseRevision,
+            $next,
+            [],
+            [],
+            [],
+            $skyValues,
+            $blockValues,
+        );
 
         return true;
     }
