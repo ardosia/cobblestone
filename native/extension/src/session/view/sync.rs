@@ -16,7 +16,7 @@ use crate::runtime::current_runtime_id;
 use crate::session::bridge::{QueueResult, try_queue};
 use crate::world::{protocol84_chunk, resolve_world};
 
-use super::{WorldView, release_view, world_views};
+use super::state::{WorldView, release_view, world_views};
 use crate::session::join::bootstrap_session_packet;
 
 const MAX_SYNC_BATCH_PACKETS: usize = 256;
