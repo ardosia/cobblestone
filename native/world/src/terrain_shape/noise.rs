@@ -75,6 +75,14 @@ impl MtRandom {
     pub(crate) fn next_gaussian_float(&mut self) -> f32 {
         self.next_float() - self.next_float()
     }
+
+    pub(crate) fn next_gaussian_int(&mut self, bound: u32) -> i32 {
+        self.next_int(bound) as i32 - self.next_int(bound) as i32
+    }
+
+    pub(crate) fn next_boolean(&mut self) -> bool {
+        self.next_u32() & 0x0800_0000 != 0
+    }
 }
 
 pub(crate) struct PerlinSimplexNoise {

@@ -36,13 +36,21 @@ impl OverworldOreDecorator {
     pub fn decorate(&self, neighborhood: &mut PopulationNeighborhood) {
         let center = neighborhood.center();
         let mut random = population_random(self.seed, center);
+        self.decorate_with_random(neighborhood, &mut random);
+    }
+
+    pub(crate) fn decorate_with_random(
+        &self,
+        neighborhood: &mut PopulationNeighborhood,
+        random: &mut MtRandom,
+    ) {
         let mesa = is_mesa_biome(neighborhood.center_biome_ids()[15 + 15 * 16]);
 
-        let _ = decorate_common_ores(neighborhood, &mut random);
+        let _ = decorate_common_ores(neighborhood, random);
         if mesa {
             decorate_depth_span(
                 neighborhood,
-                &mut random,
+                random,
                 20,
                 OreSpec::new(GOLD_ORE_ID, 0, 9),
                 32,
@@ -193,6 +201,22 @@ fn decorate_depth_average(
         let x = origin_x.wrapping_add(random.next_int(16) as i32);
         place_ore(neighborhood, random, BlockPos::new(x, y0 + y1, z), ore);
     }
+}
+
+pub(crate) fn place_ore_feature(
+    neighborhood: &mut PopulationNeighborhood,
+    random: &mut MtRandom,
+    position: (i32, i32, i32),
+    block_id: u16,
+    data: u8,
+    size: usize,
+) {
+    place_ore(
+        neighborhood,
+        random,
+        BlockPos::new(position.0, position.1, position.2),
+        OreSpec::new(block_id, data, size),
+    );
 }
 
 fn place_ore(

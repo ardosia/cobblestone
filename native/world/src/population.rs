@@ -7,6 +7,7 @@ use crate::{CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldCaveCarv
 struct PopulationChunk {
     states: Vec<u16>,
     biome_ids: Vec<u8>,
+    generation_height_map: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -28,7 +29,12 @@ impl PopulationNeighborhood {
             let (states, biome_ids) = carver.generate(position).into_parts();
             debug_assert_eq!(states.len(), CHUNK_BLOCK_COUNT);
             debug_assert_eq!(biome_ids.len(), CHUNK_COLUMN_COUNT);
-            PopulationChunk { states, biome_ids }
+            let generation_height_map = generation_height_map(&states);
+            PopulationChunk {
+                states,
+                biome_ids,
+                generation_height_map,
+            }
         });
 
         Self { center, chunks }
@@ -63,6 +69,18 @@ impl PopulationNeighborhood {
         self.state(world_x, y, world_z)
             .map(|value| value >> 4)
             .unwrap_or(0)
+    }
+
+    /// Target LevelChunk heightmap captured immediately after cave generation.
+    ///
+    /// Fixed-target post-process block writes do not recalculate this map, so lakes, structures,
+    /// dungeons, freeze, and earlier decorator writes intentionally leave later feature heightmap
+    /// queries unchanged.
+    pub(crate) fn generation_height(&self, world_x: i32, world_z: i32) -> i32 {
+        let Some((chunk_index, local_x, local_z)) = self.resolve(world_x, world_z) else {
+            return 0;
+        };
+        i32::from(self.chunks[chunk_index].generation_height_map[local_x + local_z * 16])
     }
 
     pub(crate) fn state(&self, world_x: i32, y: i32, world_z: i32) -> Option<u16> {
@@ -127,6 +145,14 @@ impl PopulationNeighborhood {
             chunks: array::from_fn(|_| PopulationChunk {
                 states: vec![state; CHUNK_BLOCK_COUNT],
                 biome_ids: vec![biome_id; CHUNK_COLUMN_COUNT],
+                generation_height_map: vec![
+                    if generation_height_blocking(state >> 4) {
+                        WORLD_HEIGHT as u8
+                    } else {
+                        0
+                    };
+                    CHUNK_COLUMN_COUNT
+                ],
             }),
         }
     }
@@ -158,6 +184,33 @@ fn top_solid_for_population(id: u16, include_water: bool) -> bool {
         8 | 9 => include_water,
         _ => true,
     }
+}
+
+fn generation_height_map(states: &[u16]) -> Vec<u8> {
+    let mut heights = vec![0_u8; CHUNK_COLUMN_COUNT];
+    for z in 0..16 {
+        for x in 0..16 {
+            let mut height = WORLD_HEIGHT;
+            while height > 0 {
+                let id = states[block_index(x, height - 1, z)] >> 4;
+                if generation_height_blocking(id) {
+                    break;
+                }
+                height -= 1;
+            }
+            heights[x + z * 16] = height as u8;
+        }
+    }
+    heights
+}
+
+/// `Block::mLightBlock[id] > 0` over the states reachable before population starts.
+///
+/// Every pre-population terrain/surface/cave state in the 0.15.10 Overworld has non-zero light
+/// blocking except air and the Swamp surface prepass water-lily. Water and ice explicitly use
+/// light-block 3; lava and ordinary solid terrain use non-zero/max light blocking.
+const fn generation_height_blocking(id: u16) -> bool {
+    !matches!(id, 0 | 111)
 }
 
 pub(crate) const fn state(block_id: u16, data: u8) -> u16 {
