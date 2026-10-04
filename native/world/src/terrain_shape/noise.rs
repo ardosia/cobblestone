@@ -349,11 +349,53 @@ mod tests {
     use super::MtRandom;
 
     #[test]
-    fn target_mt_seed_zero_prefix_matches_reference() {
-        let mut random = MtRandom::new(0);
-        assert_eq!(random.next_u32(), 2_357_136_044);
-        assert_eq!(random.next_u32(), 2_546_248_239);
-        assert_eq!(random.next_u32(), 3_071_714_933);
-        assert_eq!(random.next_u32(), 3_626_093_760);
+    fn target_mt_seed_prefixes_match_mcpe_reference() {
+        let fixtures = [
+            (
+                0_u32,
+                [
+                    0x8c7f_0aac,
+                    0x97c4_aa2f,
+                    0xb716_a675,
+                    0xd821_ccc0,
+                    0x9a4e_b343,
+                    0xdba2_52fb,
+                    0x8b7d_76c3,
+                    0xd8e5_7d67,
+                ],
+            ),
+            (
+                u32::MAX,
+                [
+                    0x18fe_69a3,
+                    0x1c92_4122,
+                    0xe991_ec0c,
+                    0x900c_ac47,
+                    0xc9fe_37b4,
+                    0x86bc_fe40,
+                    0xc7ae_50d6,
+                    0xc547_01fa,
+                ],
+            ),
+            (
+                0x8000_0000,
+                [
+                    0x26e9_a91a,
+                    0x55d4_1404,
+                    0xd20f_1711,
+                    0x5c53_5c23,
+                    0xc687_0e45,
+                    0x2989_4a09,
+                    0x8a83_b4b4,
+                    0x664c_9d9d,
+                ],
+            ),
+        ];
+
+        for (seed, expected) in fixtures {
+            let mut random = MtRandom::new(seed);
+            let actual = std::array::from_fn(|_| random.next_u32());
+            assert_eq!(actual, expected, "seed=0x{seed:08x}");
+        }
     }
 }
