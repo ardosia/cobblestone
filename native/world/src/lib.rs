@@ -28,7 +28,8 @@ pub use biome::{
 };
 pub use biome_source::OverworldBiomeSource;
 pub use block::{
-    BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported, block_state_id_is_supported,
+    BLOCK_IDS, INTERNAL_WORLD_BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported,
+    block_state_id_is_supported, world_block_id_is_supported, world_block_state_id_is_supported,
 };
 use change_log::WorldChangeLog;
 pub use change_log::{
@@ -334,7 +335,7 @@ fn validate_lifecycle_flags(flags: u8) -> Result<(), WorldStoreError> {
 }
 
 fn validate_state(state: u16) -> Result<(), WorldStoreError> {
-    if block_state_id_is_supported(state) {
+    if world_block_state_id_is_supported(state) {
         Ok(())
     } else {
         Err(WorldStoreError::InvalidState(state))

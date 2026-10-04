@@ -1,6 +1,8 @@
 use crate::ChunkCoord;
+use crate::population::{PopulationNeighborhood, population_seed};
 use crate::terrain_shape::noise::MtRandom;
 
+use super::stronghold_place::StrongholdPostProcessor;
 use super::stronghold_plan::{
     StrongholdDoor, StrongholdPieceExtra, StrongholdPieceKind, StrongholdPiecePlan, StrongholdPlan,
 };
@@ -224,6 +226,30 @@ impl OverworldStrongholdStructures {
 
             state.starts.push(StrongholdPlan::generate(source, random));
         }
+    }
+
+    pub fn post_process(
+        &self,
+        state: &mut StrongholdStructureState,
+        neighborhood: &mut PopulationNeighborhood,
+        target: ChunkCoord,
+    ) -> bool {
+        let mut random = MtRandom::new(population_seed(self.seed, target));
+        self.post_process_with_random(state, neighborhood, target, &mut random)
+    }
+
+    pub(crate) fn post_process_with_random(
+        &self,
+        state: &mut StrongholdStructureState,
+        neighborhood: &mut PopulationNeighborhood,
+        target: ChunkCoord,
+        random: &mut MtRandom,
+    ) -> bool {
+        let mut changed = false;
+        for start in state.starts.iter_mut() {
+            changed |= StrongholdPostProcessor::process_start(start, neighborhood, target, random);
+        }
+        changed
     }
 }
 
@@ -466,6 +492,7 @@ fn center_of_grid(source: ChunkCoord) -> ChunkCoord {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::population::PopulationNeighborhood;
     use crate::structure::structure_source_random;
 
     #[test]
@@ -526,6 +553,123 @@ mod tests {
             feature_min.additional_for_grid(-2, 1),
             Some(ChunkCoord::new(-345, 316))
         );
+    }
+
+    fn independent_plan(seed: i32, source: ChunkCoord) -> StrongholdPlan {
+        let seed_bits = u32::from_ne_bytes(seed.to_ne_bytes());
+        let mut random = structure_source_random(seed_bits, source);
+        let _ = random.next_positive_int();
+        StrongholdPlan::generate(source, random)
+    }
+
+    #[test]
+    fn independent_topology_fixtures_match_target_copy_rng_graph() {
+        // Standalone C++ std::mt19937 oracle implementing the fixed-target Stronghold
+        // weight table, by-value piece RNG quirk, collision/filler rules, pending-child
+        // selection, and final moveToLevel(seaLevel - 5).
+        let fixtures = [
+            (
+                0,
+                ChunkCoord::new(-55, -25),
+                0xf5bb_723d_3439_fabb_u64,
+                207,
+                StructureBounds::new(-936, 11, -463, -817, 43, -283),
+            ),
+            (
+                -1,
+                ChunkCoord::new(-381, 530),
+                0x7e36_ec4a_78f8_8ec4_u64,
+                247,
+                StructureBounds::new(-6175, 4, 8418, -6027, 32, 8547),
+            ),
+            (
+                i32::MIN,
+                ChunkCoord::new(5, -68),
+                0xe3a8_91fc_8023_0d0c_u64,
+                167,
+                StructureBounds::new(37, 24, -1146, 174, 54, -1050),
+            ),
+            (
+                0x1234_5678,
+                ChunkCoord::new(223, -160),
+                0xac60_5fb9_ebef_24d9_u64,
+                152,
+                StructureBounds::new(3503, 24, -2603, 3624, 48, -2445),
+            ),
+            (
+                0,
+                ChunkCoord::new(321, 93),
+                0xc93f_456f_3265_31c6_u64,
+                13,
+                StructureBounds::new(5125, 4, 1467, 5144, 16, 1494),
+            ),
+        ];
+
+        for (seed, source, expected_hash, expected_count, expected_bounds) in fixtures {
+            let plan = independent_plan(seed, source);
+            assert_eq!(
+                plan.topology_hash(),
+                expected_hash,
+                "seed={seed} source={source:?}"
+            );
+            assert_eq!(plan.pieces.len(), expected_count);
+            assert_eq!(plan.core.bounds(), expected_bounds);
+        }
+    }
+
+    #[test]
+    fn mutable_portal_spawner_state_survives_reload_while_chunk_bookkeeping_resets() {
+        let target = ChunkCoord::new(0, 0);
+        let bounds = StructureBounds::new(2, 20, 0, 12, 27, 15);
+        let plan = StrongholdPlan {
+            core: StructureStartCore::new(target, bounds),
+            pieces: vec![StrongholdPiecePlan {
+                kind: StrongholdPieceKind::PortalRoom,
+                bounds,
+                orientation: StructureOrientation::South,
+                gen_depth: 7,
+                entry_door: StrongholdDoor::Opening,
+                extra: StrongholdPieceExtra::PortalRoom {
+                    has_placed_mob_spawner: false,
+                },
+            }],
+        };
+        let mut state = StrongholdStructureState {
+            starts: StructureStartCache::from_starts(vec![plan]),
+        };
+        let runtime = OverworldStrongholdStructures::new(0);
+        let mut neighborhood =
+            PopulationNeighborhood::filled(target, crate::population::state(1, 0), 1);
+        assert!(runtime.post_process(&mut state, &mut neighborhood, target));
+
+        let StrongholdPieceExtra::PortalRoom {
+            has_placed_mob_spawner,
+        } = state.starts.iter().next().expect("start").pieces[0].extra
+        else {
+            unreachable!();
+        };
+        assert!(has_placed_mob_spawner);
+        assert!(
+            !state
+                .starts
+                .iter()
+                .next()
+                .expect("start")
+                .core
+                .should_post_process(target)
+        );
+
+        let encoded = state.encode();
+        let decoded = StrongholdStructureState::decode(&encoded).expect("valid state");
+        let decoded_start = decoded.starts.iter().next().expect("decoded start");
+        let StrongholdPieceExtra::PortalRoom {
+            has_placed_mob_spawner,
+        } = decoded_start.pieces[0].extra
+        else {
+            unreachable!();
+        };
+        assert!(has_placed_mob_spawner);
+        assert!(decoded_start.core.should_post_process(target));
     }
 
     #[test]

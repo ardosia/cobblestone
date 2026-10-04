@@ -36,10 +36,25 @@ pub const fn block_state_id_is_supported(state: u16) -> bool {
     state <= MAX_LEGACY_STATE_ID && block_id_is_supported((state >> 4) as u8)
 }
 
+/// Fixed-target block IDs that are registered by the executable and can exist in
+/// world state, but are intentionally absent from the shipped public blocks.json
+/// registry used by BlockCatalog.
+pub const INTERNAL_WORLD_BLOCK_IDS: &[u8] = &[119];
+
+pub const fn world_block_id_is_supported(id: u8) -> bool {
+    block_id_is_supported(id) || matches!(id, 119)
+}
+
+pub const fn world_block_state_id_is_supported(state: u16) -> bool {
+    state <= MAX_LEGACY_STATE_ID && world_block_id_is_supported((state >> 4) as u8)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported, block_state_id_is_supported,
+        BLOCK_IDS, INTERNAL_WORLD_BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported,
+        block_state_id_is_supported, world_block_id_is_supported,
+        world_block_state_id_is_supported,
     };
 
     #[test]
@@ -56,6 +71,17 @@ mod tests {
         assert!(!block_id_is_supported(84));
         assert!(!block_id_is_supported(251));
         assert!(block_id_is_supported(255));
+    }
+
+    #[test]
+    fn hidden_registered_world_blocks_do_not_expand_public_catalog() {
+        assert_eq!(INTERNAL_WORLD_BLOCK_IDS, &[119]);
+        assert!(!block_id_is_supported(119));
+        assert!(!block_state_id_is_supported(119 << 4));
+        assert!(world_block_id_is_supported(119));
+        assert!(world_block_state_id_is_supported(119 << 4));
+        assert!(!world_block_id_is_supported(122));
+        assert!(!world_block_state_id_is_supported(122 << 4));
     }
 
     #[test]
