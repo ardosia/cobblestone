@@ -47,8 +47,9 @@ pub use population::PopulationNeighborhood;
 pub use population_lake::OverworldLakePopulator;
 pub use population_ore::OverworldOreDecorator;
 pub use structure::{
-    MineshaftStructureState, OverworldMineshaftStructures, OverworldVillageStructures,
-    StructureFeatureKind, VillageStructureState,
+    MineshaftStructureState, OverworldMineshaftStructures, OverworldStrongholdStructures,
+    OverworldVillageStructures, StrongholdStructureState, StructureFeatureKind,
+    VillageStructureState,
 };
 pub use terrain_cave::{CarvedChunk, OverworldCaveCarver};
 pub use terrain_shape::{ChunkTerrainShape, OverworldTerrainShape};

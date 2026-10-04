@@ -1,11 +1,14 @@
 mod mineshaft;
 mod mineshaft_place;
 mod mineshaft_plan;
+mod stronghold;
+mod stronghold_plan;
 mod village;
 mod village_place;
 mod village_plan;
 
 pub use mineshaft::{MineshaftStructureState, OverworldMineshaftStructures};
+pub use stronghold::{OverworldStrongholdStructures, StrongholdStructureState};
 pub use village::{OverworldVillageStructures, VillageStructureState};
 
 use crate::ChunkCoord;

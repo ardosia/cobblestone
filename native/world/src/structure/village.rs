@@ -34,7 +34,16 @@ impl VillageFeature {
 
     #[cfg(test)]
     pub(crate) fn is_feature_chunk(&self, chunk: ChunkCoord) -> bool {
-        let (candidate, _) = candidate_with_random(self.seed, chunk);
+        let mut random = MtRandom::new(0);
+        self.is_feature_chunk_with_random(chunk, &mut random)
+    }
+
+    pub(crate) fn is_feature_chunk_with_random(
+        &self,
+        chunk: ChunkCoord,
+        random: &mut MtRandom,
+    ) -> bool {
+        let (candidate, _) = candidate_into_random(self.seed, chunk, random);
         candidate && self.biome_allowed(chunk)
     }
 
@@ -194,6 +203,16 @@ struct CandidateCheck {
 }
 
 fn candidate_check(seed: u32, chunk: ChunkCoord) -> CandidateCheck {
+    let mut random = MtRandom::new(0);
+    let (candidate, candidate_seed) = candidate_into_random(seed, chunk, &mut random);
+    CandidateCheck {
+        candidate,
+        random,
+        seed: candidate_seed,
+    }
+}
+
+fn candidate_into_random(seed: u32, chunk: ChunkCoord, random: &mut MtRandom) -> (bool, u32) {
     let mut adjusted_x = chunk.x();
     let mut adjusted_z = chunk.z();
     if adjusted_x < 0 {
@@ -212,7 +231,7 @@ fn candidate_check(seed: u32, chunk: ChunkCoord) -> CandidateCheck {
         .wrapping_add(VILLAGE_SALT);
     let candidate_seed = mixed as u32;
 
-    let mut random = MtRandom::new(candidate_seed);
+    random.reseed(candidate_seed);
     center_x = center_x
         .wrapping_mul(TOWN_SPACING)
         .wrapping_add(random.next_int((TOWN_SPACING - MIN_TOWN_SEPARATION) as u32) as i32);
@@ -220,11 +239,10 @@ fn candidate_check(seed: u32, chunk: ChunkCoord) -> CandidateCheck {
         .wrapping_mul(TOWN_SPACING)
         .wrapping_add(random.next_int((TOWN_SPACING - MIN_TOWN_SEPARATION) as u32) as i32);
 
-    CandidateCheck {
-        candidate: chunk.x() == center_x && chunk.z() == center_z,
-        random,
-        seed: candidate_seed,
-    }
+    (
+        chunk.x() == center_x && chunk.z() == center_z,
+        candidate_seed,
+    )
 }
 
 #[cfg(test)]
