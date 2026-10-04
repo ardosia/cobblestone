@@ -46,6 +46,7 @@ The already accepted protocol-84 source oracle was consulted at:
 
 Relevant fixed-target facts are:
 
+- the live dimension domain is exactly `0 = Overworld/Normal`, `1 = Nether/Hell`; matching `Level` and `ChangeDimensionPacket` constants expose those IDs, and this 0.15.10 target has no live End dimension;
 - StartGame generator ids: `0 = old`, `1 = infinite`, `2 = flat`;
 - chunk block coordinates use x/z 0..15 and y 0..127;
 - legacy block state is block id 0..255 plus data 0..15;
@@ -69,6 +70,8 @@ Numeric legacy IDs are pinned to the matching-source `legacy/old-src/block/Block
 The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\World`. `BlockSource` and `ChunkSource` remain explicit interfaces because they form useful semantic ownership/access seams. `MainChunkSource` is the owner-runtime resident index backed by the configured generator.
 
 `GeneratorType` contains the three fixed-target ids because they are part of the StartGame/world vocabulary. Only `FlatGenerator` is implemented. Old/Infinite are not advertised as implemented generators.
+
+`Dimension` is a separate backed enum with the exact fixed-target IDs `Overworld = 0` and `Nether = 1`. World creation defaults to Overworld, persistent metadata is authoritative on reopen, and StartGame receives the stored world dimension instead of a hard-coded zero. Dimension identity is intentionally implemented before Nether generation/portals so later world semantics have a stable durable domain.
 
 Legacy block state remains represented on hot paths by one scalar `BlockStateId` (`id << 4 | data`). Public semantic identity is the closed backed enum `BlockType`, whose 191 singleton cases carry the exact legacy IDs and exact asset names; `BlockData` is the closed 0..15 metadata nibble; and `BlockState` is immutable `BlockType + BlockData`. Semantic code therefore names blocks instead of passing legacy numeric IDs, while native/chunk/storage/protocol paths keep the compact integer state token. PHP and the native world store reject states whose block ID is not registered for 0.15.10. Block behavior belongs to a later package and is deliberately not modeled here.
 

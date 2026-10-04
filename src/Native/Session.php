@@ -8,6 +8,7 @@ use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\ViewSendResult;
+use Cobblestone\World\Dimension;
 
 final class Session
 {
@@ -98,6 +99,7 @@ final class Session
         string $body,
         int $seed,
         int $generator,
+        Dimension $dimension,
         int $spawnX,
         int $spawnY,
         int $spawnZ,
@@ -111,6 +113,7 @@ final class Session
             $body,
             $seed,
             $generator,
+            $dimension->value,
             $spawnX,
             $spawnY,
             $spawnZ,

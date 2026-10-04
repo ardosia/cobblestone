@@ -152,13 +152,39 @@ impl SetTimePacket {
     }
 }
 
+/// Exact dimension identifiers accepted by protocol 84 / MCPE 0.15.10.
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum DimensionId {
+    Overworld = 0,
+    Nether = 1,
+}
+
+impl From<DimensionId> for u8 {
+    fn from(value: DimensionId) -> Self {
+        value as u8
+    }
+}
+
+impl TryFrom<u8> for DimensionId {
+    type Error = u8;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Overworld),
+            1 => Ok(Self::Nether),
+            other => Err(other),
+        }
+    }
+}
+
 /// Initial protocol-84 world/session state.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StartGamePacket {
     /// World seed.
     pub seed: i32,
     /// Dimension byte.
-    pub dimension: u8,
+    pub dimension: DimensionId,
     /// Generator identifier.
     pub generator: i32,
     /// Game-mode identifier.

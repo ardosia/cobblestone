@@ -474,9 +474,12 @@ $world->time();
 $world->setTime($time);
 $world->spawn();
 $world->setSpawn($position);
+$world->dimension(); // Dimension::Overworld or Dimension::Nether
 ~~~
 
-Difficulty, weather, game rules, dimension-like properties, and other environment state should be added only when fixed-target behavior is implemented.
+`Dimension` is the closed fixed-target identity domain (`Overworld = 0`, `Nether = 1`). It is durable world metadata and is projected into protocol-84 StartGame; it does not imply that Nether generation, portals, or cross-dimension entity transfer are implemented yet.
+
+Difficulty, weather, game rules, and other environment state should be added only when fixed-target behavior is implemented.
 
 Do not create empty manager abstractions for unimplemented mechanics.
 

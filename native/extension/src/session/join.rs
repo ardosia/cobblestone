@@ -1,9 +1,9 @@
 mod projection;
 
 use cobblestone_protocol84::{
-    AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, PlayStatusPacket,
-    RawPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket, StartGamePacket,
-    decode_bootstrap_packet, encode_bootstrap_packet, packet_id,
+    AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, DimensionId,
+    PlayStatusPacket, RawPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket,
+    StartGamePacket, decode_bootstrap_packet, encode_bootstrap_packet, packet_id,
 };
 use cobblestone_runtime::{NativeBuffer, RuntimeId};
 use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
@@ -22,6 +22,7 @@ pub(super) const CHUNK_RADIUS_UPDATED_ID: u8 = 0x3e;
 
 pub(crate) struct WorldBootstrap {
     pub(crate) seed: i32,
+    pub(crate) dimension: DimensionId,
     pub(crate) generator: i32,
     pub(crate) spawn: [i32; 3],
     pub(crate) position: [f32; 3],
@@ -53,7 +54,7 @@ pub(crate) fn initial_bootstrap_packets(
         BootstrapPacket::PlayStatus(PlayStatusPacket::new(PlayStatusPacket::LOGIN_SUCCESS)),
         BootstrapPacket::StartGame(StartGamePacket {
             seed: bootstrap.seed,
-            dimension: 0,
+            dimension: bootstrap.dimension,
             generator: bootstrap.generator,
             gamemode: 0,
             entity_id: 0,
@@ -120,6 +121,7 @@ pub fn cobblestone_session_protocol84_accept_login_world(
     body: Binary<u8>,
     seed: i64,
     generator: i64,
+    dimension: i64,
     spawn_x: i64,
     spawn_y: i64,
     spawn_z: i64,
@@ -136,6 +138,10 @@ pub fn cobblestone_session_protocol84_accept_login_world(
         if !(0..=2).contains(&generator) {
             return Err(php_error("protocol-84 generator id must be in range 0..2"));
         }
+        let dimension = u8::try_from(dimension)
+            .ok()
+            .and_then(|value| DimensionId::try_from(value).ok())
+            .ok_or_else(|| php_error("unsupported MCPE 0.15.10 dimension id"))?;
         let spawn_y = i32_field("spawn y", spawn_y)?;
         if !(0..=127).contains(&spawn_y) {
             return Err(php_error("protocol-84 spawn y must be in range 0..127"));
@@ -145,6 +151,7 @@ pub fn cobblestone_session_protocol84_accept_login_world(
         let spawn_z = i32_field("spawn z", spawn_z)?;
         let bootstrap = WorldBootstrap {
             seed: i32_field("world seed", seed)?,
+            dimension,
             generator,
             spawn: [spawn_x, spawn_y, spawn_z],
             position: [spawn_x as f32 + 0.5, spawn_y as f32, spawn_z as f32 + 0.5],

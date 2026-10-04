@@ -8,6 +8,7 @@ use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\Dimension;
 use Cobblestone\Native\World\LoadStatus;
 use Cobblestone\Native\World as NativeWorld;
 
@@ -64,12 +65,14 @@ try {
         saveWorkers: 2,
         compactionMinDeadBytes: 1,
         createUuid: str_repeat("Z", 16),
+        createDimension: Dimension::Nether,
     );
     nativeStorageExpect($metadata->created, 'first native storage attach did not create world.cwm');
     nativeStorageExpect($metadata->name === 'Storage Smoke', 'created metadata name mismatch');
     nativeStorageExpect($metadata->seed === 424242, 'created metadata seed mismatch');
     nativeStorageExpect($metadata->generatorId === 2, 'created generator id mismatch');
     nativeStorageExpect($metadata->generatorSettings === '2;7,2x3,2;1;', 'created preset mismatch');
+    nativeStorageExpect($metadata->dimension === Dimension::Nether, 'created dimension mismatch');
     nativeStorageExpect($metadata->uuid === str_repeat("Z", 16), 'created UUID mismatch');
     nativeStorageExpect(is_file($root . '/world.cwm'), 'world.cwm was not created');
 
@@ -219,12 +222,14 @@ try {
             'ignored',
             new BlockPos(0, 0, 0),
             saveWorkers: 1,
+            createDimension: Dimension::Overworld,
         );
         nativeStorageExpect(!$metadata->created, 'existing native storage was recreated');
         nativeStorageExpect($metadata->name === 'Storage Smoke', 'reopen did not trust stored world name');
         nativeStorageExpect($metadata->seed === 424242, 'reopen did not trust stored world seed');
         nativeStorageExpect($metadata->generatorId === 2, 'reopen did not trust stored generator id');
         nativeStorageExpect($metadata->generatorSettings === '2;7,2x3,2;1;', 'reopen preset mismatch');
+        nativeStorageExpect($metadata->dimension === Dimension::Nether, 'reopen did not trust stored dimension');
         nativeStorageExpect($metadata->uuid === str_repeat("Z", 16), 'reopen UUID mismatch');
 
         $bulkMissing = new ChunkPos(60, -60);

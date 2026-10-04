@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\Server;
 
+use Cobblestone\World\Dimension;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
@@ -20,9 +21,12 @@ final class WorldFactory
     public const DEFAULT_COMPACTION_MIN_DEAD_BYTES = 64 * 1024 * 1024;
     public const DEFAULT_COMPACTION_MIN_DEAD_PERCENT = 50;
 
-    public static function flat(string $name = 'Cobblestone', int $seed = -1): World
-    {
-        return self::create($name, $seed, FlatGenerator::defaults());
+    public static function flat(
+        string $name = 'Cobblestone',
+        int $seed = -1,
+        Dimension $dimension = Dimension::Overworld,
+    ): World {
+        return self::create($name, $seed, FlatGenerator::defaults(), $dimension);
     }
 
     public static function persistentFlat(
@@ -34,6 +38,7 @@ final class WorldFactory
         int $loadWorkers = 2,
         int $compactionMinDeadBytes = self::DEFAULT_COMPACTION_MIN_DEAD_BYTES,
         int $compactionMinDeadPercent = self::DEFAULT_COMPACTION_MIN_DEAD_PERCENT,
+        Dimension $dimension = Dimension::Overworld,
     ): World {
         if (!NativeWorld::available()) {
             throw new \RuntimeException('persistent worlds require cobblestone_core_php native world storage');
@@ -62,6 +67,7 @@ final class WorldFactory
                 loadWorkers: $loadWorkers,
                 compactionMinDeadBytes: $compactionMinDeadBytes,
                 compactionMinDeadPercent: $compactionMinDeadPercent,
+                createDimension: $dimension,
             );
             if ($metadata->generatorId !== GeneratorType::Flat->value) {
                 throw new \LogicException(
@@ -78,6 +84,7 @@ final class WorldFactory
             $world = self::compose(
                 $metadata->name,
                 $metadata->seed,
+                $metadata->dimension,
                 $generator,
                 $nativeStore,
             );
@@ -95,16 +102,21 @@ final class WorldFactory
         }
     }
 
-    public static function create(string $name, int $seed, Generator $generator): World
-    {
+    public static function create(
+        string $name,
+        int $seed,
+        Generator $generator,
+        Dimension $dimension = Dimension::Overworld,
+    ): World {
         $nativeStore = NativeWorld::available() ? NativeWorld::create() : null;
 
-        return self::compose($name, $seed, $generator, $nativeStore);
+        return self::compose($name, $seed, $dimension, $generator, $nativeStore);
     }
 
     private static function compose(
         string $name,
         int $seed,
+        Dimension $dimension,
         Generator $generator,
         ?NativeWorld $nativeStore,
     ): World {
@@ -112,6 +124,6 @@ final class WorldFactory
         $regions = new RegionMap();
         $mutations = new MutationCoordinator($chunks, $regions);
 
-        return new World($name, $seed, $generator, $chunks, $mutations, $nativeStore);
+        return new World($name, $seed, $dimension, $generator, $chunks, $mutations, $nativeStore);
     }
 }

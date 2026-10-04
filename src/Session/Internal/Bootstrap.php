@@ -114,6 +114,7 @@ final class Bootstrap
                 $packet->body,
                 $this->world->seed(),
                 $this->world->generatorType()->value,
+                $this->world->dimension(),
                 $spawn->x,
                 $spawn->y,
                 $spawn->z,

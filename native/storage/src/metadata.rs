@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::StorageError;
+use cobblestone_world::DimensionId;
 
 mod codec;
 mod io;
@@ -10,7 +11,8 @@ use io::{publish_metadata, read_metadata};
 
 pub const WORLD_METADATA_FILENAME: &str = "world.cwm";
 pub const WORLD_METADATA_ENVELOPE_BYTES: usize = 32;
-pub const WORLD_METADATA_PAYLOAD_VERSION: u16 = 1;
+pub const LEGACY_WORLD_METADATA_PAYLOAD_VERSION: u16 = 1;
+pub const WORLD_METADATA_PAYLOAD_VERSION: u16 = 2;
 pub const MAX_WORLD_METADATA_PAYLOAD_BYTES: usize = 1024 * 1024;
 pub const MAX_WORLD_NAME_BYTES: usize = 4096;
 pub const MAX_GENERATOR_SETTINGS_BYTES: usize = 512 * 1024;
@@ -30,6 +32,7 @@ pub struct WorldMetadata {
     pub generator_id: u32,
     pub generator_settings_version: u16,
     pub generator_settings: Vec<u8>,
+    pub dimension: DimensionId,
     pub spawn_x: i32,
     pub spawn_y: i32,
     pub spawn_z: i32,
@@ -45,6 +48,7 @@ impl WorldMetadata {
         generator_id: u32,
         generator_settings_version: u16,
         generator_settings: Vec<u8>,
+        dimension: DimensionId,
     ) -> Self {
         Self {
             generation: 1,
@@ -54,6 +58,7 @@ impl WorldMetadata {
             generator_id,
             generator_settings_version,
             generator_settings,
+            dimension,
             spawn_x: 0,
             spawn_y: 0,
             spawn_z: 0,
@@ -173,10 +178,12 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::{
+        LEGACY_WORLD_METADATA_PAYLOAD_VERSION, WORLD_METADATA_ENVELOPE_BYTES,
         WORLD_METADATA_FILENAME, WorldDirectory, WorldMetadata, decode_world_metadata,
         encode_world_metadata,
     };
     use crate::StorageError;
+    use cobblestone_world::DimensionId;
 
     static TEMP_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -196,6 +203,7 @@ mod tests {
             2,
             1,
             b"2;7,2x3,2;1;".to_vec(),
+            DimensionId::Nether,
         );
         metadata.spawn_x = 128;
         metadata.spawn_y = 64;
@@ -211,6 +219,45 @@ mod tests {
         let encoded = encode_world_metadata(&expected).unwrap();
         let decoded = decode_world_metadata(&encoded).unwrap();
         assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn legacy_v1_metadata_migrates_to_overworld_dimension() {
+        let mut encoded = encode_world_metadata(&metadata()).unwrap();
+        let payload_start = WORLD_METADATA_ENVELOPE_BYTES;
+        encoded[payload_start..payload_start + 2]
+            .copy_from_slice(&LEGACY_WORLD_METADATA_PAYLOAD_VERSION.to_le_bytes());
+        encoded[payload_start + 6] = 0;
+        encoded[payload_start + 7] = 0;
+
+        let payload_crc = crc32c::crc32c(&encoded[payload_start..]);
+        encoded[20..24].copy_from_slice(&payload_crc.to_le_bytes());
+        let envelope_crc = crc32c::crc32c(&encoded[..24]);
+        encoded[24..28].copy_from_slice(&envelope_crc.to_le_bytes());
+
+        let decoded = decode_world_metadata(&encoded).unwrap();
+        assert_eq!(decoded.dimension, DimensionId::Overworld);
+        assert_eq!(decoded.name, "world");
+        assert_eq!(decoded.seed, -123456789);
+    }
+
+    #[test]
+    fn metadata_v2_rejects_unknown_dimension_id() {
+        let mut encoded = encode_world_metadata(&metadata()).unwrap();
+        let payload_start = WORLD_METADATA_ENVELOPE_BYTES;
+        encoded[payload_start + 6] = 2;
+
+        let payload_crc = crc32c::crc32c(&encoded[payload_start..]);
+        encoded[20..24].copy_from_slice(&payload_crc.to_le_bytes());
+        let envelope_crc = crc32c::crc32c(&encoded[..24]);
+        encoded[24..28].copy_from_slice(&envelope_crc.to_le_bytes());
+
+        assert!(matches!(
+            decode_world_metadata(&encoded),
+            Err(StorageError::InvalidWorldMetadata(
+                "unsupported fixed-target dimension id"
+            ))
+        ));
     }
 
     #[test]

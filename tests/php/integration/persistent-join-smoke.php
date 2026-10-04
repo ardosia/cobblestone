@@ -14,6 +14,7 @@ use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\Dimension;
 use Cobblestone\Native\World\LoadStatus;
 use Cobblestone\Native\World as NativeWorld;
 
@@ -76,6 +77,7 @@ $seedWorld = WorldFactory::persistentFlat(
     $preset,
     saveWorkers: 2,
     loadWorkers: 2,
+    dimension: Dimension::Nether,
 );
 $seedStore = $seedWorld->nativeStore();
 persistentJoinExpect($seedStore !== null, 'persistent join requires native world storage');
@@ -142,6 +144,7 @@ $store = $world->nativeStore();
 persistentJoinExpect($store !== null, 'reopened persistent join world lacks native store');
 persistentJoinExpect($world->name() === 'Persistent Join', 'stored world name did not override creation default');
 persistentJoinExpect($world->seed() === $seed, 'stored world seed did not override creation default');
+persistentJoinExpect($world->dimension() === Dimension::Nether, 'stored world dimension did not override creation default');
 persistentJoinExpect(
     ($world->generator()->settings()['preset'] ?? null) === $preset,
     'stored Flat preset did not override creation default',
@@ -252,6 +255,7 @@ $command = [
     '--',
     $bind,
     '--persistent-stream',
+    '--expect-nether',
 ];
 $descriptors = [
     0 => ['pipe', 'r'],
@@ -329,6 +333,10 @@ try {
     persistentJoinExpect(
         str_contains($stdout, 'world-sync-client: update=verified'),
         "persistent-join client did not observe UpdateBlock\nstdout={$stdout}\nstderr={$stderr}",
+    );
+    persistentJoinExpect(
+        str_contains($stdout, 'world-sync-client: dimension=nether verified'),
+        "persistent-join client did not observe Nether StartGame dimension\nstdout={$stdout}\nstderr={$stderr}",
     );
     persistentJoinExpect($persistentStreamVerified, 'persistent streaming path was not verified while connected');
     persistentJoinExpect(

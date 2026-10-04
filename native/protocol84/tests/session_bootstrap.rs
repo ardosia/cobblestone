@@ -1,7 +1,8 @@
 use cobblestone_protocol84::{
-    AdventureFlags, AdventureSettingsPacket, BootstrapPacket, CodecLimits, SetDifficultyPacket,
-    SetSpawnPositionPacket, SetTimePacket, StartGamePacket, decode_bootstrap_frame,
-    decode_bootstrap_packet, encode_bootstrap_frame, encode_bootstrap_packet,
+    AdventureFlags, AdventureSettingsPacket, BootstrapPacket, CodecLimits, DimensionId,
+    SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket, StartGamePacket,
+    decode_bootstrap_frame, decode_bootstrap_packet, encode_bootstrap_frame,
+    encode_bootstrap_packet,
 };
 
 fn limits() -> CodecLimits {
@@ -108,7 +109,7 @@ fn exact_start_game_fixture_round_trips() {
     ];
     let packet = BootstrapPacket::StartGame(StartGamePacket {
         seed: 123,
-        dimension: 0,
+        dimension: DimensionId::Overworld,
         generator: 1,
         gamemode: 0,
         entity_id: 5,
@@ -126,6 +127,30 @@ fn exact_start_game_fixture_round_trips() {
         decode_bootstrap_frame(&fixture, limits()).expect("decode start game"),
         packet
     );
+}
+
+#[test]
+fn start_game_dimension_is_exact_fixed_target_domain() {
+    let nether = BootstrapPacket::StartGame(StartGamePacket {
+        seed: 123,
+        dimension: DimensionId::Nether,
+        generator: 1,
+        gamemode: 0,
+        entity_id: 5,
+        spawn: [1, 64, -2],
+        position: [1.5, 65.0, -2.25],
+        level_id: "nether".to_owned(),
+    });
+    let encoded = encode_bootstrap_frame(&nether, limits()).expect("encode Nether StartGame");
+    assert_eq!(encoded.as_slice()[6], 1);
+    assert_eq!(
+        decode_bootstrap_frame(encoded.as_slice(), limits()).expect("decode Nether StartGame"),
+        nether
+    );
+
+    let mut invalid = encoded.as_slice().to_vec();
+    invalid[6] = 2;
+    assert!(decode_bootstrap_frame(&invalid, limits()).is_err());
 }
 
 #[test]

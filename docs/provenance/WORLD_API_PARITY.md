@@ -31,6 +31,7 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `LightUpdate` | `LightUpdate` | semantic parity |
 | `LightAccess` | scalar state/light `LightAccess` over revision-pinned chunk snapshots | semantic behavior parity; PHP hot path avoids per-cell native calls/value allocations |
 | `apply_light_update` | `world-light/LightPropagator::apply()` | algorithm/order parity with the pinned Ardosia implementation |
+| fixed-target dimension identity | backed `Dimension` enum + native/storage/protocol projection | exact live 0.15.10 domain: Overworld/Normal `0`, Nether/Hell `1`; persisted and projected through StartGame |
 | fixed-target block identity/state catalog | backed `BlockType` enum + `BlockData` + `BlockState` | exact 191 shipped asset identities as singleton semantic cases; scalar `(id << 4) | data` layout retained below the semantic API |
 | binary-derived block light properties | `BlockType::lightProperties()` projected through `world-light/BlockLightCatalog` | same authoritative block identities; scalar adapter only on the propagation boundary |
 | `ResidentChunkCell` / `ChunkLease` | shared owner-runtime cell + lifetime pin mirrored into native `WorldStore` | semantic resident identity + snapshot parity; safe unload cannot invalidate a live lease |

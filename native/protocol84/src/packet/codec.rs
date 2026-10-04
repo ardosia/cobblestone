@@ -56,7 +56,7 @@ pub fn encode_bootstrap_packet(
         BootstrapPacket::StartGame(packet) => {
             let mut writer = Writer::new();
             writer.put_i32_be(packet.seed);
-            writer.put_u8(packet.dimension);
+            writer.put_u8(packet.dimension.into());
             writer.put_i32_be(packet.generator);
             writer.put_i32_be(packet.gamemode);
             writer.put_i64_be(packet.entity_id);
@@ -184,7 +184,13 @@ pub fn decode_bootstrap_packet(
 fn decode_start_game(body: &[u8]) -> Result<BootstrapPacket, CodecError> {
     let mut reader = Reader::new(body);
     let seed = reader.read_i32_be()?;
-    let dimension = reader.read_u8()?;
+    let dimension_raw = reader.read_u8()?;
+    let dimension =
+        DimensionId::try_from(dimension_raw).map_err(|_| CodecError::InvalidFixedTargetValue {
+            field: "dimension",
+            value: u64::from(dimension_raw),
+            max: u64::from(u8::from(DimensionId::Nether)),
+        })?;
     let generator = reader.read_i32_be()?;
     let gamemode = reader.read_i32_be()?;
     let entity_id = reader.read_i64_be()?;

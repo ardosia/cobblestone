@@ -21,6 +21,7 @@ final class World
     public function __construct(
         private readonly string $name,
         private readonly int $seed,
+        private readonly Dimension $dimension,
         private readonly Generator $generator,
         private readonly MainChunkSource $chunks,
         private readonly MutationCoordinator $mutations,
@@ -41,6 +42,11 @@ final class World
     public function seed(): int
     {
         return $this->seed;
+    }
+
+    public function dimension(): Dimension
+    {
+        return $this->dimension;
     }
 
     public function generator(): Generator

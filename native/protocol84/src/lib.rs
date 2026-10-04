@@ -28,10 +28,10 @@ pub use limits::{CodecLimits, LOGIN_MAX_DECOMPRESSED_BYTES};
 pub use movement::{MovePlayerMode, MovePlayerPacket, decode_protocol84_move_player};
 pub use nbt::{NamedNbt, NbtDocument, NbtLimits, NbtTag, NbtValue};
 pub use packet::{
-    AdventureFlags, AdventureSettingsPacket, BootstrapPacket, DisconnectPacket, LoginPacket,
-    PROTOCOL_VERSION, PlayStatusPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket,
-    StartGamePacket, decode_bootstrap_frame, decode_bootstrap_packet, encode_bootstrap_frame,
-    encode_bootstrap_packet, packet_id,
+    AdventureFlags, AdventureSettingsPacket, BootstrapPacket, DimensionId, DisconnectPacket,
+    LoginPacket, PROTOCOL_VERSION, PlayStatusPacket, SetDifficultyPacket, SetSpawnPositionPacket,
+    SetTimePacket, StartGamePacket, decode_bootstrap_frame, decode_bootstrap_packet,
+    encode_bootstrap_frame, encode_bootstrap_packet, packet_id,
 };
 pub use update::{
     UPDATE_BLOCK_FLAG_ALL_PRIORITY, UPDATE_BLOCK_FLAG_NEIGHBORS, UPDATE_BLOCK_FLAG_NETWORK,

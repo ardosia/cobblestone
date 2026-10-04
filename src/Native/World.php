@@ -10,6 +10,7 @@ use Cobblestone\Native\World\StorageProjection;
 use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
+use Cobblestone\World\Dimension;
 use Cobblestone\World\ChunkPos;
 
 /**
@@ -66,6 +67,7 @@ final class World
         int $compactionMinDeadBytes = 0,
         int $compactionMinDeadPercent = 0,
         ?string $createUuid = null,
+        Dimension $createDimension = Dimension::Overworld,
     ): Metadata {
         if ($root === '') {
             throw new \ValueError('native world storage root cannot be empty');
@@ -104,6 +106,7 @@ final class World
                     $createSpawn->z,
                     $createTime,
                     $createTimeRunning,
+                    $createDimension->value,
                 ],
                 $saveWorkers,
                 $loadWorkers,

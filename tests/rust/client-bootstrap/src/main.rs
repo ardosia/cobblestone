@@ -5,9 +5,9 @@ use std::num::NonZeroUsize;
 use bytes::Bytes;
 use cobblestone_protocol84::{
     AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, CodecError, CodecLimits,
-    LoginPacket, PlayStatusPacket, RawPacket, SetDifficultyPacket, SetSpawnPositionPacket,
-    SetTimePacket, StartGamePacket, decode_bootstrap_frame, decode_game_frame,
-    encode_bootstrap_frame, encode_game_frame, packet_id,
+    DimensionId, LoginPacket, PlayStatusPacket, RawPacket, SetDifficultyPacket,
+    SetSpawnPositionPacket, SetTimePacket, StartGamePacket, decode_bootstrap_frame,
+    decode_game_frame, encode_bootstrap_frame, encode_game_frame, packet_id,
 };
 use cobblestone_runtime::NativeBuffer;
 use cobblestone_transport::{Connection, NetworkConfig, NetworkServer, Reliability};
@@ -141,7 +141,7 @@ async fn send_initial_bootstrap(
         connection,
         BootstrapPacket::StartGame(StartGamePacket {
             seed: -1,
-            dimension: 0,
+            dimension: DimensionId::Overworld,
             generator: 1,
             gamemode: 0,
             entity_id: 0,

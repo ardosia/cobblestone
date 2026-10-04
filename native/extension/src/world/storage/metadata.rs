@@ -1,4 +1,5 @@
 use cobblestone_storage::WorldMetadata;
+use cobblestone_world::DimensionId;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::convert::IntoZval;
 use ext_php_rs::exception::PhpResult;
@@ -21,6 +22,7 @@ pub(super) fn metadata_values(created: bool, metadata: &WorldMetadata) -> PhpRes
         zval(i64::from(metadata.generator_id))?,
         zval(i64::from(metadata.generator_settings_version))?,
         zval(Binary::new(metadata.generator_settings.clone()))?,
+        zval(i64::from(u8::from(metadata.dimension)))?,
         zval(i64::from(metadata.spawn_x))?,
         zval(i64::from(metadata.spawn_y))?,
         zval(i64::from(metadata.spawn_z))?,
@@ -52,9 +54,9 @@ fn creation_long(values: &ZendHashTable, index: i64, field: &'static str) -> Php
 }
 
 pub(super) fn parse_creation_metadata(values: &ZendHashTable) -> PhpResult<WorldMetadata> {
-    if values.len() != 11 {
+    if values.len() != 12 {
         return Err(php_error(
-            "world storage creation metadata must contain exactly 11 values",
+            "world storage creation metadata must contain exactly 12 values",
         ));
     }
 
@@ -85,6 +87,11 @@ pub(super) fn parse_creation_metadata(values: &ZendHashTable) -> PhpResult<World
         generator_id,
         generator_settings_version,
         generator_settings,
+        DimensionId::try_from(
+            u8::try_from(creation_long(values, 11, "dimension id")?)
+                .map_err(|_| php_error("dimension id must fit unsigned 8 bits"))?,
+        )
+        .map_err(|_| php_error("unsupported MCPE 0.15.10 dimension id"))?,
     );
     metadata.spawn_x = i32::try_from(creation_long(values, 6, "spawn x")?)
         .map_err(|_| php_error("spawn x must fit signed 32 bits"))?;

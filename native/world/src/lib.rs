@@ -2,6 +2,7 @@ mod biome;
 mod block;
 mod change_log;
 mod chunk;
+mod dimension;
 mod patch;
 mod residency;
 mod revision;
@@ -32,6 +33,7 @@ pub use chunk::{
     REGION_CHUNK_EDGE, WORLD_HEIGHT,
 };
 use chunk::{ChunkData, ChunkRecord, RegionShard};
+pub use dimension::DimensionId;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WorldStoreError {

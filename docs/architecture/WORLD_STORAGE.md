@@ -42,12 +42,13 @@ Storage regions are 16×16 chunks. Storage region coordinates are floor-divided 
 - 24..27: CRC32C of envelope bytes 0..23; and
 - 28..31: reserved zero bytes.
 
-The version-1 semantic payload has a fixed 76-byte prefix followed by UTF-8 world-name bytes and opaque generator-settings bytes:
+The metadata semantic payload keeps a fixed 76-byte prefix followed by UTF-8 world-name bytes and opaque generator-settings bytes. New writes use payload **v2**:
 
-- 0..1: payload version `u16 = 1`;
+- 0..1: payload version `u16 = 2`;
 - 2..4: fixed target version bytes `0, 15, 10`;
 - 5: time-running flag `u8` restricted to 0/1;
-- 6..7: reserved zero bytes;
+- 6: fixed-target dimension ID (`0 = Overworld`, `1 = Nether`);
+- 7: reserved zero byte;
 - 8..11: game protocol `u32 = 84`;
 - 12..15: RakNet protocol `u32 = 8`;
 - 16..31: raw 16-byte world UUID;
@@ -61,7 +62,7 @@ The version-1 semantic payload has a fixed 76-byte prefix followed by UTF-8 worl
 - 72..75: opaque generator-settings length `u32`; then
 - world-name bytes followed immediately by generator-settings bytes.
 
-Metadata payloads are bounded to 1 MiB, names to 4 KiB, generator settings to 512 KiB, and fixed-target spawn Y to 0..127. Decode rejects checksum failures, nonzero reserved bytes, malformed UTF-8, size mismatches, unsupported versions, or a fixed-target marker other than 0.15.10 / protocol 84 / RakNet 8.
+Metadata payloads are bounded to 1 MiB, names to 4 KiB, generator settings to 512 KiB, and fixed-target spawn Y to 0..127. Decode rejects checksum failures, nonzero reserved bytes, malformed UTF-8, size mismatches, unsupported versions/dimensions, or a fixed-target marker other than 0.15.10 / protocol 84 / RakNet 8. Metadata payload **v1** is retained as an explicit compatibility path: its old zero-reserved bytes 6..7 decode as `Dimension::Overworld`. Any later metadata publication writes v2; v1 is never reinterpreted as carrying an implicit nonzero dimension.
 
 `WorldDirectory` owns the storage root, `world.cwm`, and `regions/` path. First creation publishes a fully synced temporary metadata file through a no-overwrite hard-link step, then fsyncs the parent directory. Metadata replacement increments generation, writes a unique temporary file, `sync_data`s it, atomically renames over `world.cwm`, and fsyncs the parent directory. Replacement cannot change the world UUID. No in-place metadata mutation is authoritative.
 

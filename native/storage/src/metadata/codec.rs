@@ -1,10 +1,11 @@
 use super::{
-    MAX_WORLD_METADATA_PAYLOAD_BYTES, TARGET_GAME_PROTOCOL, TARGET_RAKNET_PROTOCOL,
-    TARGET_VERSION_MAJOR, TARGET_VERSION_MINOR, TARGET_VERSION_PATCH,
+    LEGACY_WORLD_METADATA_PAYLOAD_VERSION, MAX_WORLD_METADATA_PAYLOAD_BYTES, TARGET_GAME_PROTOCOL,
+    TARGET_RAKNET_PROTOCOL, TARGET_VERSION_MAJOR, TARGET_VERSION_MINOR, TARGET_VERSION_PATCH,
     WORLD_METADATA_ENVELOPE_BYTES, WORLD_METADATA_PAYLOAD_VERSION, WorldMetadata,
     validate_metadata,
 };
 use crate::{STORAGE_FORMAT_VERSION, StorageError};
+use cobblestone_world::DimensionId;
 
 const WORLD_METADATA_MAGIC: &[u8; 4] = b"CBWM";
 const PAYLOAD_FIXED_BYTES: usize = 76;
@@ -44,6 +45,7 @@ pub(super) fn encode_world_metadata_inner(
     payload[3] = TARGET_VERSION_MINOR;
     payload[4] = TARGET_VERSION_PATCH;
     payload[5] = u8::from(metadata.time_running);
+    payload[6] = u8::from(metadata.dimension);
     put_u32(&mut payload, 8, TARGET_GAME_PROTOCOL);
     put_u32(&mut payload, 12, TARGET_RAKNET_PROTOCOL);
     payload[16..32].copy_from_slice(&metadata.world_uuid);
@@ -149,7 +151,10 @@ pub(super) fn decode_world_metadata_inner(encoded: &[u8]) -> Result<WorldMetadat
             "truncated semantic payload",
         ));
     }
-    if read_u16(payload, 0) != WORLD_METADATA_PAYLOAD_VERSION {
+    let payload_version = read_u16(payload, 0);
+    if payload_version != LEGACY_WORLD_METADATA_PAYLOAD_VERSION
+        && payload_version != WORLD_METADATA_PAYLOAD_VERSION
+    {
         return Err(StorageError::InvalidWorldMetadata(
             "unsupported metadata payload version",
         ));
@@ -169,7 +174,24 @@ pub(super) fn decode_world_metadata_inner(encoded: &[u8]) -> Result<WorldMetadat
             "invalid time-running flag",
         ));
     }
-    if payload[6..8] != [0; 2] || payload[46..48] != [0; 2] {
+    let dimension = if payload_version == LEGACY_WORLD_METADATA_PAYLOAD_VERSION {
+        if payload[6..8] != [0; 2] {
+            return Err(StorageError::InvalidWorldMetadata(
+                "legacy metadata payload reserved bytes are nonzero",
+            ));
+        }
+        DimensionId::Overworld
+    } else {
+        if payload[7] != 0 {
+            return Err(StorageError::InvalidWorldMetadata(
+                "metadata payload reserved byte is nonzero",
+            ));
+        }
+        DimensionId::try_from(payload[6]).map_err(|_| {
+            StorageError::InvalidWorldMetadata("unsupported fixed-target dimension id")
+        })?
+    };
+    if payload[46..48] != [0; 2] {
         return Err(StorageError::InvalidWorldMetadata(
             "metadata payload reserved bytes are nonzero",
         ));
@@ -203,6 +225,7 @@ pub(super) fn decode_world_metadata_inner(encoded: &[u8]) -> Result<WorldMetadat
         generator_id: read_u32(payload, 40),
         generator_settings_version: read_u16(payload, 44),
         generator_settings: payload[name_end..].to_vec(),
+        dimension,
         spawn_x: read_i32(payload, 48),
         spawn_y: read_i32(payload, 52),
         spawn_z: read_i32(payload, 56),

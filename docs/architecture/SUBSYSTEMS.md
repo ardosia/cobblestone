@@ -715,7 +715,7 @@ Examples include:
 - resource-pack negotiation;
 - skin/client metadata beyond current login needs;
 - additional presentation UI;
-- dimensions/environment features not yet implemented;
+- dimension identity/persistence/bootstrap projection is implemented; dimension-specific generation, portals, transfer, and broader environment behavior remain unimplemented;
 - advanced authentication/identity verification.
 
 The subsystem map reserves architectural space without claiming unsupported functionality.

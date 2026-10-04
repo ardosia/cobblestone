@@ -11,6 +11,7 @@ use Cobblestone\World\BlockData;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
+use Cobblestone\World\Dimension;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Generator\FlatPreset;
 use Cobblestone\World\Generator\GeneratorType;
@@ -51,6 +52,10 @@ $spawn = $generator->spawn();
 worldExpect([$spawn->x, $spawn->y, $spawn->z] === [128, 4, 128], 'default flat spawn mismatch');
 
 $world = WorldFactory::create('Cobblestone', 12345, $generator);
+worldExpect($world->dimension() === Dimension::Overworld, 'default world dimension mismatch');
+$netherIdentityWorld = WorldFactory::create('Nether Identity', 12345, $generator, Dimension::Nether);
+worldExpect($netherIdentityWorld->dimension() === Dimension::Nether, 'explicit Nether dimension mismatch');
+worldExpect(Dimension::Overworld->hasSky() && !Dimension::Nether->hasSky(), 'dimension sky semantics mismatch');
 $chunk = $world->chunk(new ChunkPos(-1, 2));
 worldExpect($chunk !== null, 'generated chunk missing');
 worldExpect($chunk->isGenerated(), 'generated flag missing');

@@ -5,8 +5,9 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use cobblestone_protocol84::{
-    BootstrapPacket, CodecError, CodecLimits, LoginPacket, RawPacket, decode_bootstrap_frame,
-    decode_game_frame, encode_bootstrap_frame, encode_game_frame, packet_id,
+    BootstrapPacket, CodecError, CodecLimits, DimensionId, LoginPacket, RawPacket,
+    decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame, encode_game_frame,
+    packet_id,
 };
 use cobblestone_runtime::NativeBuffer;
 use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
@@ -293,6 +294,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let radius_cycle = std::env::args().any(|argument| argument == "--radius-cycle");
     let stream_torture = std::env::args().any(|argument| argument == "--stream-torture");
     let persistent_stream = std::env::args().any(|argument| argument == "--persistent-stream");
+    let expect_nether = std::env::args().any(|argument| argument == "--expect-nether");
     let hold_east = std::env::args().any(|argument| argument == "--hold-east");
     let hold_west = std::env::args().any(|argument| argument == "--hold-west");
     let pending_disconnect = std::env::args().any(|argument| argument == "--pending-disconnect");
@@ -319,7 +321,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
     while !(saw_start_game && saw_adventure) {
         let payload = next_payload(&mut client).await?;
         for packet in raw_packets(&payload, limits)? {
-            saw_start_game |= packet.id() == packet_id::START_GAME;
+            if packet.id() == packet_id::START_GAME {
+                let frame = encode_game_frame(&packet, limits)?;
+                let BootstrapPacket::StartGame(start) =
+                    decode_bootstrap_frame(frame.as_slice(), limits)?
+                else {
+                    return Err("StartGame packet decoded as wrong bootstrap variant".into());
+                };
+                let expected = if expect_nether {
+                    DimensionId::Nether
+                } else {
+                    DimensionId::Overworld
+                };
+                if start.dimension != expected {
+                    return Err(format!(
+                        "unexpected StartGame dimension: expected {expected:?}, got {:?}",
+                        start.dimension
+                    )
+                    .into());
+                }
+                if expect_nether {
+                    println!("world-sync-client: dimension=nether verified");
+                }
+                saw_start_game = true;
+            }
             saw_adventure |= packet.id() == packet_id::ADVENTURE_SETTINGS;
         }
     }
