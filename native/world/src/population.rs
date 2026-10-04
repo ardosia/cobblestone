@@ -122,6 +122,19 @@ impl PopulationNeighborhood {
         self.chunks.iter().map(|chunk| chunk.states.as_slice())
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_generation_height_for_test(
+        &mut self,
+        world_x: i32,
+        world_z: i32,
+        height: u8,
+    ) {
+        let (chunk_index, local_x, local_z) = self
+            .resolve(world_x, world_z)
+            .expect("test height coordinate must be inside population neighborhood");
+        self.chunks[chunk_index].generation_height_map[local_x + local_z * 16] = height;
+    }
+
     fn resolve(&self, world_x: i32, world_z: i32) -> Option<(usize, usize, usize)> {
         let origin_x = self.center.x().wrapping_mul(16);
         let origin_z = self.center.z().wrapping_mul(16);

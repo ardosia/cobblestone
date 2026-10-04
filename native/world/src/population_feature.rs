@@ -437,8 +437,15 @@ pub(crate) fn place_dead_bush(
     random: &mut MtRandom,
 ) -> bool {
     let mut base = pos;
-    while (is_empty(region, base) || is_leaves(block_id(region, base))) && base.y > 0 {
+    // Target DeadBushFeature stores the current material after entering the loop, then decrements
+    // the position. The next condition observes that previous material, so the scan ends one block
+    // below the first non-free block rather than on it.
+    while base.y > 0 {
+        let free = is_empty(region, base) || is_leaves(block_id(region, base));
         base = base.below(1);
+        if !free {
+            break;
+        }
     }
     for _ in 0..4 {
         let z = next_gaussian_int(random, 8);

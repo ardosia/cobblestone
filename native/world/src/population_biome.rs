@@ -917,10 +917,14 @@ const fn decorator_config(id: u8) -> DecoratorConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::population_feature::{CACTUS, DEAD_BUSH, SANDSTONE, STILL_WATER, STONE_SLAB};
 
     #[test]
     fn mutated_biomes_preserve_target_decorator_ownership_quirks() {
+        assert_eq!(tree_source_biome(129), 1);
         assert_eq!(tree_source_biome(149), 21);
+        assert_eq!(tree_source_biome(155), 27);
+        assert_eq!(tree_source_biome(156), 28);
         assert_eq!(tree_source_biome(157), 29);
         assert_eq!(tree_source_biome(161), 33);
         assert_eq!(tree_source_biome(163), 35);
@@ -969,5 +973,70 @@ mod tests {
         for (x, z) in [(-200.0, -200.0), (0.0, 0.0), (48.0, 96.0), (200.0, -400.0)] {
             assert_eq!(first.value(x, z).to_bits(), second.value(x, z).to_bits());
         }
+    }
+
+    fn hash_neighborhood(neighborhood: &PopulationNeighborhood) -> u64 {
+        neighborhood
+            .state_planes()
+            .flat_map(|states| states.iter())
+            .fold(0xcbf2_9ce4_8422_2325_u64, |mut hash, value| {
+                for byte in value.to_le_bytes() {
+                    hash = (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3);
+                }
+                hash
+            })
+    }
+
+    fn block_count(neighborhood: &PopulationNeighborhood, id: u16) -> usize {
+        neighborhood
+            .state_planes()
+            .flat_map(|states| states.iter())
+            .filter(|value| (**value >> 4) == id)
+            .count()
+    }
+
+    #[test]
+    fn independent_cpp_common_ocean_fixture_matches() {
+        // Independent standalone C++ oracle translated directly from the recovered 0.15.10
+        // Random/BiomeDecorator/Feature routines. The fixture deliberately contains no stone so
+        // ore geometry mutates nothing while still consuming the full target ore RNG stream.
+        let center = crate::ChunkCoord::new(0, 0);
+        let mut neighborhood = PopulationNeighborhood::filled(center, state(AIR, 0), 0);
+        for z in -16..32 {
+            for x in -16..32 {
+                assert!(neighborhood.set_state(x, 62, z, state(3, 0)));
+                assert!(neighborhood.set_state(x, 63, z, state(2, 0)));
+                neighborhood.set_generation_height_for_test(x, z, 64);
+            }
+        }
+
+        OverworldBiomeDecorator::new(36).decorate(&mut neighborhood);
+
+        assert_eq!(hash_neighborhood(&neighborhood), 0x20ef_402f_27d4_95ff);
+        assert_eq!(block_count(&neighborhood, YELLOW_FLOWER), 7);
+    }
+
+    #[test]
+    fn independent_cpp_desert_well_fixture_matches() {
+        // Standalone C++ oracle: full common RNG stream on a synthetic sand plateau followed by
+        // DesertBiome's 1/500 well override. Seed 2471 also exercises dead-bush and cactus writes.
+        let center = crate::ChunkCoord::new(0, 0);
+        let mut neighborhood = PopulationNeighborhood::filled(center, state(AIR, 0), 2);
+        for z in -16..32 {
+            for x in -16..32 {
+                assert!(neighborhood.set_state(x, 62, z, state(SAND, 0)));
+                assert!(neighborhood.set_state(x, 63, z, state(SAND, 0)));
+                neighborhood.set_generation_height_for_test(x, z, 64);
+            }
+        }
+
+        OverworldBiomeDecorator::new(2471).decorate(&mut neighborhood);
+
+        assert_eq!(hash_neighborhood(&neighborhood), 0xe4bd_f751_cb87_6a87);
+        assert_eq!(block_count(&neighborhood, DEAD_BUSH), 1);
+        assert_eq!(block_count(&neighborhood, CACTUS), 4);
+        assert_eq!(block_count(&neighborhood, SANDSTONE), 70);
+        assert_eq!(block_count(&neighborhood, STONE_SLAB), 12);
+        assert_eq!(block_count(&neighborhood, STILL_WATER), 5);
     }
 }

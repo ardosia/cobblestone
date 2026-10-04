@@ -1282,3 +1282,57 @@ fn place_fancy_tree(
     }
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ChunkCoord;
+    use crate::population::state;
+
+    fn hash_neighborhood(neighborhood: &PopulationNeighborhood) -> u64 {
+        neighborhood
+            .state_planes()
+            .flat_map(|states| states.iter())
+            .fold(0xcbf2_9ce4_8422_2325_u64, |mut hash, value| {
+                for byte in value.to_le_bytes() {
+                    hash = (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3);
+                }
+                hash
+            })
+    }
+
+    fn block_count(neighborhood: &PopulationNeighborhood, id: u16) -> usize {
+        neighborhood
+            .state_planes()
+            .flat_map(|states| states.iter())
+            .filter(|value| (**value >> 4) == id)
+            .count()
+    }
+
+    #[test]
+    fn independent_cpp_viney_oak_fixture_matches() {
+        // Standalone C++ oracle translated from TreeFeature + OakFeature + target MT.
+        // Seed 1 intentionally selects the 1/12 viney-trunk branch.
+        let center = ChunkCoord::new(0, 0);
+        let mut neighborhood = PopulationNeighborhood::filled(center, state(AIR, 0), 1);
+        for z in -16..32 {
+            for x in -16..32 {
+                assert!(neighborhood.set_state(x, 62, z, state(DIRT, 0)));
+                assert!(neighborhood.set_state(x, 63, z, state(GRASS, 0)));
+            }
+        }
+
+        let mut random = MtRandom::new(1);
+        assert!(place_tree(
+            TreeKind::Oak,
+            &mut neighborhood,
+            BlockPos::new(0, 64, 0),
+            &mut random,
+        ));
+
+        assert_eq!(hash_neighborhood(&neighborhood), 0xf216_b070_7794_ecda);
+        assert_eq!(block_count(&neighborhood, LOG), 5);
+        assert_eq!(block_count(&neighborhood, LEAVES), 54);
+        assert_eq!(block_count(&neighborhood, VINE), 8);
+    }
+}
