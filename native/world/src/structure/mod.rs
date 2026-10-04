@@ -1,6 +1,8 @@
 mod mineshaft;
 mod mineshaft_place;
 mod mineshaft_plan;
+mod scattered;
+mod scattered_place;
 mod stronghold;
 mod stronghold_place;
 mod stronghold_plan;
@@ -9,6 +11,7 @@ mod village_place;
 mod village_plan;
 
 pub use mineshaft::{MineshaftStructureState, OverworldMineshaftStructures};
+pub use scattered::{OverworldScatteredStructures, ScatteredStructureState};
 pub use stronghold::{OverworldStrongholdStructures, StrongholdStructureState};
 pub use village::{OverworldVillageStructures, VillageStructureState};
 
