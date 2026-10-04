@@ -368,9 +368,11 @@ Village is the first recovered historyful structure stage after lakes. Native `S
 
 `OverworldMonsterRoomPopulator` owns the next fixed-target mutation stage. Its isolated public entrypoint reseeds for focused use, while its crate-internal entrypoint continues the exact structure post-process MT stream. It performs eight target attempts at origin + 8..23 X/Z and Y 0..127, validates material-solid floor/ceiling plus 1..5 doorway holes, then places the exact cobblestone/mossy cavity, chest facing states, and generic mob-spawner block through the shared 3x3 neighborhood. Target chest loot filling and spawner entity assignment are commented out and remain absent.
 
+`OverworldFreezeFrostPopulator` owns the following 0.15.10 center-column freeze pass. Direct target-binary evidence takes precedence over the later restored source here: the Win10 executable actively performs the fixed-temperature <=0.15f, block-light <10, data-0 flowing/still-water checks and writes ice, while the restored 1.0 `shouldFreeze` body is commented out. The target 16×16 scan has no RNG, uses the Y=127-capped rain-height lookup, and places no top snow. At this generation boundary block-light remains zero until the later lighting pass, so the light predicate is preserved without expanding `PopulationNeighborhood` into a runtime lighting API.
+
 `OverworldOreDecorator` later mutates the same supplied neighborhood after independently reseeding immediately before biome decoration, applying the common ore order/counts/depth distributions, PE extra-gravel branch, and Mesa extra-gold override. Keeping the neighborhood independent from feature owners preserves the target population ordering.
 
-These stages remain coarse native mechanisms; PHP does not perform per-block FFI calls. Ocean Monument is not a 0.15.10 generation stage: it arrived with Guardians/Prismarine in 0.16 and is deliberately excluded. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because freeze/frost and remaining biome decoration/features are client-visible target semantics that are not yet composed.
+These stages remain coarse native mechanisms; PHP does not perform per-block FFI calls. Ocean Monument is not a 0.15.10 generation stage: it arrived with Guardians/Prismarine in 0.16 and is deliberately excluded. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because remaining biome decoration/features are client-visible target semantics that are not yet composed.
 
 ## Generation scheduling
 

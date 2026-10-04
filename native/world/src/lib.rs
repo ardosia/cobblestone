@@ -6,6 +6,7 @@ mod chunk;
 mod dimension;
 mod patch;
 mod population;
+mod population_freeze;
 mod population_lake;
 mod population_monster_room;
 mod population_ore;
@@ -46,6 +47,7 @@ pub use chunk::{
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 pub use dimension::DimensionId;
 pub use population::PopulationNeighborhood;
+pub use population_freeze::OverworldFreezeFrostPopulator;
 pub use population_lake::OverworldLakePopulator;
 pub use population_monster_room::OverworldMonsterRoomPopulator;
 pub use population_ore::OverworldOreDecorator;
