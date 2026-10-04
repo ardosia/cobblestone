@@ -1,8 +1,8 @@
-mod noise;
+pub(crate) mod noise;
 
 use crate::{CHUNK_BLOCK_COUNT, ChunkCoord, OverworldBiomeSource};
 
-use noise::{MtRandom, PerlinNoise, consume_simplex_initialization};
+use noise::{MtRandom, PerlinNoise, PerlinSimplexNoise};
 
 const NOISE_EDGE: usize = 5;
 const NOISE_HEIGHT: usize = 17;
@@ -21,6 +21,10 @@ impl ChunkTerrainShape {
     pub fn states(&self) -> &[u16] {
         &self.states
     }
+
+    pub(crate) fn into_states(self) -> Vec<u16> {
+        self.states
+    }
 }
 
 /// Exact fixed-target RandomLevelSource::prepareHeights base-terrain stage.
@@ -32,6 +36,7 @@ pub struct OverworldTerrainShape {
     min_limit_noise: PerlinNoise,
     max_limit_noise: PerlinNoise,
     main_noise: PerlinNoise,
+    surface_noise: PerlinSimplexNoise,
     depth_noise: PerlinNoise,
     biome_weights: [f32; 25],
 }
@@ -45,9 +50,9 @@ impl OverworldTerrainShape {
         let max_limit_noise = PerlinNoise::new(&mut random, 16);
         let main_noise = PerlinNoise::new(&mut random, 8);
 
-        // These constructors are part of the target RNG stream even when this stage does not read
-        // their values.
-        consume_simplex_initialization(&mut random, 4);
+        // The surface simplex is consumed here in the target constructor, between the main and
+        // scale/depth banks. The later surface stage reuses this exact world-seeded object.
+        let surface_noise = PerlinSimplexNoise::new(&mut random, 4);
         let _scale_noise = PerlinNoise::new(&mut random, 10);
         let depth_noise = PerlinNoise::new(&mut random, 16);
         let _forest_noise = PerlinNoise::new(&mut random, 8);
@@ -65,6 +70,7 @@ impl OverworldTerrainShape {
             min_limit_noise,
             max_limit_noise,
             main_noise,
+            surface_noise,
             depth_noise,
             biome_weights,
         }
@@ -84,6 +90,17 @@ impl OverworldTerrainShape {
         ChunkTerrainShape {
             states: interpolate_shape(&density),
         }
+    }
+
+    pub(crate) fn biome_source(&self) -> &OverworldBiomeSource {
+        &self.biome_source
+    }
+
+    pub(crate) fn surface_depths(&self, position: ChunkCoord) -> Vec<f32> {
+        let x = position.x().wrapping_mul(16) as f32;
+        let z = position.z().wrapping_mul(16) as f32;
+        self.surface_noise
+            .region(x, z, 16, 16, 1.0 / 8.0, 1.0 / 8.0, 1.0, 0.5)
     }
 
     fn density_lattice(&self, x: i32, z: i32, biomes: &[u8]) -> [f32; 425] {
@@ -464,6 +481,31 @@ mod tests {
             let actual = biome_height(id);
             assert_eq!(actual.depth, expected_depth, "biome {id} depth");
             assert_eq!(actual.scale, expected_scale, "biome {id} scale");
+        }
+    }
+
+    #[test]
+    fn surface_simplex_depths_match_independent_mcpe_oracle() {
+        let fixtures = [
+            (0, 0, 0, 0xa549_66ab_7a4e_f142_u64),
+            (1, 0, 0, 0x1854_16f5_98e5_d7fe_u64),
+            (-1, -1, -1, 0x79dc_1cf7_03eb_079c_u64),
+            (i32::MIN, 7, -9, 0x927b_8a76_8463_a289_u64),
+            (0x1234_5678, 128, -256, 0x1d6d_07aa_3a6e_c9e1_u64),
+        ];
+
+        for (seed, chunk_x, chunk_z, expected) in fixtures {
+            let depths =
+                OverworldTerrainShape::new(seed).surface_depths(ChunkCoord::new(chunk_x, chunk_z));
+            let actual = depths
+                .iter()
+                .fold(0xcbf2_9ce4_8422_2325_u64, |mut hash, value| {
+                    for byte in value.to_bits().to_le_bytes() {
+                        hash = (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3);
+                    }
+                    hash
+                });
+            assert_eq!(actual, expected, "seed={seed} chunk={chunk_x}:{chunk_z}");
         }
     }
 

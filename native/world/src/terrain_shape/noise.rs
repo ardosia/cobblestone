@@ -4,13 +4,13 @@ const MATRIX_A: u32 = 0x9908_b0df;
 const UPPER_MASK: u32 = 0x8000_0000;
 const LOWER_MASK: u32 = 0x7fff_ffff;
 
-pub(super) struct MtRandom {
+pub(crate) struct MtRandom {
     state: [u32; MT_N],
     index: usize,
 }
 
 impl MtRandom {
-    pub(super) fn new(seed: u32) -> Self {
+    pub(crate) fn new(seed: u32) -> Self {
         let mut state = [0_u32; MT_N];
         state[0] = seed;
         for index in 1..MT_N {
@@ -22,7 +22,7 @@ impl MtRandom {
         Self { state, index: MT_N }
     }
 
-    pub(super) fn next_u32(&mut self) -> u32 {
+    pub(crate) fn next_u32(&mut self) -> u32 {
         if self.index > MT_N {
             *self = Self::new(5489);
             self.index = 0;
@@ -54,13 +54,188 @@ impl MtRandom {
         value
     }
 
-    pub(super) fn next_float(&mut self) -> f32 {
+    pub(crate) fn next_float(&mut self) -> f32 {
         (f64::from(self.next_u32()) * (1.0 / 4_294_967_296.0)) as f32
     }
 
-    pub(super) fn next_int(&mut self, bound: u32) -> u32 {
+    pub(crate) fn next_int(&mut self, bound: u32) -> u32 {
         debug_assert!(bound > 0);
         self.next_u32() % bound
+    }
+}
+
+pub(crate) struct PerlinSimplexNoise {
+    levels: Vec<SimplexNoise>,
+}
+
+impl PerlinSimplexNoise {
+    pub(crate) fn new(random: &mut MtRandom, levels: usize) -> Self {
+        Self {
+            levels: (0..levels).map(|_| SimplexNoise::new(random)).collect(),
+        }
+    }
+
+    pub(crate) fn value(&self, x: f32, z: f32) -> f32 {
+        let mut value = 0.0_f32;
+        let mut octave = 1.0_f32;
+        for level in &self.levels {
+            value += level.value_2d(x * octave, z * octave) / octave;
+            octave *= 0.5;
+        }
+        value
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn region(
+        &self,
+        x: f32,
+        z: f32,
+        width: usize,
+        height: usize,
+        x_scale: f32,
+        z_scale: f32,
+        size_scale: f32,
+        pow_scale: f32,
+    ) -> Vec<f32> {
+        let mut out = vec![0.0; width * height];
+        let mut octave = 1.0_f32;
+        let mut multiplier = 1.0_f32;
+
+        for level in &self.levels {
+            level.add_region_2d(
+                &mut out,
+                x,
+                z,
+                width,
+                height,
+                x_scale * multiplier * octave,
+                z_scale * multiplier * octave,
+                0.55 / octave,
+            );
+            multiplier *= size_scale;
+            octave *= pow_scale;
+        }
+
+        out
+    }
+}
+
+struct SimplexNoise {
+    origin_x: f32,
+    origin_y: f32,
+    permutation: [u16; 512],
+}
+
+impl SimplexNoise {
+    fn new(random: &mut MtRandom) -> Self {
+        // Target constructor order is Z, Y, X. Only X/Y participate in the 2D path.
+        let _origin_z = random.next_float() * 256.0;
+        let origin_y = random.next_float() * 256.0;
+        let origin_x = random.next_float() * 256.0;
+
+        let mut permutation = [0_u16; 512];
+        for (index, value) in permutation[..256].iter_mut().enumerate() {
+            *value = index as u16;
+        }
+        for index in 0..256 {
+            let swap = index + random.next_int((256 - index) as u32) as usize;
+            permutation.swap(index, swap);
+            permutation[index + 256] = permutation[index];
+        }
+
+        Self {
+            origin_x,
+            origin_y,
+            permutation,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_region_2d(
+        &self,
+        out: &mut [f32],
+        x: f32,
+        z: f32,
+        width: usize,
+        height: usize,
+        x_scale: f32,
+        z_scale: f32,
+        amplitude: f32,
+    ) {
+        let mut index = 0;
+        for dz in 0..height {
+            let z_in = (z + dz as f32) * z_scale + self.origin_y;
+            for dx in 0..width {
+                let x_in = (x + dx as f32) * x_scale + self.origin_x;
+                out[index] += self.value_2d(x_in, z_in) * amplitude;
+                index += 1;
+            }
+        }
+    }
+
+    fn value_2d(&self, x: f32, y: f32) -> f32 {
+        const F2: f32 = 0.366_025_4;
+        const G2: f32 = 0.211_324_87;
+        const GRAD3: [[i32; 3]; 12] = [
+            [1, 1, 0],
+            [-1, 1, 0],
+            [1, -1, 0],
+            [-1, -1, 0],
+            [1, 0, 1],
+            [-1, 0, 1],
+            [1, 0, -1],
+            [-1, 0, -1],
+            [0, 1, 1],
+            [0, -1, 1],
+            [0, 1, -1],
+            [0, -1, -1],
+        ];
+
+        let skew = (x + y) * F2;
+        let i = fast_floor(x + skew);
+        let j = fast_floor(y + skew);
+        let unskew = (i + j) as f32 * G2;
+        let x0 = x - (i as f32 - unskew);
+        let y0 = y - (j as f32 - unskew);
+
+        let (i1, j1) = if x0 > y0 { (1_i32, 0_i32) } else { (0, 1) };
+        let x1 = x0 - i1 as f32 + G2;
+        let y1 = y0 - j1 as f32 + G2;
+        let x2 = x0 - 1.0 + 2.0 * G2;
+        let y2 = y0 - 1.0 + 2.0 * G2;
+
+        let ii = (i & 255) as usize;
+        let jj = (j & 255) as usize;
+        let gi0 = usize::from(self.permutation[ii + usize::from(self.permutation[jj])]) % 12;
+        let gi1 = usize::from(
+            self.permutation[ii + i1 as usize + usize::from(self.permutation[jj + j1 as usize])],
+        ) % 12;
+        let gi2 =
+            usize::from(self.permutation[ii + 1 + usize::from(self.permutation[jj + 1])]) % 12;
+
+        let n0 = simplex_corner(GRAD3[gi0], x0, y0);
+        let n1 = simplex_corner(GRAD3[gi1], x1, y1);
+        let n2 = simplex_corner(GRAD3[gi2], x2, y2);
+        70.0 * (n0 + n1 + n2)
+    }
+}
+
+fn simplex_corner(gradient: [i32; 3], x: f32, y: f32) -> f32 {
+    let t = 0.5 - x * x - y * y;
+    if t < 0.0 {
+        0.0
+    } else {
+        let t2 = t * t;
+        t2 * t2 * (gradient[0] as f32 * x + gradient[1] as f32 * y)
+    }
+}
+
+fn fast_floor(value: f32) -> i32 {
+    let truncated = value as i32;
+    if value < truncated as f32 {
+        truncated - 1
+    } else {
+        truncated
     }
 }
 
@@ -109,25 +284,6 @@ impl PerlinNoise {
         }
 
         out
-    }
-}
-
-/// The fixed-target constructor creates four surface-simplex octaves before scale/depth Perlin
-/// banks. Base terrain does not read them, but their initialization consumes the shared MT stream.
-pub(super) fn consume_simplex_initialization(random: &mut MtRandom, levels: usize) {
-    for _ in 0..levels {
-        random.next_float();
-        random.next_float();
-        random.next_float();
-
-        let mut permutation = [0_u16; 256];
-        for (index, value) in permutation.iter_mut().enumerate() {
-            *value = index as u16;
-        }
-        for index in 0..256 {
-            let offset = random.next_int((256 - index) as u32) as usize;
-            permutation.swap(index, index + offset);
-        }
     }
 }
 

@@ -20,6 +20,8 @@ For Overworld biome selection, the executable additionally exposes the concrete 
 
 For Infinite Overworld terrain shape, the same executable exposes `RandomLevelSource` and its `prepareHeights`/density path. Direct binary inspection pins a 5×17×5 density lattice interpolated as 4×8×4 cells into a 16×128×16 chunk; the raw pre-Voronoi biome plane is sampled at quarter scale with a 10×10 neighborhood. The constructor seeds a 624-word Mersenne-Twister state directly from the target's 32-bit `RandomSeed` (not Java's 48-bit `Random`) and constructs noise banks in the fixed order: 16-octave min limit, 16-octave max limit, 8-octave main, 4-octave surface simplex, 10-octave scale, 16-octave depth, 8-octave forest. Surface/scale/forest are not all read by `prepareHeights`, but their constructors consume the shared RNG stream and therefore remain generation-significant.
 
+The executable also exposes the distinct `RandomLevelSource::buildSurfaces` stage and biome virtual surface overrides. Binary RTTI/vtable/disassembly identifies the base `Biome::buildSurfaceAt` plus specialized target overrides for `ExtremeHillsBiome`, `MesaBiome`, `MutatedBiome`, `MutatedSavannaBiome`, `SwampBiome`, and `TaigaBiome`. The stage reseeds its per-chunk MT stream with wrapping `chunkX * 341872712 + chunkZ * 132899541`, samples the retained four-octave surface simplex at 1/8 block scale, places 2..5 bottom bedrock layers per column, and then applies biome top/filler rules. Mesa/Bryce additionally owns world-seeded clay-band, pillar, and roof simplex noise; generic mutated biomes delegate surface behavior to their contained parent.
+
 ## Ardosia semantic oracle
 
 Ardosia was inspected at:
@@ -77,7 +79,7 @@ Numeric legacy IDs are pinned to the matching-source `legacy/old-src/block/Block
 
 The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\World`. `BlockSource` and `ChunkSource` remain explicit interfaces because they form useful semantic ownership/access seams. `MainChunkSource` is the owner-runtime resident index backed by the configured generator.
 
-`GeneratorType` contains the three fixed-target ids because they are part of the StartGame/world vocabulary. `FlatGenerator` is the only complete public terrain generator today. The exact Overworld `BiomeSource` and Infinite `prepareHeights` base-terrain mechanism are implemented independently underneath it, but Infinite is not advertised as a public generator until the later surface-building stage supplies bedrock and biome top/filler semantics. Old remains unimplemented.
+`GeneratorType` contains the three fixed-target ids because they are part of the StartGame/world vocabulary. `FlatGenerator` is the only complete public terrain generator today. The exact Overworld `BiomeSource`, Infinite `prepareHeights` base terrain, and Infinite `buildSurfaces` bedrock/top/filler stage are implemented underneath it as coarse native mechanisms. Infinite is still not advertised as a public generator until caves and subsequent fixed-target generation/population stages are composed. Old remains unimplemented.
 
 `Dimension` is a separate backed enum with the exact fixed-target IDs `Overworld = 0` and `Nether = 1`. World creation defaults to Overworld, persistent metadata is authoritative on reopen, and StartGame receives the stored world dimension instead of a hard-coded zero. Dimension identity is intentionally implemented before Nether generation/portals so later world semantics have a stable durable domain.
 

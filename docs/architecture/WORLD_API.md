@@ -348,11 +348,13 @@ $column = $area->columnAt(3, 7); // catalog default fixed-target color
 
 Generated columns use the catalog default color only when the column is first created. Once a chunk is resident/persisted, its stored biome ID + RGB word is authoritative and must not be recomputed by the source. Flat generation remains driven by its preset biome and does not use `OverworldBiomeSource`.
 
-### Infinite Overworld base terrain
+### Infinite Overworld terrain stages
 
-The fixed-target Infinite generator is implemented in stages rather than exposing a partially correct public generator. Native `OverworldTerrainShape` owns the recovered `RandomLevelSource::prepareHeights` hot mechanism: it samples the biome source's raw pre-Voronoi 1:4 plane, evaluates the exact fixed-target MT/Perlin density lattice, and returns one immutable 16×128×16 `ChunkTerrainShape` of compact state IDs.
+The fixed-target Infinite generator is implemented in stages rather than exposing a partially correct public generator. Native `OverworldTerrainShape` owns the recovered `RandomLevelSource::prepareHeights` hot mechanism: it samples the biome source's raw pre-Voronoi 1:4 plane, evaluates the exact fixed-target MT/Perlin density lattice, and returns one immutable 16×128×16 `ChunkTerrainShape` of compact state IDs containing only air, stone, and still water at sea level 63.
 
-This stage contains only air, stone, and still water, with Overworld sea level 63. Bedrock and biome top/filler replacement are part of the following surface-building stage in the target; caves and population happen later still. Cobblestone therefore does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` until those required generation semantics are composed into a complete chunk.
+Native `OverworldSurfaceBuilder` owns the following recovered `RandomLevelSource::buildSurfaces` stage. It consumes the base shape, final 1:1 biome IDs, the world-seeded four-octave surface simplex, and the target chunk-seeded MT stream. The result applies bottom bedrock plus exact biome surface semantics including sand/sandstone, stone beaches, mycelium, ice-spikes snow, Extreme Hills gravel/stone thresholds, Mega Taiga podzol/coarse dirt, mutated Savanna thresholds, Swamp's special surface prepass, and Mesa/Bryce red-sand/clay bands/pillars.
+
+Both stages are whole-chunk native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because caves and later population/features are client-visible target semantics that remain unimplemented.
 
 ## Generation scheduling
 

@@ -9,6 +9,7 @@ mod residency;
 mod revision;
 mod scalar;
 mod terrain_shape;
+mod terrain_surface;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -38,6 +39,7 @@ pub use chunk::{
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 pub use dimension::DimensionId;
 pub use terrain_shape::{ChunkTerrainShape, OverworldTerrainShape};
+pub use terrain_surface::{OverworldSurfaceBuilder, SurfacedChunk};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WorldStoreError {
