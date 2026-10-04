@@ -319,10 +319,11 @@ Target direction:
 - native `OverworldCaveCarver` applies the target `LargeCaveFeature` pass over the surfaced chunk, including the radius-8 source-chunk scan, MT reseeding, tunnel/room recursion, water-abort mutation, lava cutoff, sand repair, and grass repair;
 - transient native `PopulationNeighborhood` owns the target 3x3 post-process write boundary so population features may mutate neighboring chunks without clipping;
 - `OverworldLakePopulator` applies the target pre-structure water/lava `LakeFeature` stage to that shared neighborhood, including desert water exclusion, failed-water lava suppression, fixed-target cavity validation, and cross-chunk writes;
-- reusable native `StructureStartCore` + `StructureStartCache<T>` own cached-start/bounds/per-chunk idempotence mechanics; `VillageStructureState` / `MineshaftStructureState` / `StrongholdStructureState` / `ScatteredStructureState` keep family-specific durable pieces outside `PopulationNeighborhood`, while their Overworld structure owners implement the first four fixed-target structure stages;
+- reusable native `StructureStartCore` + `StructureStartCache<T>` own cached-start/bounds/per-chunk idempotence mechanics; `VillageStructureState` / `MineshaftStructureState` / `StrongholdStructureState` / `ScatteredStructureState` keep family-specific durable pieces outside `PopulationNeighborhood`, while their Overworld structure owners implement the four fixed-target structure stages and expose crate-internal shared-random post-process paths;
+- `OverworldMonsterRoomPopulator` continues that population RNG stream for the eight fixed-target dungeon attempts, mutating the same 3x3 neighborhood while preserving commented-out chest-loot/spawner-entity semantics;
 - `OverworldOreDecorator` later applies the independently reseeded common `BiomeDecorator::decorateOres` pass plus Mesa extra gold to the same supplied neighborhood;
 - Ocean Monument is explicitly excluded from the 0.15.10 parity surface: target runtime/registry evidence is absent and Mojang introduced the live feature in 0.16;
-- no public Infinite generator is advertised yet because dungeons, freeze/frost, and remaining biome decoration/features remain client-visible target semantics;
+- no public Infinite generator is advertised yet because freeze/frost and remaining biome decoration/features remain client-visible target semantics;
 - Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;

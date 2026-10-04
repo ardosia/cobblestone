@@ -185,12 +185,21 @@ impl OverworldVillageStructures {
         neighborhood: &mut PopulationNeighborhood,
         target: ChunkCoord,
     ) -> bool {
-        let post_seed = population_seed(self.seed, target);
-        let mut random = MtRandom::new(post_seed);
-        let processor = VillagePostProcessor::new(post_seed);
+        let mut random = MtRandom::new(population_seed(self.seed, target));
+        self.post_process_with_random(state, neighborhood, target, &mut random)
+    }
+
+    pub(crate) fn post_process_with_random(
+        &self,
+        state: &mut VillageStructureState,
+        neighborhood: &mut PopulationNeighborhood,
+        target: ChunkCoord,
+        random: &mut MtRandom,
+    ) -> bool {
+        let processor = VillagePostProcessor::new(population_seed(self.seed, target));
         let mut changed = false;
         for start in state.starts.iter_mut() {
-            changed |= processor.process_start(start, neighborhood, target, &mut random);
+            changed |= processor.process_start(start, neighborhood, target, random);
         }
         changed
     }
