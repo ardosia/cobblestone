@@ -1,9 +1,6 @@
-use std::array;
-
+use crate::population::{PopulationNeighborhood, population_random, state};
 use crate::terrain_shape::noise::MtRandom;
-use crate::{CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldCaveCarver};
 
-const WORLD_HEIGHT: i32 = 128;
 const PI: f32 = std::f32::consts::PI;
 
 const STONE_ID: u16 = 1;
@@ -19,97 +16,6 @@ const REDSTONE_ORE_ID: u16 = 73;
 const STONE_GRANITE: u8 = 1;
 const STONE_DIORITE: u8 = 3;
 const STONE_ANDESITE: u8 = 5;
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-struct PopulationChunk {
-    states: Vec<u16>,
-    biome_ids: Vec<u8>,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct PopulationNeighborhood {
-    center: ChunkCoord,
-    chunks: [PopulationChunk; 9],
-}
-
-impl PopulationNeighborhood {
-    pub fn from_carved(seed: i32, center: ChunkCoord) -> Self {
-        let carver = OverworldCaveCarver::new(seed);
-        let chunks = array::from_fn(|index| {
-            let offset_x = (index % 3) as i32 - 1;
-            let offset_z = (index / 3) as i32 - 1;
-            let position = ChunkCoord::new(
-                center.x().wrapping_add(offset_x),
-                center.z().wrapping_add(offset_z),
-            );
-            let (states, biome_ids) = carver.generate(position).into_parts();
-            debug_assert_eq!(states.len(), CHUNK_BLOCK_COUNT);
-            debug_assert_eq!(biome_ids.len(), CHUNK_COLUMN_COUNT);
-            PopulationChunk { states, biome_ids }
-        });
-
-        Self { center, chunks }
-    }
-
-    pub fn center(&self) -> ChunkCoord {
-        self.center
-    }
-
-    pub fn center_states(&self) -> &[u16] {
-        &self.chunks[4].states
-    }
-
-    pub fn center_biome_ids(&self) -> &[u8] {
-        &self.chunks[4].biome_ids
-    }
-
-    pub fn chunk_states(&self, offset_x: i32, offset_z: i32) -> Option<&[u16]> {
-        neighborhood_index(offset_x, offset_z).map(|index| self.chunks[index].states.as_slice())
-    }
-
-    pub fn chunk_biome_ids(&self, offset_x: i32, offset_z: i32) -> Option<&[u8]> {
-        neighborhood_index(offset_x, offset_z).map(|index| self.chunks[index].biome_ids.as_slice())
-    }
-
-    fn block_id(&self, world_x: i32, y: i32, world_z: i32) -> Option<u16> {
-        self.state(world_x, y, world_z).map(|value| value >> 4)
-    }
-
-    fn state(&self, world_x: i32, y: i32, world_z: i32) -> Option<u16> {
-        if !(0..WORLD_HEIGHT).contains(&y) {
-            return None;
-        }
-        let (chunk_index, local_x, local_z) = self.resolve(world_x, world_z)?;
-        Some(self.chunks[chunk_index].states[block_index(local_x, y as usize, local_z)])
-    }
-
-    fn set_state(&mut self, world_x: i32, y: i32, world_z: i32, value: u16) -> bool {
-        if !(0..WORLD_HEIGHT).contains(&y) {
-            return false;
-        }
-        let Some((chunk_index, local_x, local_z)) = self.resolve(world_x, world_z) else {
-            return false;
-        };
-        self.chunks[chunk_index].states[block_index(local_x, y as usize, local_z)] = value;
-        true
-    }
-
-    fn resolve(&self, world_x: i32, world_z: i32) -> Option<(usize, usize, usize)> {
-        let origin_x = self.center.x().wrapping_mul(16);
-        let origin_z = self.center.z().wrapping_mul(16);
-        let relative_x = world_x.wrapping_sub(origin_x);
-        let relative_z = world_z.wrapping_sub(origin_z);
-        if !(-16..48).contains(&relative_x) || !(-16..48).contains(&relative_z) {
-            return None;
-        }
-
-        let offset_x = relative_x.div_euclid(16);
-        let offset_z = relative_z.div_euclid(16);
-        let local_x = relative_x.rem_euclid(16) as usize;
-        let local_z = relative_z.rem_euclid(16) as usize;
-        neighborhood_index(offset_x, offset_z).map(|index| (index, local_x, local_z))
-    }
-}
 
 /// Exact fixed-target common BiomeDecorator::decorateOres stage.
 ///
@@ -128,7 +34,7 @@ impl OverworldOreDecorator {
     }
 
     pub fn decorate(&self, neighborhood: &mut PopulationNeighborhood) {
-        let center = neighborhood.center;
+        let center = neighborhood.center();
         let mut random = population_random(self.seed, center);
         let mesa = is_mesa_biome(neighborhood.center_biome_ids()[15 + 15 * 16]);
 
@@ -144,23 +50,6 @@ impl OverworldOreDecorator {
             );
         }
     }
-}
-
-fn population_random(seed: u32, center: ChunkCoord) -> MtRandom {
-    let mut random = MtRandom::new(seed);
-    let x_scale = odd_scale(random.next_positive_int());
-    let z_scale = odd_scale(random.next_positive_int());
-    let mixed = center
-        .x()
-        .wrapping_mul(x_scale)
-        .wrapping_add(center.z().wrapping_mul(z_scale));
-    random.reseed(u32::from_ne_bytes(mixed.to_ne_bytes()) ^ seed);
-    random
-}
-
-fn odd_scale(value: u32) -> i32 {
-    let value = value as i32;
-    (value / 2).wrapping_mul(2).wrapping_add(1)
 }
 
 fn decorate_common_ores(neighborhood: &mut PopulationNeighborhood, random: &mut MtRandom) -> bool {
@@ -277,8 +166,8 @@ fn decorate_depth_span(
     y0: i32,
     y1: i32,
 ) {
-    let origin_x = neighborhood.center.x().wrapping_mul(16);
-    let origin_z = neighborhood.center.z().wrapping_mul(16);
+    let origin_x = neighborhood.center().x().wrapping_mul(16);
+    let origin_z = neighborhood.center().z().wrapping_mul(16);
     for _ in 0..count {
         let z = origin_z.wrapping_add(random.next_int(16) as i32);
         let y = random.next_int((y1 - y0) as u32) as i32 + y0;
@@ -295,8 +184,8 @@ fn decorate_depth_average(
     y_mid: i32,
     y_span: i32,
 ) {
-    let origin_x = neighborhood.center.x().wrapping_mul(16);
-    let origin_z = neighborhood.center.z().wrapping_mul(16);
+    let origin_x = neighborhood.center().x().wrapping_mul(16);
+    let origin_z = neighborhood.center().z().wrapping_mul(16);
     for _ in 0..count {
         let z = origin_z.wrapping_add(random.next_int(16) as i32);
         let y0 = random.next_int(y_span as u32) as i32;
@@ -360,7 +249,7 @@ fn place_ore(
                     if xd * xd + yd * yd + zd * zd >= 1.0 {
                         continue;
                     }
-                    if neighborhood.block_id(x, y, z) == Some(STONE_ID) {
+                    if neighborhood.block_id(x, y, z) == STONE_ID {
                         neighborhood.set_state(x, y, z, state(ore.block_id, ore.data));
                     }
                 }
@@ -369,23 +258,8 @@ fn place_ore(
     }
 }
 
-fn neighborhood_index(offset_x: i32, offset_z: i32) -> Option<usize> {
-    if !(-1..=1).contains(&offset_x) || !(-1..=1).contains(&offset_z) {
-        return None;
-    }
-    Some((offset_z + 1) as usize * 3 + (offset_x + 1) as usize)
-}
-
 fn is_mesa_biome(id: u8) -> bool {
     matches!(id, 37..=39 | 165..=167)
-}
-
-const fn block_index(x: usize, y: usize, z: usize) -> usize {
-    (y << 8) | (z << 4) | x
-}
-
-const fn state(block_id: u16, data: u8) -> u16 {
-    (block_id << 4) | data as u16
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -442,22 +316,16 @@ impl Vec3f {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ChunkCoord, OverworldCaveCarver};
 
     fn stone_neighborhood(center: ChunkCoord) -> PopulationNeighborhood {
-        PopulationNeighborhood {
-            center,
-            chunks: array::from_fn(|_| PopulationChunk {
-                states: vec![state(STONE_ID, 0); CHUNK_BLOCK_COUNT],
-                biome_ids: vec![1; CHUNK_COLUMN_COUNT],
-            }),
-        }
+        PopulationNeighborhood::filled(center, state(STONE_ID, 0), 1)
     }
 
     fn hash_neighborhood(neighborhood: &PopulationNeighborhood) -> u64 {
         neighborhood
-            .chunks
-            .iter()
-            .flat_map(|chunk| chunk.states.iter())
+            .state_planes()
+            .flat_map(|states| states.iter())
             .fold(0xcbf2_9ce4_8422_2325_u64, |mut hash, state| {
                 for byte in state.to_le_bytes() {
                     hash = (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3);
@@ -467,21 +335,23 @@ mod tests {
     }
 
     fn changed_neighbor_states(neighborhood: &PopulationNeighborhood) -> usize {
-        neighborhood
-            .chunks
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| *index != 4)
-            .flat_map(|(_, chunk)| chunk.states.iter())
+        (-1..=1)
+            .flat_map(|offset_z| (-1..=1).map(move |offset_x| (offset_x, offset_z)))
+            .filter(|(offset_x, offset_z)| *offset_x != 0 || *offset_z != 0)
+            .flat_map(|(offset_x, offset_z)| {
+                neighborhood
+                    .chunk_states(offset_x, offset_z)
+                    .expect("population neighbor exists")
+                    .iter()
+            })
             .filter(|state_id| **state_id != state(STONE_ID, 0))
             .count()
     }
 
     fn block_count(neighborhood: &PopulationNeighborhood, id: u16) -> usize {
         neighborhood
-            .chunks
-            .iter()
-            .flat_map(|chunk| chunk.states.iter())
+            .state_planes()
+            .flat_map(|states| states.iter())
             .filter(|state_id| (**state_id >> 4) == id)
             .count()
     }
@@ -594,8 +464,8 @@ mod tests {
         OverworldOreDecorator::new(0).decorate(&mut decorated);
         let mut saw_ore = false;
         let mut saw_variant = false;
-        for chunk in &decorated.chunks {
-            for state in &chunk.states {
+        for states in decorated.state_planes() {
+            for state in states {
                 let id = state >> 4;
                 if matches!(
                     id,

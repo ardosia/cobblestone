@@ -299,7 +299,7 @@ Target direction:
 
 ### World generation
 
-Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building + cave-carving + common ore-decoration foundations; remaining population/features plus Old/Nether generation remain pending.
+Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building + cave-carving + lake-population + common ore-decoration foundations; remaining structures/dungeons/biome features plus Old/Nether generation remain pending.
 
 Current source:
 
@@ -317,8 +317,10 @@ Target direction:
 - native `OverworldTerrainShape` implements the exact `RandomLevelSource::prepareHeights` stage as one 16×128×16 immutable state projection using the raw pre-Voronoi biome layer;
 - native `OverworldSurfaceBuilder` composes that shape with final 1:1 biomes, the target four-octave surface simplex, chunk-seeded MT state, bedrock, and exact biome top/filler overrides into one immutable surfaced chunk;
 - native `OverworldCaveCarver` applies the target `LargeCaveFeature` pass over the surfaced chunk, including the radius-8 source-chunk scan, MT reseeding, tunnel/room recursion, water-abort mutation, lava cutoff, sand repair, and grass repair;
-- transient native `PopulationNeighborhood` owns the target 3x3 post-process write boundary so population features may mutate neighboring chunks without clipping; `OverworldOreDecorator` applies the independently reseeded common `BiomeDecorator::decorateOres` pass plus Mesa extra gold to that supplied neighborhood;
-- no public Infinite generator is advertised yet because lakes/structures/dungeons and the remaining biome decoration/features remain client-visible target semantics;
+- transient native `PopulationNeighborhood` owns the target 3x3 post-process write boundary so population features may mutate neighboring chunks without clipping;
+- `OverworldLakePopulator` applies the target pre-structure water/lava `LakeFeature` stage to that shared neighborhood, including desert water exclusion, failed-water lava suppression, fixed-target cavity validation, and cross-chunk writes;
+- `OverworldOreDecorator` later applies the independently reseeded common `BiomeDecorator::decorateOres` pass plus Mesa extra gold to the same supplied neighborhood;
+- no public Infinite generator is advertised yet because structures/dungeons, freeze/frost, and the remaining biome decoration/features remain client-visible target semantics;
 - Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;
