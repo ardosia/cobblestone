@@ -165,6 +165,10 @@ All three target pieces use the source's fixed South orientation. Desert Pyramid
 
 Independent validation uses a standalone std::mt19937+cubiomes locator oracle across seed `0`, `-1`, `i32::MIN`, and `0x12345678`, with all three families represented. A separate standalone target-format block oracle matches the center-chunk hashes `0x8e10fa9a2eb3f1d5` (Desert), `0x1789bd78f317c071` (Jungle), and `0x2f7e83e9379a9ced` (Hut), plus sentinel block counts and Jungle trap flags. State tests cover durable codec semantics and first-chunk height persistence.
 
+## Fixed-target exclusion: Ocean Monument
+
+Ocean Monument is intentionally not implemented for the 0.15.10 target. Direct executable inspection finds no Ocean Monument or Guardian runtime vocabulary; shipped vanilla `blocks.json` also lacks the Prismarine and Sea Lantern registrations required by that generator. Future-content textures in themed resource packs are treated as dormant assets, not registry or world-generation evidence. Mojang's official MCPE/Win10 0.16 release notes list Ocean Monuments, Guardians/Elder Guardians, Prismarine variants, and Sea Lantern as new 0.16 features. Consequently the complete `OceanMonumentFeature` subsystem present in the pinned restored 1.0 source is explicitly post-target and excluded from parity.
+
 ## Fixed-target Infinite ore-decoration parity
 
 The target population boundary is a 3x3 neighborhood rather than a center-chunk-only write surface. `PopulationNeighborhood` therefore retains nine carved chunk planes as one transient generation-owned unit. `OverworldOreDecorator` accepts that supplied unit instead of manufacturing its own prerequisite state, allowing later lake/structure/dungeon issues to run before biome decoration in the exact target order. The ore stage reseeds MT from the world seed using the target odd X/Z scales and center chunk coordinates immediately before decoration.

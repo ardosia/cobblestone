@@ -368,7 +368,7 @@ Village is the first recovered historyful structure stage after lakes. Native `S
 
 `OverworldOreDecorator` later mutates the same supplied neighborhood after independently reseeding immediately before biome decoration, applying the common ore order/counts/depth distributions, PE extra-gravel branch, and Mesa extra-gold override. Keeping the neighborhood independent from either feature owner preserves the real order for upcoming structures/dungeons between lakes and biome decoration.
 
-These stages remain coarse native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because Ocean Monument structures, dungeons, freeze/frost, and remaining biome decoration/features are client-visible target semantics that are not yet composed.
+These stages remain coarse native mechanisms; PHP does not perform per-block FFI calls. Ocean Monument is not a 0.15.10 generation stage: it arrived with Guardians/Prismarine in 0.16 and is deliberately excluded. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because dungeons, freeze/frost, and remaining biome decoration/features are client-visible target semantics that are not yet composed.
 
 ## Generation scheduling
 

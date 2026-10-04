@@ -299,7 +299,7 @@ Target direction:
 
 ### World generation
 
-Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building + cave-carving + lake-population + Village/Mineshaft/Stronghold/Scattered structure + common ore-decoration foundations; remaining Monument/dungeon/biome features plus Old/Nether generation remain pending.
+Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building + cave-carving + lake-population + Village/Mineshaft/Stronghold/Scattered structure + common ore-decoration foundations; remaining dungeon/biome features plus Old/Nether generation remain pending. Ocean Monument is post-target 0.16 content and is intentionally absent.
 
 Current source:
 
@@ -321,7 +321,8 @@ Target direction:
 - `OverworldLakePopulator` applies the target pre-structure water/lava `LakeFeature` stage to that shared neighborhood, including desert water exclusion, failed-water lava suppression, fixed-target cavity validation, and cross-chunk writes;
 - reusable native `StructureStartCore` + `StructureStartCache<T>` own cached-start/bounds/per-chunk idempotence mechanics; `VillageStructureState` / `MineshaftStructureState` / `StrongholdStructureState` / `ScatteredStructureState` keep family-specific durable pieces outside `PopulationNeighborhood`, while their Overworld structure owners implement the first four fixed-target structure stages;
 - `OverworldOreDecorator` later applies the independently reseeded common `BiomeDecorator::decorateOres` pass plus Mesa extra gold to the same supplied neighborhood;
-- no public Infinite generator is advertised yet because Ocean Monument structures, dungeons, freeze/frost, and remaining biome decoration/features remain client-visible target semantics;
+- Ocean Monument is explicitly excluded from the 0.15.10 parity surface: target runtime/registry evidence is absent and Mojang introduced the live feature in 0.16;
+- no public Infinite generator is advertised yet because dungeons, freeze/frost, and remaining biome decoration/features remain client-visible target semantics;
 - Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;
