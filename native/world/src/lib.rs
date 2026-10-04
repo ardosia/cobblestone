@@ -46,7 +46,10 @@ pub use dimension::DimensionId;
 pub use population::PopulationNeighborhood;
 pub use population_lake::OverworldLakePopulator;
 pub use population_ore::OverworldOreDecorator;
-pub use structure::{OverworldVillageStructures, StructureFeatureKind, VillageStructureState};
+pub use structure::{
+    MineshaftStructureState, OverworldMineshaftStructures, OverworldVillageStructures,
+    StructureFeatureKind, VillageStructureState,
+};
 pub use terrain_cave::{CarvedChunk, OverworldCaveCarver};
 pub use terrain_shape::{ChunkTerrainShape, OverworldTerrainShape};
 pub use terrain_surface::{OverworldSurfaceBuilder, SurfacedChunk};

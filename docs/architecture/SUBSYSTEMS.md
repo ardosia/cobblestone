@@ -299,7 +299,7 @@ Target direction:
 
 ### World generation
 
-Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building + cave-carving + lake-population + Village-structure + common ore-decoration foundations; remaining structure families/dungeons/biome features plus Old/Nether generation remain pending.
+Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building + cave-carving + lake-population + Village/Mineshaft structure + common ore-decoration foundations; remaining Stronghold/Scattered/Monument/dungeon/biome features plus Old/Nether generation remain pending.
 
 Current source:
 
@@ -319,9 +319,9 @@ Target direction:
 - native `OverworldCaveCarver` applies the target `LargeCaveFeature` pass over the surfaced chunk, including the radius-8 source-chunk scan, MT reseeding, tunnel/room recursion, water-abort mutation, lava cutoff, sand repair, and grass repair;
 - transient native `PopulationNeighborhood` owns the target 3x3 post-process write boundary so population features may mutate neighboring chunks without clipping;
 - `OverworldLakePopulator` applies the target pre-structure water/lava `LakeFeature` stage to that shared neighborhood, including desert water exclusion, failed-water lava suppression, fixed-target cavity validation, and cross-chunk writes;
-- reusable native `StructureStartCore` + `StructureStartCache<T>` own cached-start/bounds/per-chunk idempotence mechanics; `VillageStructureState` keeps family-specific durable pieces outside `PopulationNeighborhood`, and `OverworldVillageStructures` applies exact fixed-target Village discovery/topology/block recipes after lakes;
+- reusable native `StructureStartCore` + `StructureStartCache<T>` own cached-start/bounds/per-chunk idempotence mechanics; `VillageStructureState` / `MineshaftStructureState` keep family-specific durable pieces outside `PopulationNeighborhood`, while `OverworldVillageStructures` and `OverworldMineshaftStructures` implement the first two fixed-target structure stages;
 - `OverworldOreDecorator` later applies the independently reseeded common `BiomeDecorator::decorateOres` pass plus Mesa extra gold to the same supplied neighborhood;
-- no public Infinite generator is advertised yet because remaining structure families/dungeons, freeze/frost, and remaining biome decoration/features remain client-visible target semantics;
+- no public Infinite generator is advertised yet because Stronghold/Scattered/Monument structures, dungeons, freeze/frost, and remaining biome decoration/features remain client-visible target semantics;
 - Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;
