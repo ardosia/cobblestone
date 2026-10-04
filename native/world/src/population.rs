@@ -54,6 +54,11 @@ impl PopulationNeighborhood {
         neighborhood_index(offset_x, offset_z).map(|index| self.chunks[index].biome_ids.as_slice())
     }
 
+    pub(crate) fn biome_id(&self, world_x: i32, world_z: i32) -> Option<u8> {
+        let (chunk_index, local_x, local_z) = self.resolve(world_x, world_z)?;
+        Some(self.chunks[chunk_index].biome_ids[local_x + local_z * 16])
+    }
+
     pub(crate) fn block_id(&self, world_x: i32, y: i32, world_z: i32) -> u16 {
         self.state(world_x, y, world_z)
             .map(|value| value >> 4)
@@ -77,6 +82,21 @@ impl PopulationNeighborhood {
         };
         self.chunks[chunk_index].states[block_index(local_x, y as usize, local_z)] = value;
         true
+    }
+
+    pub(crate) fn above_top_solid_block(
+        &self,
+        world_x: i32,
+        world_z: i32,
+        include_water: bool,
+    ) -> i32 {
+        for y in (0..WORLD_HEIGHT as i32).rev() {
+            let id = self.block_id(world_x, y, world_z);
+            if top_solid_for_population(id, include_water) {
+                return y + 1;
+            }
+        }
+        0
     }
 
     #[cfg(test)]
@@ -112,7 +132,7 @@ impl PopulationNeighborhood {
     }
 }
 
-pub(crate) fn population_random(seed: u32, center: ChunkCoord) -> MtRandom {
+pub(crate) fn population_seed(seed: u32, center: ChunkCoord) -> u32 {
     let mut random = MtRandom::new(seed);
     let x_scale = odd_scale(random.next_positive_int());
     let z_scale = odd_scale(random.next_positive_int());
@@ -120,13 +140,24 @@ pub(crate) fn population_random(seed: u32, center: ChunkCoord) -> MtRandom {
         .x()
         .wrapping_mul(x_scale)
         .wrapping_add(center.z().wrapping_mul(z_scale));
-    random.reseed(u32::from_ne_bytes(mixed.to_ne_bytes()) ^ seed);
-    random
+    u32::from_ne_bytes(mixed.to_ne_bytes()) ^ seed
+}
+
+pub(crate) fn population_random(seed: u32, center: ChunkCoord) -> MtRandom {
+    MtRandom::new(population_seed(seed, center))
 }
 
 const fn odd_scale(value: u32) -> i32 {
     let value = value as i32;
     (value / 2).wrapping_mul(2).wrapping_add(1)
+}
+
+fn top_solid_for_population(id: u16, include_water: bool) -> bool {
+    match id {
+        0 | 10 | 11 => false,
+        8 | 9 => include_water,
+        _ => true,
+    }
 }
 
 pub(crate) const fn state(block_id: u16, data: u8) -> u16 {

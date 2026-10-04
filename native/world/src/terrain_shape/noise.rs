@@ -4,6 +4,7 @@ const MATRIX_A: u32 = 0x9908_b0df;
 const UPPER_MASK: u32 = 0x8000_0000;
 const LOWER_MASK: u32 = 0x7fff_ffff;
 
+#[derive(Clone)]
 pub(crate) struct MtRandom {
     state: [u32; MT_N],
     index: usize,

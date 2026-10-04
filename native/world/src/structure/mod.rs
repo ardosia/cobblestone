@@ -1,5 +1,8 @@
 mod village;
+mod village_place;
 mod village_plan;
+
+pub use village::{OverworldVillageStructures, VillageStructureState};
 
 use crate::ChunkCoord;
 use crate::terrain_shape::noise::MtRandom;
@@ -169,6 +172,15 @@ impl StructureBounds {
         self.z1 = self.z1.max(other.z1);
     }
 
+    pub(crate) fn move_by(&mut self, dx: i32, dy: i32, dz: i32) {
+        self.x0 = self.x0.wrapping_add(dx);
+        self.y0 = self.y0.wrapping_add(dy);
+        self.z0 = self.z0.wrapping_add(dz);
+        self.x1 = self.x1.wrapping_add(dx);
+        self.y1 = self.y1.wrapping_add(dy);
+        self.z1 = self.z1.wrapping_add(dz);
+    }
+
     pub(crate) const fn x_span(&self) -> i32 {
         self.x1 - self.x0 + 1
     }
@@ -179,6 +191,43 @@ impl StructureBounds {
 
     pub(crate) const fn z_span(&self) -> i32 {
         self.z1 - self.z0 + 1
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub(crate) struct StructureStartCache<T> {
+    starts: Vec<T>,
+}
+
+impl<T> Default for StructureStartCache<T> {
+    fn default() -> Self {
+        Self { starts: Vec::new() }
+    }
+}
+
+impl<T> StructureStartCache<T> {
+    pub(crate) fn from_starts(starts: Vec<T>) -> Self {
+        Self { starts }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.starts.len()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.starts.is_empty()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
+        self.starts.iter()
+    }
+
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.starts.iter_mut()
+    }
+
+    pub(crate) fn push(&mut self, start: T) {
+        self.starts.push(start);
     }
 }
 
@@ -202,6 +251,7 @@ impl StructureStartCore {
         self.source
     }
 
+    #[cfg(test)]
     pub(crate) const fn bounds(&self) -> StructureBounds {
         self.bounds
     }

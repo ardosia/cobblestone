@@ -34,7 +34,7 @@ pub(crate) enum VillagePieceKind {
 }
 
 impl VillagePieceKind {
-    fn dimensions(self) -> Option<(i32, i32, i32)> {
+    pub(crate) fn dimensions(self) -> Option<(i32, i32, i32)> {
         match self {
             Self::Start => Some((6, 15, 6)),
             Self::SimpleHouse => Some((5, 6, 5)),
@@ -77,6 +77,8 @@ pub(crate) struct VillagePiecePlan {
     pub(crate) orientation: StructureOrientation,
     pub(crate) gen_depth: i32,
     pub(crate) extra: VillagePieceExtra,
+    pub(crate) height_position: i32,
+    pub(crate) placed_chest: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -117,6 +119,139 @@ struct Planner {
 }
 
 impl VillagePlan {
+    pub(crate) fn encode_semantics(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&self.core.encode_core_semantics());
+        out.push(match self.style {
+            VillageStyle::Plains => 0,
+            VillageStyle::Desert => 1,
+            VillageStyle::Savanna => 2,
+            VillageStyle::Taiga => 3,
+        });
+        out.push(u8::from(self.abandoned));
+        out.extend_from_slice(&(self.pieces.len() as u32).to_le_bytes());
+        for piece in &self.pieces {
+            out.push(piece.kind as u8);
+            out.push(piece.orientation as u8);
+            out.extend_from_slice(&piece.gen_depth.to_le_bytes());
+            for value in [
+                piece.bounds.x0,
+                piece.bounds.y0,
+                piece.bounds.z0,
+                piece.bounds.x1,
+                piece.bounds.y1,
+                piece.bounds.z1,
+                piece.height_position,
+            ] {
+                out.extend_from_slice(&value.to_le_bytes());
+            }
+            out.push(u8::from(piece.placed_chest));
+            match &piece.extra {
+                VillagePieceExtra::None => out.push(0),
+                VillagePieceExtra::SimpleHouse { terrace } => {
+                    out.push(1);
+                    out.push(u8::from(*terrace));
+                }
+                VillagePieceExtra::SmallHut { low_ceiling, table } => {
+                    out.push(2);
+                    out.push(u8::from(*low_ceiling));
+                    out.push(*table);
+                }
+                VillagePieceExtra::Farmland { crops } => {
+                    out.push(3);
+                    out.extend(crops.iter().map(|crop| crop_code(*crop)));
+                }
+                VillagePieceExtra::DoubleFarmland { crops } => {
+                    out.push(4);
+                    out.extend(crops.iter().map(|crop| crop_code(*crop)));
+                }
+                VillagePieceExtra::StraightRoad { length } => {
+                    out.push(5);
+                    out.extend_from_slice(&length.to_le_bytes());
+                }
+            }
+        }
+    }
+
+    pub(crate) fn decode_semantics(cursor: &mut SemanticCursor<'_>) -> Option<Self> {
+        let core = StructureStartCore::decode_core_semantics(cursor.take(32)?)?;
+        let style = match cursor.u8()? {
+            0 => VillageStyle::Plains,
+            1 => VillageStyle::Desert,
+            2 => VillageStyle::Savanna,
+            3 => VillageStyle::Taiga,
+            _ => return None,
+        };
+        let abandoned = cursor.u8()? != 0;
+        let piece_count = cursor.u32()? as usize;
+        if piece_count > 4096 {
+            return None;
+        }
+
+        let mut pieces = Vec::with_capacity(piece_count);
+        for _ in 0..piece_count {
+            let kind = piece_kind(cursor.u8()?)?;
+            let orientation = match cursor.u8()? {
+                0 => StructureOrientation::South,
+                1 => StructureOrientation::West,
+                2 => StructureOrientation::North,
+                3 => StructureOrientation::East,
+                _ => return None,
+            };
+            let gen_depth = cursor.i32()?;
+            let bounds = StructureBounds::new(
+                cursor.i32()?,
+                cursor.i32()?,
+                cursor.i32()?,
+                cursor.i32()?,
+                cursor.i32()?,
+                cursor.i32()?,
+            );
+            let height_position = cursor.i32()?;
+            let placed_chest = cursor.u8()? != 0;
+            let extra = match cursor.u8()? {
+                0 => VillagePieceExtra::None,
+                1 => VillagePieceExtra::SimpleHouse {
+                    terrace: cursor.u8()? != 0,
+                },
+                2 => VillagePieceExtra::SmallHut {
+                    low_ceiling: cursor.u8()? != 0,
+                    table: cursor.u8()?,
+                },
+                3 => VillagePieceExtra::Farmland {
+                    crops: [crop(cursor.u8()?)?, crop(cursor.u8()?)?],
+                },
+                4 => VillagePieceExtra::DoubleFarmland {
+                    crops: [
+                        crop(cursor.u8()?)?,
+                        crop(cursor.u8()?)?,
+                        crop(cursor.u8()?)?,
+                        crop(cursor.u8()?)?,
+                    ],
+                },
+                5 => VillagePieceExtra::StraightRoad {
+                    length: cursor.i32()?,
+                },
+                _ => return None,
+            };
+            pieces.push(VillagePiecePlan {
+                kind,
+                bounds,
+                orientation,
+                gen_depth,
+                extra,
+                height_position,
+                placed_chest,
+            });
+        }
+
+        Some(Self {
+            core,
+            style,
+            abandoned,
+            pieces,
+        })
+    }
+
     pub(crate) fn generate(
         source: ChunkCoord,
         mut random: MtRandom,
@@ -203,6 +338,8 @@ impl VillagePlan {
                 orientation,
                 gen_depth: 0,
                 extra: VillagePieceExtra::None,
+                height_position: -1,
+                placed_chest: false,
             }],
             pending_roads: Vec::new(),
             pending_houses: Vec::new(),
@@ -234,6 +371,7 @@ impl VillagePlan {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn hash_topology(&self) -> u64 {
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         for byte in [self.style as u8, u8::from(self.abandoned)] {
@@ -603,6 +741,7 @@ impl Planner {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn create_leaf(
         &mut self,
         kind: VillagePieceKind,
@@ -659,6 +798,8 @@ impl Planner {
             orientation,
             gen_depth: depth,
             extra,
+            height_position: -1,
+            placed_chest: false,
         });
         Some(index)
     }
@@ -715,6 +856,8 @@ impl Planner {
             extra: VillagePieceExtra::StraightRoad {
                 length: actual_length,
             },
+            height_position: -1,
+            placed_chest: false,
         });
         self.pending_roads.push(index);
         Some(index)
@@ -752,6 +895,77 @@ impl Planner {
     }
 }
 
+pub(crate) struct SemanticCursor<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> SemanticCursor<'a> {
+    pub(crate) const fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, offset: 0 }
+    }
+
+    pub(crate) const fn is_finished(&self) -> bool {
+        self.offset == self.bytes.len()
+    }
+
+    fn take(&mut self, count: usize) -> Option<&'a [u8]> {
+        let end = self.offset.checked_add(count)?;
+        let value = self.bytes.get(self.offset..end)?;
+        self.offset = end;
+        Some(value)
+    }
+
+    fn u8(&mut self) -> Option<u8> {
+        Some(*self.take(1)?.first()?)
+    }
+
+    fn u32(&mut self) -> Option<u32> {
+        Some(u32::from_le_bytes(self.take(4)?.try_into().ok()?))
+    }
+
+    fn i32(&mut self) -> Option<i32> {
+        Some(i32::from_le_bytes(self.take(4)?.try_into().ok()?))
+    }
+}
+
+fn piece_kind(value: u8) -> Option<VillagePieceKind> {
+    Some(match value {
+        0 => VillagePieceKind::Start,
+        1 => VillagePieceKind::SimpleHouse,
+        2 => VillagePieceKind::SmallTemple,
+        3 => VillagePieceKind::BookHouse,
+        4 => VillagePieceKind::SmallHut,
+        5 => VillagePieceKind::PigHouse,
+        6 => VillagePieceKind::DoubleFarmland,
+        7 => VillagePieceKind::Farmland,
+        8 => VillagePieceKind::Smithy,
+        9 => VillagePieceKind::TwoRoomHouse,
+        10 => VillagePieceKind::LightPost,
+        11 => VillagePieceKind::StraightRoad,
+        _ => return None,
+    })
+}
+
+const fn crop_code(value: VillageCrop) -> u8 {
+    match value {
+        VillageCrop::Wheat => 0,
+        VillageCrop::Potato => 1,
+        VillageCrop::Beetroot => 2,
+        VillageCrop::Carrot => 3,
+    }
+}
+
+fn crop(value: u8) -> Option<VillageCrop> {
+    Some(match value {
+        0 => VillageCrop::Wheat,
+        1 => VillageCrop::Potato,
+        2 => VillageCrop::Beetroot,
+        3 => VillageCrop::Carrot,
+        _ => return None,
+    })
+}
+
 fn orientation(value: u32) -> StructureOrientation {
     match value {
         0 => StructureOrientation::South,
@@ -774,6 +988,7 @@ fn next_boolean(random: &mut MtRandom) -> bool {
     random.next_u32() & 0x0800_0000 != 0
 }
 
+#[cfg(test)]
 fn fnv_byte(hash: u64, byte: u8) -> u64 {
     (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
 }
