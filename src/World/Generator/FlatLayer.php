@@ -19,6 +19,6 @@ final readonly class FlatLayer
             throw new ValueError('flat layer count must be positive');
         }
 
-        $this->stateId = $state->fullId();
+        $this->stateId = $state->stateId();
     }
 }

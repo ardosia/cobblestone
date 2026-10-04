@@ -623,7 +623,7 @@ Current direction:
 
 ### Fixed-target catalogs
 
-Status: partial protocol/world constants exist; unified catalog design planned.
+Status: exact block and biome catalog foundations implemented; remaining catalog domains planned.
 
 Target design: DATA_API.md.
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
-use Cobblestone\World\BlockCatalog;
+use Cobblestone\World\BlockData;
 use Cobblestone\World\BlockState;
 use Cobblestone\World\BlockStateId;
 use Cobblestone\World\BlockType;
@@ -213,20 +213,23 @@ $expected = [
 ];
 
 blockCatalogExpect(count($expected) === 191, 'fixed-target block fixture must contain 191 identities');
-blockCatalogExpect(BlockCatalog::ids() === array_keys($expected), 'block catalog id set/order mismatch');
+blockCatalogExpect(
+    array_map(static fn (BlockType $type): int => $type->value, BlockType::cases()) === array_keys($expected),
+    'BlockType legacy id set/order mismatch',
+);
 
 foreach ($expected as $id => $name) {
-    blockCatalogExpect(BlockCatalog::supports($id), "registered block id {$id} was rejected");
-    blockCatalogExpect(BlockCatalog::name($id) === $name, "block {$id} asset name mismatch");
+    $type = BlockType::tryFrom($id);
+    blockCatalogExpect($type !== null, "registered block id {$id} was rejected");
+    blockCatalogExpect($type->assetName() === $name, "block {$id} asset name mismatch");
+    blockCatalogExpect(BlockType::fromAssetName($name) === $type, "block name {$name} did not round-trip");
 
-    $type = BlockCatalog::type($id);
-    blockCatalogExpect($type->id === $id && $type->name === $name, "block type {$id} identity mismatch");
-    blockCatalogExpect(BlockType::fromName($name)->id === $id, "block name {$name} did not round-trip");
+    $state = $type->state(BlockData::Fifteen);
+    blockCatalogExpect($state->stateId() === (($id << 4) | 15), "block {$id}:15 state mismatch");
 
-    $state = $type->state(15);
-    blockCatalogExpect($state->fullId() === (($id << 4) | 15), "block {$id}:15 state mismatch");
-    blockCatalogExpect($state->type()->name === $name, "block state {$id}:15 type mismatch");
-    blockCatalogExpect(BlockState::fromId($state->fullId())->data === 15, "block {$id}:15 round-trip mismatch");
+    $decoded = BlockState::fromId($state->stateId());
+    blockCatalogExpect($decoded->type === $type, "block {$id}:15 type round-trip mismatch");
+    blockCatalogExpect($decoded->data === BlockData::Fifteen, "block {$id}:15 data round-trip mismatch");
 }
 
 for ($id = 0; $id <= 255; ++$id) {
@@ -234,16 +237,21 @@ for ($id = 0; $id <= 255; ++$id) {
         continue;
     }
 
-    blockCatalogExpect(!BlockCatalog::supports($id), "hole block id {$id} was registered");
+    blockCatalogExpect(BlockType::tryFrom($id) === null, "hole block id {$id} was registered");
     try {
-        BlockStateId::fromLegacy($id);
+        BlockStateId::assert($id << 4);
         throw new RuntimeException("hole block id {$id} produced a state");
     } catch (ValueError) {
     }
 }
 
+blockCatalogExpect(
+    array_map(static fn (BlockData $data): int => $data->value, BlockData::cases()) === range(0, 15),
+    'BlockData must cover exactly the legacy nibble',
+);
+
 try {
-    BlockStateId::fromLegacy(1, 16);
+    BlockData::of(16);
     throw new RuntimeException('block metadata 16 was accepted');
 } catch (ValueError) {
 }
@@ -260,10 +268,17 @@ try {
 } catch (ValueError) {
 }
 
-$torch = BlockType::fromName('torch');
-blockCatalogExpect($torch->id === 50, 'torch id mismatch');
-blockCatalogExpect($torch->lightBlock === 0 && $torch->lightEmission === 14, 'torch light metadata mismatch');
-blockCatalogExpect(BlockType::fromName('fire')->id === 51, 'asset-order fire id mismatch');
-blockCatalogExpect(BlockType::fromName('nether_brick_fence')->id === 113, 'sparse registry id mapping mismatch');
+$torch = BlockType::Torch;
+blockCatalogExpect($torch->value === 50 && $torch->assetName() === 'torch', 'torch identity mismatch');
+blockCatalogExpect(
+    $torch->lightProperties()->lightBlock === 0 && $torch->lightProperties()->lightEmission === 14,
+    'torch light metadata mismatch',
+);
+blockCatalogExpect(BlockType::Fire->value === 51, 'asset-order fire id mismatch');
+blockCatalogExpect(BlockType::NetherBrickFence->value === 113, 'sparse registry id mapping mismatch');
+blockCatalogExpect(
+    BlockType::Torch->lightProperties() === BlockType::Torch->lightProperties(),
+    'block light properties should be cached per semantic block identity',
+);
 
 fwrite(STDOUT, "world-block-catalog-smoke: passed\n");

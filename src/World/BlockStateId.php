@@ -7,9 +7,10 @@ namespace Cobblestone\World;
 use ValueError;
 
 /**
- * Fixed-target legacy state token: (block id << 4) | data.
+ * Compact fixed-target state token: (legacy block id << 4) | data.
  *
- * Hot paths use this scalar directly; BlockState remains an ergonomic boundary wrapper.
+ * This is intentionally scalar currency for chunk/native/storage/protocol hot paths. Semantic code
+ * should construct BlockState from BlockType + BlockData and cross this codec only at boundaries.
  */
 final class BlockStateId
 {
@@ -19,19 +20,19 @@ final class BlockStateId
     {
     }
 
-    public static function fromLegacy(int $id, int $data = 0): int
+    public static function encode(BlockType $type, BlockData $data = BlockData::Zero): int
     {
-        if ($id < 0 || $id > 0xff) {
-            throw new ValueError('fixed-target block id must be in range 0..255');
-        }
-        if (!BlockCatalog::supports($id)) {
-            throw new ValueError("unsupported MCPE 0.15.10 block id {$id}");
-        }
-        if ($data < 0 || $data > 0x0f) {
-            throw new ValueError('fixed-target block data must be in range 0..15');
-        }
+        return ($type->value << 4) | $data->value;
+    }
 
-        return ($id << 4) | $data;
+    public static function decode(int $stateId): BlockState
+    {
+        self::assert($stateId);
+
+        return new BlockState(
+            self::typeUnchecked($stateId),
+            BlockData::from($stateId & 0x0f),
+        );
     }
 
     public static function assert(int $stateId): int
@@ -40,26 +41,34 @@ final class BlockStateId
             throw new ValueError('fixed-target block state id must be in range 0..4095');
         }
 
-        $id = $stateId >> 4;
-        if (!BlockCatalog::supports($id)) {
-            throw new ValueError("unsupported MCPE 0.15.10 block id {$id}");
+        if (BlockType::tryFrom($stateId >> 4) === null) {
+            throw new ValueError('unsupported MCPE 0.15.10 block id ' . ($stateId >> 4));
         }
 
         return $stateId;
     }
 
-    public static function blockId(int $stateId): int
+    public static function type(int $stateId): BlockType
     {
-        return self::assert($stateId) >> 4;
+        self::assert($stateId);
+
+        return self::typeUnchecked($stateId);
     }
 
-    public static function data(int $stateId): int
+    public static function data(int $stateId): BlockData
     {
-        return self::assert($stateId) & 0x0f;
+        self::assert($stateId);
+
+        return BlockData::from($stateId & 0x0f);
     }
 
     public static function isAir(int $stateId): bool
     {
-        return self::blockId($stateId) === 0;
+        return self::type($stateId) === BlockType::Air;
+    }
+
+    private static function typeUnchecked(int $stateId): BlockType
+    {
+        return BlockType::from($stateId >> 4);
     }
 }

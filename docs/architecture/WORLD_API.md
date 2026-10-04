@@ -112,15 +112,17 @@ $world->setBlock($position, $state);
 
 A scalar BlockStateId may remain the hot internal currency.
 
-The ergonomic public BlockState value may expose:
+The ergonomic public `BlockState` is typed rather than numeric:
 
 ~~~php
-$state->type();
-$state->meta();
-$state->id();
+$stone = BlockType::Stone->state();
+$planks = BlockType::Planks->state(BlockData::Two);
+
+$state->type;
+$state->data;
 ~~~
 
-The exact representation must preserve fixed 0.15.10 state semantics.
+`BlockType` is a backed enum whose numeric value is the exact fixed-target legacy block ID. `BlockData` is the closed 0..15 metadata domain. `BlockStateId::encode()` / `decode()` are the explicit bridge to the compact scalar representation and should stay below ordinary semantic gameplay code.
 
 ## Block types and state
 

@@ -58,7 +58,7 @@ final class TerrainPatch
         int $z,
         BlockState $state,
     ): ?BlockState {
-        $previous = $this->setBlockStateId($terrain, $x, $y, $z, $state->fullId());
+        $previous = $this->setBlockStateId($terrain, $x, $y, $z, $state->stateId());
 
         return $previous === null ? null : BlockState::fromId($previous);
     }

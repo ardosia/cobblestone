@@ -74,7 +74,7 @@ final class ChunkSection
 
     public function setBlock(int $x, int $y, int $z, BlockState $state): BlockState
     {
-        return BlockState::fromId($this->setBlockStateId($x, $y, $z, $state->fullId()));
+        return BlockState::fromId($this->setBlockStateId($x, $y, $z, $state->stateId()));
     }
 
     /**

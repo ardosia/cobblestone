@@ -9,6 +9,7 @@ use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkUnloadStatus;
@@ -100,9 +101,9 @@ try {
 }
 
 $torchPosition = new BlockPos(8, 20, 8);
-$torchState = BlockStateId::fromLegacy(50);
+$torchState = BlockStateId::encode(BlockType::Torch);
 nativeWorldExpect(
-    $world->blockStateId($torchPosition) === BlockStateId::fromLegacy(0),
+    $world->blockStateId($torchPosition) === BlockStateId::encode(BlockType::Air),
     'flat native chunk expected air above the floor',
 );
 
@@ -113,7 +114,7 @@ $index = ($torchPosition->y << 8)
 nativeWorldExpect(ord($before->blockIds[$index]) === 0, 'pre-write native snapshot was not air');
 
 $previous = $world->setBlockStateId($torchPosition, $torchState);
-nativeWorldExpect($previous === BlockStateId::fromLegacy(0), 'scalar native mutation previous state mismatch');
+nativeWorldExpect($previous === BlockStateId::encode(BlockType::Air), 'scalar native mutation previous state mismatch');
 nativeWorldExpect($world->blockStateId($torchPosition) === $torchState, 'scalar native mutation did not commit');
 nativeWorldExpect($chunk->revision() === 1, 'native scalar mutation did not advance terrain revision once');
 nativeWorldExpect(
@@ -154,11 +155,11 @@ nativeWorldExpect(
 $second = new BlockPos(9, 20, 8);
 $world->edit(
     static function (WorldEdit $edit) use ($second): void {
-        $edit->setBlockStateId($second, BlockStateId::fromLegacy(2));
+        $edit->setBlockStateId($second, BlockStateId::encode(BlockType::Grass));
         $edit->setBlockExtraData($second, 0x1234);
     },
 );
-nativeWorldExpect($world->blockStateId($second) === BlockStateId::fromLegacy(2), 'compound scalar state mismatch');
+nativeWorldExpect($world->blockStateId($second) === BlockStateId::encode(BlockType::Grass), 'compound scalar state mismatch');
 nativeWorldExpect($world->blockExtraData($second) === 0x1234, 'compound native extra-data mismatch');
 nativeWorldExpect($chunk->revision() === 2, 'compound native mutation did not advance terrain revision once');
 nativeWorldExpect(
@@ -176,7 +177,7 @@ $world->edit(
                 ($column >> 4) & 0x0f,
             );
             nativeWorldExpect(
-                $edit->setBlockStateId($position, BlockStateId::fromLegacy(5)) === BlockStateId::fromLegacy(0),
+                $edit->setBlockStateId($position, BlockStateId::encode(BlockType::Planks)) === BlockStateId::encode(BlockType::Air),
                 'bulk native mutation previous state mismatch',
             );
         }
@@ -190,21 +191,21 @@ foreach ([0, 255, 256, 767, 799] as $index) {
             $column & 0x0f,
             21 + intdiv($index, 256),
             ($column >> 4) & 0x0f,
-        )) === BlockStateId::fromLegacy(5),
+        )) === BlockStateId::encode(BlockType::Planks),
         'bulk native mutation state mismatch',
     );
 }
 
 $edit = $chunk->terrain()->edit();
 nativeWorldExpect(
-    $edit->setBlockStateId(10, 20, 8, BlockStateId::fromLegacy(4)) === BlockStateId::fromLegacy(0),
+    $edit->setBlockStateId(10, 20, 8, BlockStateId::encode(BlockType::Cobblestone)) === BlockStateId::encode(BlockType::Air),
     'native terrain edit previous state mismatch',
 );
 $editChanged = $edit->commit();
 nativeWorldExpect($editChanged, 'native terrain edit reported no change');
 nativeWorldExpect($chunk->revision() === 4, 'native terrain edit did not advance revision once');
 nativeWorldExpect(
-    $chunk->blockStateId(10, 20, 8) === BlockStateId::fromLegacy(4),
+    $chunk->blockStateId(10, 20, 8) === BlockStateId::encode(BlockType::Cobblestone),
     'native terrain edit state did not commit',
 );
 

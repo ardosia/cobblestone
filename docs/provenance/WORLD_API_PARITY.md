@@ -31,8 +31,8 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `LightUpdate` | `LightUpdate` | semantic parity |
 | `LightAccess` | scalar state/light `LightAccess` over revision-pinned chunk snapshots | semantic behavior parity; PHP hot path avoids per-cell native calls/value allocations |
 | `apply_light_update` | `world-light/LightPropagator::apply()` | algorithm/order parity with the pinned Ardosia implementation |
-| fixed-target block identity/state catalog | `BlockCatalog` + `BlockType` + `BlockState` | exact 191 shipped asset identities mapped to legacy IDs; scalar `(id << 4) | data` layout retained |
-| binary-derived block light properties | `BlockCatalog` projected through `world-light/BlockLightCatalog` | same authoritative block identities; mapped from Ardosia dense semantic identities to fixed-target legacy IDs |
+| fixed-target block identity/state catalog | backed `BlockType` enum + `BlockData` + `BlockState` | exact 191 shipped asset identities as singleton semantic cases; scalar `(id << 4) | data` layout retained below the semantic API |
+| binary-derived block light properties | `BlockType::lightProperties()` projected through `world-light/BlockLightCatalog` | same authoritative block identities; scalar adapter only on the propagation boundary |
 | `ResidentChunkCell` / `ChunkLease` | shared owner-runtime cell + lifetime pin mirrored into native `WorldStore` | semantic resident identity + snapshot parity; safe unload cannot invalidate a live lease |
 | terrain/light lock guards | direct owner-runtime access | deliberate runtime adaptation; no PHP lock ceremony |
 | `ChunkSnapshot` | scalar-first `ChunkSnapshot` + ergonomic `terrain()` / `light()` views | semantic parity plus fixed-target protocol projection fields |
@@ -51,13 +51,13 @@ Numeric-ID oracle:
 - `KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e`;
 - `legacy/old-src/block/BlockIds.php`.
 
-The asset list is not numerically ordered, so Cobblestone stores an explicit ID/name catalog instead of deriving IDs from asset ordinals. The reconciliation is one-to-one across all 191 identities. Unsupported legacy holes are rejected by both PHP and Rust. The compact state representation remains `(id << 4) | data`; metadata remains exactly four bits, and `BlockType` adds semantic identity without introducing a behavior-class hierarchy.
+The asset list is not numerically ordered, so each backed `BlockType` case carries its explicit legacy ID while internal metadata preserves the exact asset name. The reconciliation is one-to-one across all 191 identities. Unsupported legacy holes are rejected by both PHP and Rust. The compact state representation remains `(id << 4) | data`; `BlockData` models the exact four-bit metadata domain, and `BlockState` combines the two semantic values without introducing a behavior-class hierarchy.
 
 ## Fixed-target light mapping
 
-Ardosia's catalog uses the same 191 semantic identities as the fixed-target registry but represents them as dense ordinals. Its recovered light-block/emission properties are mapped onto the explicit legacy-ID catalog above. `BlockCatalog` owns identity and static light metadata; `BlockLightCatalog` is a projection used by propagation code rather than a second support table.
+Ardosia's catalog uses the same 191 semantic identities as the fixed-target registry but represents them as dense ordinals. Its recovered light-block/emission properties are mapped onto the backed `BlockType` identities above. Static light metadata is cached per enum singleton; `BlockLightCatalog` only adapts a scalar `BlockStateId` to that semantic metadata for propagation.
 
-This preserves Cobblestone's protocol-native state token while making state validity, semantic block identity, and lighting agree on one authoritative catalog. Unknown/unmapped legacy IDs are never guessed.
+This preserves Cobblestone's protocol-native state token while making state validity, semantic block identity, and lighting agree on one authoritative closed domain. Unknown/unmapped legacy IDs are never guessed.
 
 ## Fixed-target biome-column parity
 

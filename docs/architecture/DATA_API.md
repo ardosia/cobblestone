@@ -107,7 +107,7 @@ Ordinary plugin code should prefer semantic identity.
 
 ## Closed vs extensible domains
 
-Use enums when the domain is truly closed and ergonomic as an enum.
+Use enums when the domain is truly closed and ergonomic as an enum. The fixed 0.15.10 block identity domain follows this rule directly: `BlockType` is a backed enum, with the legacy wire/storage ID as its backing value, while exact asset vocabulary and static metadata remain attached to those singleton identities.
 
 Use catalog/registry objects when:
 

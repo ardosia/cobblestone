@@ -78,7 +78,7 @@ final class ChunkPatch
     public function setBlock(int $x, int $y, int $z, BlockState $state): BlockState
     {
         return BlockState::fromId(
-            $this->setBlockStateId($x, $y, $z, $state->fullId()),
+            $this->setBlockStateId($x, $y, $z, $state->stateId()),
         );
     }
 

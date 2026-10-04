@@ -6,8 +6,8 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BlockPos;
-use Cobblestone\World\BlockState;
 use Cobblestone\World\BlockStateId;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Light\BlockLightCatalog;
 use Cobblestone\World\Light\LightEngine;
@@ -31,9 +31,9 @@ lightExpect(SectionY::fromBlockY(127)?->value === 7, 'block y=127 section mismat
 lightExpect(SectionY::fromBlockY(128) === null, 'block y=128 produced a section');
 
 $catalog = new BlockLightCatalog();
-$air = $catalog->propertiesForStateId(BlockStateId::fromLegacy(0));
-$stone = $catalog->propertiesForStateId(BlockStateId::fromLegacy(1));
-$torch = $catalog->propertiesForStateId(BlockStateId::fromLegacy(50));
+$air = $catalog->propertiesForStateId(BlockStateId::encode(BlockType::Air));
+$stone = $catalog->propertiesForStateId(BlockStateId::encode(BlockType::Stone));
+$torch = $catalog->propertiesForStateId(BlockStateId::encode(BlockType::Torch));
 lightExpect($air?->lightBlock === 0 && $air->lightEmission === 0, 'air light metadata mismatch');
 lightExpect($stone?->lightBlock === 15, 'stone light-block metadata mismatch');
 lightExpect(
@@ -59,7 +59,7 @@ lightExpect($before->revision->value === 0, 'initial light snapshot revision mis
 lightExpect($before->block(8, 20, 8)?->value === 0, 'initial block light must be dark');
 lightExpect($before->sky(8, 20, 8)?->value === 15, 'default Flat exposed sky light mismatch');
 
-$world->setBlock($position, new BlockState(50));
+$world->setBlock($position, BlockType::Torch->state());
 $terrainRevision = $chunk->terrainRevision()->value;
 lightExpect($terrainRevision === 1, 'torch placement did not advance terrain revision');
 lightExpect($chunk->lightRevision()->value === 0, 'terrain write advanced light revision');
@@ -91,7 +91,7 @@ lightExpect(
     $stale->setStoredLight(LightLayer::Block, $stalePosition, 0),
     'failed to stage stale light write',
 );
-$world->setBlockStateId(new BlockPos(7, 21, 8), BlockStateId::fromLegacy(1));
+$world->setBlockStateId(new BlockPos(7, 21, 8), BlockStateId::encode(BlockType::Stone));
 try {
     $stale->commit();
     throw new RuntimeException('stale light propagation committed against changed terrain');

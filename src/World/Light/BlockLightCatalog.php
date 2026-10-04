@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Cobblestone\World\Light;
 
-use Cobblestone\World\BlockCatalog;
 use Cobblestone\World\BlockStateId;
+use Cobblestone\World\BlockType;
 
 /**
- * Fixed-target MCPE 0.15.10 light metadata projected from the authoritative block catalog.
+ * Scalar-state adapter for fixed-target block light metadata.
+ *
+ * Semantic metadata lives on BlockType; this class exists only for the scalar propagation boundary.
  */
 final class BlockLightCatalog
 {
@@ -18,14 +20,6 @@ final class BlockLightCatalog
             return null;
         }
 
-        $id = $stateId >> 4;
-        if (!BlockCatalog::supports($id)) {
-            return null;
-        }
-
-        return new BlockLightProperties(
-            BlockCatalog::lightBlock($id),
-            BlockCatalog::lightEmission($id),
-        );
+        return BlockType::tryFrom($stateId >> 4)?->lightProperties();
     }
 }

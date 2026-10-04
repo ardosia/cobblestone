@@ -96,7 +96,7 @@ final class Chunk
     /** @internal Initialization or prepared-mutation commit primitive. */
     public function setBlock(int $x, int $y, int $z, BlockState $state): BlockState
     {
-        return BlockState::fromId($this->setBlockStateId($x, $y, $z, $state->fullId()));
+        return BlockState::fromId($this->setBlockStateId($x, $y, $z, $state->stateId()));
     }
 
     /**

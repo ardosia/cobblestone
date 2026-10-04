@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Cobblestone\World\Generator;
 
 use Cobblestone\World\BiomeId;
-use Cobblestone\World\BlockState;
+use Cobblestone\World\BlockData;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\WorldBounds;
 use ValueError;
 
@@ -56,7 +57,9 @@ final class FlatPreset
             $count = isset($matches[1]) && $matches[1] !== '' ? (int) $matches[1] : 1;
             $id = (int) $matches[2];
             $data = isset($matches[3]) && $matches[3] !== '' ? (int) $matches[3] : 0;
-            $layer = new FlatLayer($count, new BlockState($id, $data));
+            $type = BlockType::tryFrom($id)
+                ?? throw new ValueError("unsupported MCPE 0.15.10 block id {$id}");
+            $layer = new FlatLayer($count, $type->state(BlockData::of($data)));
 
             $height += $layer->count;
             if ($height > WorldBounds::WORLD_HEIGHT) {
@@ -115,8 +118,8 @@ final class FlatPreset
         $layers = [];
         foreach ($this->layers as $layer) {
             $prefix = $layer->count === 1 ? '' : $layer->count . 'x';
-            $suffix = $layer->state->data === 0 ? '' : ':' . $layer->state->data;
-            $layers[] = $prefix . $layer->state->id . $suffix;
+            $suffix = $layer->state->data === BlockData::Zero ? '' : ':' . $layer->state->data->value;
+            $layers[] = $prefix . $layer->state->type->value . $suffix;
         }
 
         return $this->version

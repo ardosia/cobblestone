@@ -6,7 +6,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BlockPos;
-use Cobblestone\World\BlockState;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\WorldEdit;
@@ -34,11 +34,11 @@ $result = $world->edit(
     static function (WorldEdit $edit) use ($first, $second, &$attempts): string {
         ++$attempts;
         mutationExpect($edit->block($first)->isAir(), 'first staged source was not air');
-        $edit->setBlock($first, new BlockState(5));
-        mutationExpect($edit->block($first)->id === 5, 'staged read did not see first write');
+        $edit->setBlock($first, BlockType::Planks->state());
+        mutationExpect($edit->block($first)->type === BlockType::Planks, 'staged read did not see first write');
 
-        $edit->setBlock($second, new BlockState(4));
-        mutationExpect($edit->block($second)->id === 4, 'staged cross-region read did not see write');
+        $edit->setBlock($second, BlockType::Cobblestone->state());
+        mutationExpect($edit->block($second)->type === BlockType::Cobblestone, 'staged cross-region read did not see write');
 
         return 'committed';
     },
@@ -54,7 +54,7 @@ $beforeLight = $firstChunk->lightRevision()->value;
 $world->edit(
     static function (WorldEdit $edit) use ($first): void {
         $original = $edit->block($first);
-        $edit->setBlock($first, new BlockState(1));
+        $edit->setBlock($first, BlockType::Stone->state());
         $edit->setBlock($first, $original);
     },
 );
@@ -66,7 +66,7 @@ mutationExpect(
 
 $world->edit(
     static function (WorldEdit $edit) use ($first): void {
-        $edit->setBlock($first, new BlockState(2));
+        $edit->setBlock($first, BlockType::Grass->state());
         $edit->setSkyLight($first, 15);
         $edit->setBlockLight($first, 7);
         $edit->setBlockExtraData($first, 0xbeef);
@@ -80,7 +80,7 @@ mutationExpect(
     $firstChunk->lightRevision()->value === $beforeLight + 1,
     'compound mutation did not advance light revision exactly once',
 );
-mutationExpect($world->block($first)->id === 2, 'compound block state did not commit');
+mutationExpect($world->block($first)->type === BlockType::Grass, 'compound block state did not commit');
 mutationExpect($world->skyLight($first) === 15, 'compound sky light did not commit');
 mutationExpect($world->blockLight($first) === 7, 'compound block light did not commit');
 mutationExpect($world->blockExtraData($first) === 0xbeef, 'compound extra data did not commit');

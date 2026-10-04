@@ -15,6 +15,7 @@ use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\Native\World as NativeWorld;
 
@@ -98,10 +99,10 @@ $server->on(
 
         $previous = $server->world()->setBlockStateId(
             new BlockPos(128, 5, 128),
-            BlockStateId::fromLegacy(1),
+            BlockStateId::encode(BlockType::Stone),
         );
         worldSyncExpect(
-            $previous === BlockStateId::fromLegacy(0),
+            $previous === BlockStateId::encode(BlockType::Air),
             'world-sync mutation expected air before stone',
         );
         $mutated = true;

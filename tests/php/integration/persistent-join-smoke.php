@@ -12,6 +12,7 @@ use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\BlockStateId;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\Native\World\LoadStatus;
 use Cobblestone\Native\World as NativeWorld;
@@ -220,17 +221,17 @@ $server->on(
         $chunk = $server->world()->chunk($center, false);
         persistentJoinExpect($chunk !== null, 'persistent center chunk facade is missing');
         persistentJoinExpect(
-            $chunk->blockStateId(0, 0, 0) === BlockStateId::fromLegacy(7),
+            $chunk->blockStateId(0, 0, 0) === BlockStateId::encode(BlockType::Bedrock),
             'persistent center chunk did not retain bedrock from disk',
         );
         persistentJoinExpect(!$chunk->isDirty(), 'loaded persistent center chunk entered residency dirty');
 
         $previous = $server->world()->setBlockStateId(
             new BlockPos(128, 5, 128),
-            BlockStateId::fromLegacy(1),
+            BlockStateId::encode(BlockType::Stone),
         );
         persistentJoinExpect(
-            $previous === BlockStateId::fromLegacy(0),
+            $previous === BlockStateId::encode(BlockType::Air),
             'persistent join mutation expected air before stone',
         );
         $mutated = true;
@@ -298,7 +299,7 @@ try {
                 'streamed durable-miss chunk was not pinned by the moved session',
             );
             persistentJoinExpect(
-                $store->blockStateId($streamingMissingPosition, 0, 0, 0) === BlockStateId::fromLegacy(7),
+                $store->blockStateId($streamingMissingPosition, 0, 0, 0) === BlockStateId::encode(BlockType::Bedrock),
                 'streamed durable-miss chunk did not contain generated flat-world bedrock',
             );
             $persistentStreamVerified = true;
@@ -432,7 +433,7 @@ try {
         usleep(1_000);
     }
     persistentJoinExpect($centerHandle !== null, 'center chunk could not be reacquired after eviction');
-    $server->world()->setBlockStateId(new BlockPos(129, 5, 129), BlockStateId::fromLegacy(3));
+    $server->world()->setBlockStateId(new BlockPos(129, 5, 129), BlockStateId::encode(BlockType::Dirt));
     persistentJoinExpect($store->chunkDirty($center), 'server-stop flush probe did not start dirty');
     $centerHandle->release();
     $stopFlushDirty = true;

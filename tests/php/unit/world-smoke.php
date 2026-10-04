@@ -7,8 +7,9 @@ require dirname(__DIR__) . '/bootstrap.php';
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
+use Cobblestone\World\BlockData;
 use Cobblestone\World\BlockPos;
-use Cobblestone\World\BlockState;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Generator\FlatPreset;
@@ -55,10 +56,10 @@ worldExpect($chunk !== null, 'generated chunk missing');
 worldExpect($chunk->isGenerated(), 'generated flag missing');
 worldExpect($chunk->isPopulated(), 'populated flag missing');
 worldExpect($chunk->isLightPopulated(), 'flat generator should populate fixed-target sky light');
-worldExpect($chunk->block(0, 0, 0)->id === 7, 'flat bedrock layer mismatch');
-worldExpect($chunk->block(0, 1, 0)->id === 3, 'flat dirt layer 1 mismatch');
-worldExpect($chunk->block(0, 2, 0)->id === 3, 'flat dirt layer 2 mismatch');
-worldExpect($chunk->block(0, 3, 0)->id === 2, 'flat grass layer mismatch');
+worldExpect($chunk->block(0, 0, 0)->type === BlockType::Bedrock, 'flat bedrock layer mismatch');
+worldExpect($chunk->block(0, 1, 0)->type === BlockType::Dirt, 'flat dirt layer 1 mismatch');
+worldExpect($chunk->block(0, 2, 0)->type === BlockType::Dirt, 'flat dirt layer 2 mismatch');
+worldExpect($chunk->block(0, 3, 0)->type === BlockType::Grass, 'flat grass layer mismatch');
 worldExpect($chunk->block(0, 4, 0)->isAir(), 'flat air layer mismatch');
 worldExpect($chunk->highestBlockAt(0, 0) === 3, 'flat height map source mismatch');
 worldExpect($chunk->heightMap(0, 0) === 3, 'flat height map cache mismatch');
@@ -113,21 +114,24 @@ worldExpect(ord($biomeSnapshot->biomes[0]) === BiomeId::FOREST, 'snapshot compat
 $global = new BlockPos(-1, 10, 47);
 worldExpect($global->chunk()->x === -1 && $global->chunk()->z === 2, 'global-to-chunk mapping mismatch');
 worldExpect($global->localX() === 15 && $global->localZ() === 15, 'global local coordinate mismatch');
-$previous = $world->setBlock($global, new BlockState(5, 2));
+$previous = $world->setBlock($global, BlockType::Planks->state(BlockData::Two));
 worldExpect($previous->isAir(), 'world block replacement previous state mismatch');
-worldExpect($world->block($global)->fullId() === ((5 << 4) | 2), 'world block lookup mismatch');
+worldExpect(
+    $world->block($global)->type === BlockType::Planks && $world->block($global)->data === BlockData::Two,
+    'world block lookup mismatch',
+);
 worldExpect($chunk->heightMap(15, 15) === 10, 'height cache did not advance after world write');
 
 $mid = new BlockPos(-1, 70, 47);
 $high = new BlockPos(-1, 80, 47);
-$world->setBlock($mid, new BlockState(1));
-$world->setBlock($high, new BlockState(1));
+$world->setBlock($mid, BlockType::Stone->state());
+$world->setBlock($high, BlockType::Stone->state());
 worldExpect($chunk->highestBlockAt(15, 15) === 80, 'section height cache did not find highest write');
 worldExpect($chunk->heightMap(15, 15) === 80, 'chunk height cache did not track highest write');
-$world->setBlock($high, BlockState::air());
+$world->setBlock($high, BlockType::Air->state());
 worldExpect($chunk->highestBlockAt(15, 15) === 70, 'height cache did not fall to next occupied section');
 worldExpect($chunk->heightMap(15, 15) === 70, 'chunk height cache did not fall after removal');
-$world->setBlock($mid, BlockState::air());
+$world->setBlock($mid, BlockType::Air->state());
 worldExpect($chunk->highestBlockAt(15, 15) === 10, 'height cache did not fall to lower occupied section');
 
 worldExpect($chunk->setBlockExtraData(15, 10, 15, 0xbeef) === 0, 'extra data previous value mismatch');

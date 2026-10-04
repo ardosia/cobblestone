@@ -138,7 +138,7 @@ final class World
 
     public function setBlock(BlockPos $position, BlockState $state): BlockState
     {
-        return BlockState::fromId($this->setBlockStateId($position, $state->fullId()));
+        return BlockState::fromId($this->setBlockStateId($position, $state->stateId()));
     }
 
     public function biomeColumnAt(int $x, int $z): BiomeColumn

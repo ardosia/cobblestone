@@ -6,7 +6,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BiomeId;
-use Cobblestone\World\BlockState;
+use Cobblestone\World\BlockType;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkUnloadStatus;
 use Cobblestone\World\LightLevel;
@@ -40,22 +40,22 @@ $terrain = $chunk->terrain();
 parityExpect($terrain->revision()->value === 0, 'terrain revision did not start at zero');
 $edit = $terrain->edit();
 parityExpect(
-    $edit->setBlock(1, 20, 1, new BlockState(1))?->isAir() === true,
+    $edit->setBlock(1, 20, 1, BlockType::Stone->state())?->isAir() === true,
     'terrain edit previous block mismatch',
 );
 $changed = $edit->commit();
 parityExpect($changed && $terrain->revision()->value === 1, 'terrain edit revision mismatch');
-parityExpect($chunk->block(1, 20, 1)->id === 1, 'terrain edit did not commit block');
+parityExpect($chunk->block(1, 20, 1)->type === BlockType::Stone, 'terrain edit did not commit block');
 
 $noOp = $terrain->edit();
-$noOp->setBlock(1, 20, 1, new BlockState(1));
+$noOp->setBlock(1, 20, 1, BlockType::Stone->state());
 $noOpChanged = $noOp->commit();
 parityExpect(!$noOpChanged, 'terrain no-op reported a change');
 parityExpect($terrain->revision()->value === 1, 'terrain no-op advanced revision');
 
 $reverted = $terrain->edit();
 $original = $reverted->block(1, 20, 1);
-$reverted->setBlock(1, 20, 1, new BlockState(2));
+$reverted->setBlock(1, 20, 1, BlockType::Grass->state());
 $reverted->setBlock(1, 20, 1, $original);
 $revertedChanged = $reverted->commit();
 parityExpect(!$revertedChanged, 'reverted terrain edit reported a change');
