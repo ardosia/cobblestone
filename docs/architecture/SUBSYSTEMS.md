@@ -299,7 +299,7 @@ Target direction:
 
 ### World generation
 
-Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building foundations; caves/population plus Old/Nether generation remain pending.
+Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld base-shape + surface-building + cave-carving foundations; population plus Old/Nether generation remain pending.
 
 Current source:
 
@@ -316,7 +316,8 @@ Target direction:
 - `OverworldBiomeSource` samples the recovered 0.15.10 layered source natively and returns compact immutable `BiomeArea` byte planes through one coarse FFI call;
 - native `OverworldTerrainShape` implements the exact `RandomLevelSource::prepareHeights` stage as one 16×128×16 immutable state projection using the raw pre-Voronoi biome layer;
 - native `OverworldSurfaceBuilder` composes that shape with final 1:1 biomes, the target four-octave surface simplex, chunk-seeded MT state, bedrock, and exact biome top/filler overrides into one immutable surfaced chunk;
-- no public Infinite generator is advertised yet because caves and later generation/population stages remain client-visible target semantics;
+- native `OverworldCaveCarver` applies the target `LargeCaveFeature` pass over the surfaced chunk, including the radius-8 source-chunk scan, MT reseeding, tunnel/room recursion, water-abort mutation, lava cutoff, sand repair, and grass repair;
+- no public Infinite generator is advertised yet because later population/features remain client-visible target semantics;
 - Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;

@@ -62,6 +62,18 @@ impl MtRandom {
         debug_assert!(bound > 0);
         self.next_u32() % bound
     }
+
+    pub(crate) fn reseed(&mut self, seed: u32) {
+        *self = Self::new(seed);
+    }
+
+    pub(crate) fn next_positive_int(&mut self) -> u32 {
+        self.next_u32() >> 1
+    }
+
+    pub(crate) fn next_gaussian_float(&mut self) -> f32 {
+        self.next_float() - self.next_float()
+    }
 }
 
 pub(crate) struct PerlinSimplexNoise {

@@ -354,7 +354,9 @@ The fixed-target Infinite generator is implemented in stages rather than exposin
 
 Native `OverworldSurfaceBuilder` owns the following recovered `RandomLevelSource::buildSurfaces` stage. It consumes the base shape, final 1:1 biome IDs, the world-seeded four-octave surface simplex, and the target chunk-seeded MT stream. The result applies bottom bedrock plus exact biome surface semantics including sand/sandstone, stone beaches, mycelium, ice-spikes snow, Extreme Hills gravel/stone thresholds, Mega Taiga podzol/coarse dirt, mutated Savanna thresholds, Swamp's special surface prepass, and Mesa/Bryce red-sand/clay bands/pillars.
 
-Both stages are whole-chunk native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because caves and later population/features are client-visible target semantics that remain unimplemented.
+Native `OverworldCaveCarver` owns the next recovered `LargeCaveFeature` stage. It scans source chunks in an eight-chunk radius around the target chunk, reseeds the fixed-target MT stream per source chunk, and applies deterministic rooms/tunnels into the surfaced state plane. Water on the carve boundary aborts that tunnel step while being converted to flowing water, carved cells below the target cutoff become still lava, and the target's thin-sand plus exposed-grass repair rules are preserved. Block ID replacement intentionally keeps the legacy metadata nibble because the target stores IDs/data separately.
+
+All three stages are whole-chunk native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because later population/features remain client-visible target semantics that are not yet composed.
 
 ## Generation scheduling
 

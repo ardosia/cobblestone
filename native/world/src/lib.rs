@@ -8,6 +8,7 @@ mod patch;
 mod residency;
 mod revision;
 mod scalar;
+mod terrain_cave;
 mod terrain_shape;
 mod terrain_surface;
 
@@ -38,6 +39,7 @@ pub use chunk::{
 };
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 pub use dimension::DimensionId;
+pub use terrain_cave::{CarvedChunk, OverworldCaveCarver};
 pub use terrain_shape::{ChunkTerrainShape, OverworldTerrainShape};
 pub use terrain_surface::{OverworldSurfaceBuilder, SurfacedChunk};
 
