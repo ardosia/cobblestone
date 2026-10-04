@@ -11,6 +11,7 @@ use crate::{ChunkCoord, default_biome_word};
 use layer::{EdgeMode, Layer, LayerKind, LayerRef};
 
 pub struct OverworldBiomeSource {
+    raw_layer: LayerRef,
     final_layer: LayerRef,
 }
 
@@ -110,9 +111,12 @@ impl OverworldBiomeSource {
                 rivers: river,
             },
         );
-        let final_layer = Layer::new(world_seed, 10, LayerKind::VoronoiZoom(mixed));
+        let final_layer = Layer::new(world_seed, 10, LayerKind::VoronoiZoom(Arc::clone(&mixed)));
 
-        Self { final_layer }
+        Self {
+            raw_layer: mixed,
+            final_layer,
+        }
     }
 
     pub fn biome_ids(&self, x: i32, z: i32, width: usize, height: usize) -> Vec<u8> {
@@ -125,6 +129,21 @@ impl OverworldBiomeSource {
                     .filter(|value| crate::biome_id_is_supported(*value))
                     .unwrap_or_else(|| {
                         panic!("biome source emitted unsupported fixed-target id {id}")
+                    })
+            })
+            .collect()
+    }
+
+    pub(crate) fn raw_biome_ids(&self, x: i32, z: i32, width: usize, height: usize) -> Vec<u8> {
+        self.raw_layer
+            .area(x, z, width, height)
+            .into_iter()
+            .map(|id| {
+                u8::try_from(id)
+                    .ok()
+                    .filter(|value| crate::biome_id_is_supported(*value))
+                    .unwrap_or_else(|| {
+                        panic!("raw biome source emitted unsupported fixed-target id {id}")
                     })
             })
             .collect()

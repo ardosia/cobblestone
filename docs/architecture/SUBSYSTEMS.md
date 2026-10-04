@@ -299,7 +299,7 @@ Target direction:
 
 ### World generation
 
-Status: implemented Flat generation foundation plus exact fixed-target Overworld biome-source foundation; Infinite/Old/Nether terrain generation remains pending.
+Status: implemented Flat generation foundation, exact fixed-target Overworld biome source, and exact Infinite Overworld pre-surface terrain-shape foundation; Infinite surface replacement/population plus Old/Nether generation remain pending.
 
 Current source:
 
@@ -314,6 +314,8 @@ Target direction:
 - small Generator contract;
 - biome selection is a separate `BiomeSource` semantic boundary from terrain material generation;
 - `OverworldBiomeSource` samples the recovered 0.15.10 layered source natively and returns compact immutable `BiomeArea` byte planes through one coarse FFI call;
+- native `OverworldTerrainShape` implements the exact `RandomLevelSource::prepareHeights` stage as one 16×128×16 immutable state projection using the raw pre-Voronoi biome layer; it intentionally stops before bedrock/top/filler/caves/population;
+- no public Infinite generator is advertised until the required surface stage can compose with that shape into a complete fixed-target chunk;
 - Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;

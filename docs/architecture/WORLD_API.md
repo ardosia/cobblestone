@@ -348,6 +348,12 @@ $column = $area->columnAt(3, 7); // catalog default fixed-target color
 
 Generated columns use the catalog default color only when the column is first created. Once a chunk is resident/persisted, its stored biome ID + RGB word is authoritative and must not be recomputed by the source. Flat generation remains driven by its preset biome and does not use `OverworldBiomeSource`.
 
+### Infinite Overworld base terrain
+
+The fixed-target Infinite generator is implemented in stages rather than exposing a partially correct public generator. Native `OverworldTerrainShape` owns the recovered `RandomLevelSource::prepareHeights` hot mechanism: it samples the biome source's raw pre-Voronoi 1:4 plane, evaluates the exact fixed-target MT/Perlin density lattice, and returns one immutable 16×128×16 `ChunkTerrainShape` of compact state IDs.
+
+This stage contains only air, stone, and still water, with Overworld sea level 63. Bedrock and biome top/filler replacement are part of the following surface-building stage in the target; caves and population happen later still. Cobblestone therefore does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` until those required generation semantics are composed into a complete chunk.
+
 ## Generation scheduling
 
 Missing durable chunks may require generation.

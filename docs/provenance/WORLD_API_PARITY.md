@@ -33,6 +33,7 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `apply_light_update` | `world-light/LightPropagator::apply()` | algorithm/order parity with the pinned Ardosia implementation |
 | fixed-target dimension identity | backed `Dimension` enum + native/storage/protocol projection | exact live 0.15.10 domain: Overworld/Normal `0`, Nether/Hell `1`; persisted and projected through StartGame |
 | fixed-target Overworld biome source | `Generator\\OverworldBiomeSource` + native layered source + immutable `BiomeArea` | recovered 0.15.10 layer graph; deterministic seed/coordinate parity cross-checked byte-for-byte against an independent Java-1.8 layer oracle |
+| Infinite Overworld pre-surface terrain shape | native `OverworldTerrainShape` → immutable `ChunkTerrainShape` | exact recovered `RandomLevelSource::prepareHeights`: MT/Perlin density, raw 1:4 biomes, sea-level fill, 16×128×16 coarse projection; surface/features intentionally separate |
 | fixed-target block identity/state catalog | backed `BlockType` enum + `BlockData` + `BlockState` | exact 191 shipped asset identities as singleton semantic cases; scalar `(id << 4) | data` layout retained below the semantic API |
 | binary-derived block light properties | `BlockType::lightProperties()` projected through `world-light/BlockLightCatalog` | same authoritative block identities; scalar adapter only on the propagation boundary |
 | `ResidentChunkCell` / `ChunkLease` | shared owner-runtime cell + lifetime pin mirrored into native `WorldStore` | semantic resident identity + snapshot parity; safe unload cannot invalidate a live lease |
@@ -91,6 +92,12 @@ The uploaded 0.15.10 executable establishes the GenLayer-style source family and
 `native/world::OverworldBiomeSource` owns that hot mechanism. PHP exposes a typed `Generator\\BiomeSource` / `OverworldBiomeSource` surface and receives one compact `BiomeArea` byte plane per coarse sample rather than crossing FFI once per column or allocating one object per cell. `BiomeArea::columnAt()` applies the catalog default color only when a semantic generated column is requested. Existing stored `BiomeColumn` words remain authoritative after generation/mutation.
 
 Independent validation uses `Cubitect/cubiomes@e61f90580cbdd883214a8054670dacae655e59c0` in `MC_1_8` mode only as a cross-check after the binary established the target graph. Seven hard-coded fixtures match byte-for-byte across positive/negative coordinates, multiple seeds, signed-32-bit seed limits, and odd area sizes. Flat remains preset-driven and intentionally bypasses this Overworld source.
+
+## Fixed-target Infinite terrain-shape parity
+
+The uploaded 0.15.10 executable is authoritative for the `RandomLevelSource::prepareHeights` stage. Cobblestone mirrors its 5×17×5 density lattice, 4×8×4 interpolation order, raw quarter-scale biome sampling, 32-bit-seeded MT19937 stream, exact Perlin bank construction order, biome depth/scale smoothing, and Y<63 still-water fill. Output is an immutable 32,768-state `ChunkTerrainShape` containing only air, stone, and still water.
+
+The target's surface pass is a distinct later stage: it adds bedrock and biome-specific top/filler materials. Cobblestone therefore keeps `OverworldTerrainShape` native/internal and does not expose a misleading partial `InfiniteGenerator`. Five hard-coded full-chunk fixtures were produced independently from cubiomes' raw `MC_1_8` biome layer plus a separate target-style MT/Perlin implementation reconstructed from binary-confirmed rules and `theaperturecat/MCPE-1.0.0-Restored@c095fbd72bbd88d25e6a550c86cbcc659924c4e6`. Hashes and air/stone/water counts match for multiple seeds, negative coordinates, signed-32-bit seed limits, and a mutated-biome case.
 
 ## Deliberate adaptations
 
