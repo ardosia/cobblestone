@@ -31,21 +31,33 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `LightUpdate` | `LightUpdate` | semantic parity |
 | `LightAccess` | scalar state/light `LightAccess` over revision-pinned chunk snapshots | semantic behavior parity; PHP hot path avoids per-cell native calls/value allocations |
 | `apply_light_update` | `world-light/LightPropagator::apply()` | algorithm/order parity with the pinned Ardosia implementation |
-| binary-derived block light properties | `world-light/BlockLightCatalog` | mapped from Ardosia dense semantic identities to fixed-target legacy IDs using the pinned 0.15.10 BlockIds vocabulary |
+| fixed-target block identity/state catalog | `BlockCatalog` + `BlockType` + `BlockState` | exact 191 shipped asset identities mapped to legacy IDs; scalar `(id << 4) | data` layout retained |
+| binary-derived block light properties | `BlockCatalog` projected through `world-light/BlockLightCatalog` | same authoritative block identities; mapped from Ardosia dense semantic identities to fixed-target legacy IDs |
 | `ResidentChunkCell` / `ChunkLease` | shared owner-runtime cell + lifetime pin mirrored into native `WorldStore` | semantic resident identity + snapshot parity; safe unload cannot invalidate a live lease |
 | terrain/light lock guards | direct owner-runtime access | deliberate runtime adaptation; no PHP lock ceremony |
 | `ChunkSnapshot` | scalar-first `ChunkSnapshot` + ergonomic `terrain()` / `light()` views | semantic parity plus fixed-target protocol projection fields |
 
+## Fixed-target block identity/state parity
+
+Primary identity oracle:
+
+- uploaded `assets-win10.zip` (`25c045e00d8e7f6ffa88592d44dc02c687630c1bf7355bfcbb8c9fd2e1956e6b`);
+- `data/resourcepacks/vanilla/blocks.json` hashes to `e7b9445531407856c9a3a493f55cdab57814aa0f3eba0abc47eba3cf9a763dc0` and contains exactly 191 block registry names;
+- the newline-delimited ordered name list hashes to `9da4af43358bd40ebaa7f205a337bb6dae70f7918cec180efd73df5065ee3a49`; and
+- the uploaded 0.15.10 executable independently exposes representative registry strings including `pistonArmCollision`, `nether_brick_fence`, `glowingobsidian`, `info_update2`, and `reserved6`.
+
+Numeric-ID oracle:
+
+- `KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e`;
+- `legacy/old-src/block/BlockIds.php`.
+
+The asset list is not numerically ordered, so Cobblestone stores an explicit ID/name catalog instead of deriving IDs from asset ordinals. The reconciliation is one-to-one across all 191 identities. Unsupported legacy holes are rejected by both PHP and Rust. The compact state representation remains `(id << 4) | data`; metadata remains exactly four bits, and `BlockType` adds semantic identity without introducing a behavior-class hierarchy.
+
 ## Fixed-target light mapping
 
-Ardosia's catalog uses 191 dense semantic block ordinals. Cobblestone's public `BlockState` intentionally uses the fixed-target legacy block ID plus 4-bit data because that is the native protocol-84 representation.
+Ardosia's catalog uses the same 191 semantic identities as the fixed-target registry but represents them as dense ordinals. Its recovered light-block/emission properties are mapped onto the explicit legacy-ID catalog above. `BlockCatalog` owns identity and static light metadata; `BlockLightCatalog` is a projection used by propagation code rather than a second support table.
 
-For lighting, the recovered Ardosia light-block/emission properties are mapped onto legacy IDs using:
-
-- `KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e`
-- `legacy/old-src/block/BlockIds.php`
-
-This yields the same 191 supported fixed-target block identities while retaining Cobblestone's protocol-native state token. Unknown/unmapped legacy IDs are not guessed: the light catalog returns unsupported.
+This preserves Cobblestone's protocol-native state token while making state validity, semantic block identity, and lighting agree on one authoritative catalog. Unknown/unmapped legacy IDs are never guessed.
 
 ## Fixed-target biome-column parity
 

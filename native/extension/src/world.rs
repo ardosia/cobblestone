@@ -14,7 +14,7 @@ mod storage;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use cobblestone_runtime::{Arena, Handle, RuntimeId};
-use cobblestone_world::{ChunkCoord, WorldStore};
+use cobblestone_world::{ChunkCoord, WorldStore, block_state_id_is_supported};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 
@@ -85,8 +85,10 @@ fn fill_y(value: i64) -> PhpResult<u8> {
 
 fn state_id(value: i64) -> PhpResult<u16> {
     let value = u16::try_from(value).map_err(|_| php_error("block state id must fit 16 bits"))?;
-    if value > 0x0fff {
-        return Err(php_error("block state id must be in range 0..4095"));
+    if !block_state_id_is_supported(value) {
+        return Err(php_error(format!(
+            "unsupported MCPE 0.15.10 block state id {value}"
+        )));
     }
     Ok(value)
 }

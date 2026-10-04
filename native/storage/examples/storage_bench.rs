@@ -8,7 +8,7 @@ use cobblestone_storage::{
     encode_chunk_record, encode_chunk_record_with_policy,
 };
 use cobblestone_world::{
-    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
+    BLOCK_IDS, CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
     CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord,
     ChunkImport, WorldStore,
 };
@@ -36,7 +36,11 @@ fn snapshot_at(
         };
         (
             (0..CHUNK_BLOCK_COUNT)
-                .map(|_| (next() & 0x0fff) as u16)
+                .map(|_| {
+                    let value = next();
+                    let block_id = BLOCK_IDS[(value as usize) % BLOCK_IDS.len()];
+                    (u16::from(block_id) << 4) | ((value >> 8) as u16 & 0x0f)
+                })
                 .collect(),
             (0..CHUNK_NIBBLE_BYTES).map(|_| next() as u8).collect(),
             (0..CHUNK_NIBBLE_BYTES).map(|_| next() as u8).collect(),

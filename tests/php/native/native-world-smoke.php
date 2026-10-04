@@ -89,6 +89,16 @@ nativeWorldExpect(
     'generated native light revision must start at zero',
 );
 
+try {
+    $store->setBlockStateId(new ChunkPos(0, 0), 8, 20, 8, 36 << 4);
+    throw new RuntimeException('native world store accepted unsupported block id 36');
+} catch (Throwable $error) {
+    nativeWorldExpect(
+        str_contains($error->getMessage(), 'unsupported MCPE 0.15.10 block state id'),
+        'native world store rejected unsupported block id for the wrong reason',
+    );
+}
+
 $torchPosition = new BlockPos(8, 20, 8);
 $torchState = BlockStateId::fromLegacy(50);
 nativeWorldExpect(

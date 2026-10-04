@@ -4,27 +4,28 @@ declare(strict_types=1);
 
 namespace Cobblestone\World\Light;
 
+use Cobblestone\World\BlockCatalog;
 use Cobblestone\World\BlockStateId;
 
 /**
- * Fixed-target MCPE 0.15.10 light metadata.
- *
- * The source oracle uses dense semantic block ordinals. This table maps those exact recovered
- * properties onto protocol-era legacy block IDs using the pinned matching BlockIds vocabulary.
+ * Fixed-target MCPE 0.15.10 light metadata projected from the authoritative block catalog.
  */
 final class BlockLightCatalog
 {
     public function propertiesForStateId(int $stateId): ?BlockLightProperties
     {
-        $id = BlockStateId::blockId($stateId);
-        if (!BlockLightMetadata::supports($id)) {
+        if ($stateId < 0 || $stateId > BlockStateId::MAX) {
+            return null;
+        }
+
+        $id = $stateId >> 4;
+        if (!BlockCatalog::supports($id)) {
             return null;
         }
 
         return new BlockLightProperties(
-            BlockLightMetadata::opacity($id),
-            BlockLightMetadata::emission($id),
+            BlockCatalog::lightBlock($id),
+            BlockCatalog::lightEmission($id),
         );
     }
-
 }

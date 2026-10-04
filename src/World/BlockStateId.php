@@ -24,6 +24,9 @@ final class BlockStateId
         if ($id < 0 || $id > 0xff) {
             throw new ValueError('fixed-target block id must be in range 0..255');
         }
+        if (!BlockCatalog::supports($id)) {
+            throw new ValueError("unsupported MCPE 0.15.10 block id {$id}");
+        }
         if ($data < 0 || $data > 0x0f) {
             throw new ValueError('fixed-target block data must be in range 0..15');
         }
@@ -35,6 +38,11 @@ final class BlockStateId
     {
         if ($stateId < 0 || $stateId > self::MAX) {
             throw new ValueError('fixed-target block state id must be in range 0..4095');
+        }
+
+        $id = $stateId >> 4;
+        if (!BlockCatalog::supports($id)) {
+            throw new ValueError("unsupported MCPE 0.15.10 block id {$id}");
         }
 
         return $stateId;

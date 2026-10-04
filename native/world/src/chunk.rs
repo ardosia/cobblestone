@@ -7,7 +7,6 @@ pub const CHUNK_BLOCK_COUNT: usize = CHUNK_EDGE * CHUNK_EDGE * WORLD_HEIGHT;
 pub const CHUNK_NIBBLE_BYTES: usize = CHUNK_BLOCK_COUNT / 2;
 pub const CHUNK_COLUMN_COUNT: usize = CHUNK_EDGE * CHUNK_EDGE;
 pub const REGION_CHUNK_EDGE: i32 = 8;
-pub const MAX_LEGACY_STATE_ID: u16 = 0x0fff;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct ChunkCoord {

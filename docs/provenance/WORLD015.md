@@ -56,13 +56,21 @@ Relevant fixed-target facts are:
 
 The initial Cobblestone package keeps the preset syntax and structural state but intentionally does not import decoration/populator behavior.
 
+## Fixed-target block catalog evidence
+
+The shipped `assets-win10.zip` contains `data/resourcepacks/vanilla/blocks.json` with exactly 191 registered block names. The file hashes to `e7b9445531407856c9a3a493f55cdab57814aa0f3eba0abc47eba3cf9a763dc0`; the newline-delimited registry-name sequence hashes to `9da4af43358bd40ebaa7f205a337bb6dae70f7918cec180efd73df5065ee3a49`. The names are retained verbatim, including target-specific spellings such as `pistonArmCollision`, `tripWire`, `glowingobsidian`, `info_update2`, `movingBlock`, and `reserved6`.
+
+The supplied `Minecraft.Win10.DX11.exe` independently contains fixed-target registry vocabulary including `pistonArmCollision`, `nether_brick_fence`, `glowingobsidian`, `info_update2`, and `reserved6`. The binary strings are used as a vocabulary cross-check, not as numeric-ID evidence.
+
+Numeric legacy IDs are pinned to the matching-source `legacy/old-src/block/BlockIds.php`. Asset order is not numeric ID order: for example, `nether_brick_fence` appears near the early asset entries but is legacy ID 113, while `fire` is the final `blocks.json` entry but legacy ID 51. Reconciliation yields exactly 191 unique IDs. Unsupported holes are rejected rather than treated as opaque valid states; notably IDs 36, 84, 119, 122, 130, 137-138, 160, 166, 168-169, 176-177, 188-192, 200-242, and 251-254 are absent.
+
 ## Cobblestone API decisions
 
 The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\World`. `BlockSource` and `ChunkSource` remain explicit interfaces because they form useful semantic ownership/access seams. `MainChunkSource` is the owner-runtime resident index backed by the configured generator.
 
 `GeneratorType` contains the three fixed-target ids because they are part of the StartGame/world vocabulary. Only `FlatGenerator` is implemented. Old/Infinite are not advertised as implemented generators.
 
-Legacy block state is represented on hot paths by one scalar `BlockStateId` (`id << 4 | data`). `BlockState` remains an ergonomic/debug wrapper, not native storage currency. Block behavior belongs to a later `block` package.
+Legacy block state remains represented on hot paths by one scalar `BlockStateId` (`id << 4 | data`). `BlockCatalog` is the authoritative 191-identity registry, `BlockType` is the semantic identity/light-metadata value, and `BlockState` combines one registered type with the legacy 4-bit data value while preserving the existing integer constructor/API shape. PHP and the native world store reject states whose block ID is not registered for 0.15.10. Block behavior belongs to a later package and is deliberately not modeled here.
 
 The production server now selects a region-sharded native `WorldStore` whenever the extension is loaded. Rust owns the physical chunk planes, biomes, heightmap, sparse extra data, terrain/light revisions, immutable snapshots, and atomic revision-checked patches; PHP remains authoritative for world/gameplay semantics, chunk residency decisions, generator policy, mutation callbacks, and light-propagation rules. The PHP representation is retained as a parity-tested fallback rather than the production storage target.
 
@@ -72,5 +80,5 @@ Immutable `ChunkSectionSnapshot` / `ChunkSnapshot` projections are the bulk read
 
 `world-api-parity-v1` uses `ardosia/ardosia@766f2a2a073889583334758b500b7b6e05acb1f1` `crates/world` as the semantic oracle for the broader world substrate. Cobblestone now tracks separate terrain/light revisions, chunk-local staged terrain and light edits, immutable light snapshots, `SectionY`, resident chunk cell identity, `LightLayer`/`LightUpdate`/`LightAccess`, and the recovered low-level light propagation order.
 
-Ardosia's recovered block-light table uses dense semantic registry ordinals, while Cobblestone intentionally retains protocol-84 legacy `id:data` states. The 191 recovered identities are therefore mapped to legacy IDs through the pinned matching-source `legacy/old-src/block/BlockIds.php`; unsupported legacy IDs are rejected instead of guessed. See `WORLD_API_PARITY.md` for the full parity matrix and explicit runtime adaptations.
+Ardosia's recovered block-light table uses dense semantic registry ordinals, while Cobblestone intentionally retains protocol-84 legacy `id:data` states. Those recovered light properties now live on the same authoritative `BlockCatalog` entries as the exact 191 asset-backed identities, mapped to legacy IDs through the pinned matching-source `legacy/old-src/block/BlockIds.php`. `BlockLightCatalog` is only a projection over that registry; it no longer owns a disconnected support table. See `WORLD_API_PARITY.md` for the full parity matrix and explicit runtime adaptations.
 

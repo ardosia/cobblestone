@@ -1,4 +1,5 @@
 mod biome;
+mod block;
 mod change_log;
 mod chunk;
 mod patch;
@@ -16,6 +17,9 @@ pub use biome::{
     BIOME_COLOR_MASK, biome_color, biome_id, biome_id_is_supported, default_biome_word,
     with_biome_color, with_biome_id,
 };
+pub use block::{
+    BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported, block_state_id_is_supported,
+};
 use change_log::WorldChangeLog;
 pub use change_log::{
     MAX_POINT_BLOCK_CHANGES, WORLD_CHANGE_LOG_CAPACITY, WorldChange, WorldChangeKind,
@@ -25,7 +29,7 @@ pub use chunk::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_EDGE, CHUNK_LIFECYCLE_GENERATED,
     CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_MASK, CHUNK_LIFECYCLE_POPULATED,
     CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkEviction, ChunkImport, ChunkPatch, ChunkSnapshot,
-    MAX_LEGACY_STATE_ID, REGION_CHUNK_EDGE, WORLD_HEIGHT,
+    REGION_CHUNK_EDGE, WORLD_HEIGHT,
 };
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 
@@ -58,7 +62,9 @@ impl fmt::Display for WorldStoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ChunkMissing { x, z } => write!(f, "native chunk {x}:{z} is not resident"),
-            Self::InvalidState(state) => write!(f, "legacy state id {state} exceeds 12 bits"),
+            Self::InvalidState(state) => {
+                write!(f, "unsupported MCPE 0.15.10 legacy state id {state}")
+            }
             Self::InvalidBlockIndex(index) => {
                 write!(f, "chunk block index {index} is out of range")
             }
@@ -306,10 +312,10 @@ fn validate_lifecycle_flags(flags: u8) -> Result<(), WorldStoreError> {
 }
 
 fn validate_state(state: u16) -> Result<(), WorldStoreError> {
-    if state > MAX_LEGACY_STATE_ID {
-        Err(WorldStoreError::InvalidState(state))
-    } else {
+    if block_state_id_is_supported(state) {
         Ok(())
+    } else {
+        Err(WorldStoreError::InvalidState(state))
     }
 }
 
