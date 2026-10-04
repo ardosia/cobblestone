@@ -34,6 +34,10 @@ impl CarvedChunk {
     pub fn biome_ids(&self) -> &[u8] {
         &self.biome_ids
     }
+
+    pub(crate) fn into_parts(self) -> (Vec<u16>, Vec<u8>) {
+        (self.states, self.biome_ids)
+    }
 }
 
 /// Exact fixed-target LargeCaveFeature pass used by Infinite Overworld generation.

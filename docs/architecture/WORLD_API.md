@@ -356,7 +356,9 @@ Native `OverworldSurfaceBuilder` owns the following recovered `RandomLevelSource
 
 Native `OverworldCaveCarver` owns the next recovered `LargeCaveFeature` stage. It scans source chunks in an eight-chunk radius around the target chunk, reseeds the fixed-target MT stream per source chunk, and applies deterministic rooms/tunnels into the surfaced state plane. Water on the carve boundary aborts that tunnel step while being converted to flowing water, carved cells below the target cutoff become still lava, and the target's thin-sand plus exposed-grass repair rules are preserved. Block ID replacement intentionally keeps the legacy metadata nibble because the target stores IDs/data separately.
 
-All three stages are whole-chunk native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because later population/features remain client-visible target semantics that are not yet composed.
+Population is not a single-chunk mutation boundary. The fixed target post-processes a 3x3 chunk neighborhood, so native `PopulationNeighborhood` keeps all nine generation-owned chunk planes together while features run. `OverworldOreDecorator` mutates a supplied neighborhood after applying the target population reseed, common ore order/counts/depth distributions, PE extra-gravel branch, and Mesa extra-gold override. Supplying the neighborhood instead of generating it inside the decorator preserves the real stage order: later implementations may place lakes/structures/dungeons before biome decoration without reversing semantics.
+
+These stages remain coarse native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because lakes/structures/dungeons and the remaining biome decoration/features are client-visible target semantics that are not yet composed.
 
 ## Generation scheduling
 

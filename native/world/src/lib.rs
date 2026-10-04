@@ -5,6 +5,7 @@ mod change_log;
 mod chunk;
 mod dimension;
 mod patch;
+mod population_ore;
 mod residency;
 mod revision;
 mod scalar;
@@ -39,6 +40,7 @@ pub use chunk::{
 };
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 pub use dimension::DimensionId;
+pub use population_ore::{OverworldOreDecorator, PopulationNeighborhood};
 pub use terrain_cave::{CarvedChunk, OverworldCaveCarver};
 pub use terrain_shape::{ChunkTerrainShape, OverworldTerrainShape};
 pub use terrain_surface::{OverworldSurfaceBuilder, SurfacedChunk};
