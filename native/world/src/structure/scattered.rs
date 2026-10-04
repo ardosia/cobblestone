@@ -387,6 +387,37 @@ mod tests {
     }
 
     #[test]
+    fn mutable_jungle_state_survives_durable_codec() {
+        let mut piece = ScatteredPieceState::new(ScatteredKind::JunglePyramid);
+        piece.height_position = 71;
+        piece.jungle_traps = [true, true];
+        let plan = ScatteredPlan {
+            core: StructureStartCore::new(
+                ChunkCoord::new(0, 0),
+                StructureBounds::new(0, 64, 0, 11, 73, 14),
+            ),
+            piece: Some(piece),
+        };
+        let state = ScatteredStructureState {
+            starts: StructureStartCache::from_starts(vec![plan]),
+        };
+
+        let encoded = state.encode();
+        let decoded = ScatteredStructureState::decode(&encoded).expect("valid mutable state");
+        let decoded_piece = decoded
+            .starts
+            .iter()
+            .next()
+            .unwrap()
+            .piece
+            .as_ref()
+            .unwrap();
+        assert_eq!(decoded_piece.height_position, 71);
+        assert_eq!(decoded_piece.jungle_traps, [true, true]);
+        assert_eq!(decoded.encode(), encoded);
+    }
+
+    #[test]
     fn state_codec_round_trips_and_rejects_trailing_data() {
         let runtime = OverworldScatteredStructures::new(0);
         let source = (-1024..=1024)

@@ -364,9 +364,11 @@ Village is the first recovered historyful structure stage after lakes. Native `S
 
 `OverworldStrongholdStructures` is the third historyful structure stage. It preserves the PE-specific first-three placement under valid Village source chunks, the later 200×200-grid/25% expansion system, the target by-value piece-selection RNG quirk, all Stronghold piece families, and durable mutable chest/spawner flags. Its crate-internal shared-random entrypoint continues the Village → Mineshaft stream for final Infinite composition. The executable also registers internal End Portal block ID 119 even though shipped `blocks.json` omits it, so native generated world state accepts that hidden block while public `BlockType`/PHP state input remains limited to the 191 asset-backed identities.
 
+`OverworldScatteredStructures` is the fourth target structure stage. It reuses the same cache/core model with `ScatteredStructureState`, performs the radius-8 32/8 candidate scan, dispatches the fixed-target Desert Pyramid/Jungle Pyramid/Swampland Hut family from raw center biomes, and persists the historyful first-chunk ground height plus Jungle dispenser flags. Igloo is intentionally absent because the 0.15.10 executable lacks that piece and the template-backed Igloo family appears only in later 0.17/1.0 assets. The family exposes the same crate-internal shared-random post-process entrypoint for final structure ordering.
+
 `OverworldOreDecorator` later mutates the same supplied neighborhood after independently reseeding immediately before biome decoration, applying the common ore order/counts/depth distributions, PE extra-gravel branch, and Mesa extra-gold override. Keeping the neighborhood independent from either feature owner preserves the real order for upcoming structures/dungeons between lakes and biome decoration.
 
-These stages remain coarse native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because Scattered/Monument structures, dungeons, freeze/frost, and remaining biome decoration/features are client-visible target semantics that are not yet composed.
+These stages remain coarse native mechanisms; PHP does not perform per-block FFI calls. Cobblestone still does not advertise `InfiniteGenerator` / `WorldFactory::infinite()` because Ocean Monument structures, dungeons, freeze/frost, and remaining biome decoration/features are client-visible target semantics that are not yet composed.
 
 ## Generation scheduling
 

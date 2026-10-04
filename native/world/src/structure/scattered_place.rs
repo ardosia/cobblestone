@@ -1083,6 +1083,44 @@ mod tests {
     }
 
     #[test]
+    fn desert_cross_chunk_continuation_is_idempotent_per_chunk() {
+        let mut plan = fixture_plan(
+            ScatteredKind::DesertPyramid,
+            StructureBounds::new(0, 64, 0, 20, 78, 20),
+        );
+
+        let mut first = flat_neighborhood(ChunkCoord::new(0, 0), 63, 2);
+        let mut first_random = MtRandom::new(1);
+        assert!(ScatteredPostProcessor::process_start(
+            &mut plan,
+            &mut first,
+            ChunkCoord::new(0, 0),
+            &mut first_random,
+        ));
+
+        let mut second = flat_neighborhood(ChunkCoord::new(1, 0), 63, 2);
+        let before = center_hash(&second);
+        let mut second_random = MtRandom::new(2);
+        assert!(ScatteredPostProcessor::process_start(
+            &mut plan,
+            &mut second,
+            ChunkCoord::new(1, 0),
+            &mut second_random,
+        ));
+        assert_ne!(center_hash(&second), before);
+
+        let once = center_hash(&second);
+        let mut repeated_random = MtRandom::new(2);
+        assert!(!ScatteredPostProcessor::process_start(
+            &mut plan,
+            &mut second,
+            ChunkCoord::new(1, 0),
+            &mut repeated_random,
+        ));
+        assert_eq!(center_hash(&second), once);
+    }
+
+    #[test]
     fn first_chunk_alignment_is_persisted_for_later_chunks() {
         let source = ChunkCoord::new(0, 0);
         let mut plan = ScatteredPlan {
