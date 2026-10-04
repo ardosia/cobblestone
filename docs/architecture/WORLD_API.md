@@ -335,6 +335,19 @@ Do not pass Server or global service locators into generators merely for conveni
 
 Randomness must be deterministic from world seed + coordinates where fixed-target generation requires it.
 
+### Biome sources
+
+Biome selection is separate from terrain material generation. `Generator\\BiomeSource` answers biome identity, while a terrain generator decides heights/materials/features. The exact fixed-target Overworld implementation is `OverworldBiomeSource`; it samples natively in coarse areas/chunks and returns an immutable `BiomeArea` that keeps the compact byte plane until typed `BiomeId` / `BiomeColumn` access is requested.
+
+~~~php
+$source = new OverworldBiomeSource($seed);
+$area = $source->chunk($chunkPos); // one native 16x16 sample
+$biome = $area->idAt(3, 7);
+$column = $area->columnAt(3, 7); // catalog default fixed-target color
+~~~
+
+Generated columns use the catalog default color only when the column is first created. Once a chunk is resident/persisted, its stored biome ID + RGB word is authoritative and must not be recomputed by the source. Flat generation remains driven by its preset biome and does not use `OverworldBiomeSource`.
+
 ## Generation scheduling
 
 Missing durable chunks may require generation.

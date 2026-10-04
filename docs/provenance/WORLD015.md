@@ -16,6 +16,8 @@ The shipped English pocket localization independently labels the three fixed-tar
 
 Class/vocabulary strings establish names and ownership seams only. They are not treated as field-layout evidence.
 
+For Overworld biome selection, the executable additionally exposes the concrete layered generator family used by the target: `IslandLayer`, `FuzzyZoomLayer`, `ZoomLayer`, `AddIslandLayer`, `RemoveTooMuchOceanLayer`, `AddSnowLayer`, `AddEdgeLayer`, `AddMushroomIslandLayer`, `AddDeepOceanLayer`, `BiomeInitLayer`, `BiomeEdgeLayer`, `RegionHillsLayer`, `RareBiomeSpotLayer`, `RiverInitLayer`, `RiverLayer`, `SmoothLayer`, `ShoreLayer`, `RiverMixerLayer`, and the Voronoi zoom stage. Recovered constructor flow/seeds match the classic 1.8-era graph (`1`, `2000`, `2001`, `2`, `50`, `70`, `100`, `200`, `1000+`, etc.), including the legacy Hills auxiliary branch whose two zoom layers retain zero-initialized layer RNG state while sharing the normally seeded river-init parent.
+
 ## Ardosia semantic oracle
 
 Ardosia was inspected at:
@@ -57,6 +59,8 @@ Relevant fixed-target facts are:
 
 The initial Cobblestone package keeps the preset syntax and structural state but intentionally does not import decoration/populator behavior.
 
+The recovered Overworld layer graph was independently cross-checked against `Cubitect/cubiomes@e61f90580cbdd883214a8054670dacae655e59c0` configured for `MC_1_8`. This is validation evidence, not target authority: seven fixed seed/coordinate/area fixtures (including negative coordinates, signed-32-bit seed boundaries, and odd area sizes) match byte-for-byte. The target executable remains the authority for selecting this layer family, seed width, and graph quirks.
+
 ## Fixed-target block catalog evidence
 
 The shipped `assets-win10.zip` contains `data/resourcepacks/vanilla/blocks.json` with exactly 191 registered block names. The file hashes to `e7b9445531407856c9a3a493f55cdab57814aa0f3eba0abc47eba3cf9a763dc0`; the newline-delimited registry-name sequence hashes to `9da4af43358bd40ebaa7f205a337bb6dae70f7918cec180efd73df5065ee3a49`. The names are retained verbatim, including target-specific spellings such as `pistonArmCollision`, `tripWire`, `glowingobsidian`, `info_update2`, `movingBlock`, and `reserved6`.
@@ -69,7 +73,7 @@ Numeric legacy IDs are pinned to the matching-source `legacy/old-src/block/Block
 
 The client-facing C++ `Level` concept maps to ordinary PHP `Cobblestone\World\World`. `BlockSource` and `ChunkSource` remain explicit interfaces because they form useful semantic ownership/access seams. `MainChunkSource` is the owner-runtime resident index backed by the configured generator.
 
-`GeneratorType` contains the three fixed-target ids because they are part of the StartGame/world vocabulary. Only `FlatGenerator` is implemented. Old/Infinite are not advertised as implemented generators.
+`GeneratorType` contains the three fixed-target ids because they are part of the StartGame/world vocabulary. Only `FlatGenerator` terrain generation is implemented. Old/Infinite are not advertised as implemented generators. The exact Overworld `BiomeSource` is implemented independently of terrain so future Infinite/Old generation can consume the same deterministic biome identity source without coupling it to surface/material generation.
 
 `Dimension` is a separate backed enum with the exact fixed-target IDs `Overworld = 0` and `Nether = 1`. World creation defaults to Overworld, persistent metadata is authoritative on reopen, and StartGame receives the stored world dimension instead of a hard-coded zero. Dimension identity is intentionally implemented before Nether generation/portals so later world semantics have a stable durable domain.
 

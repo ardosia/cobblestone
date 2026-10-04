@@ -157,6 +157,7 @@ function testPhp(): void
         'native-exports-smoke.php',
         'extension-smoke.php',
         'native-world-smoke.php',
+        'native-biome-source-smoke.php',
         'native-storage-smoke.php',
         'fiber-smoke.php',
         'session-runtime-smoke.php',

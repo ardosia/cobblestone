@@ -32,6 +32,7 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | `LightAccess` | scalar state/light `LightAccess` over revision-pinned chunk snapshots | semantic behavior parity; PHP hot path avoids per-cell native calls/value allocations |
 | `apply_light_update` | `world-light/LightPropagator::apply()` | algorithm/order parity with the pinned Ardosia implementation |
 | fixed-target dimension identity | backed `Dimension` enum + native/storage/protocol projection | exact live 0.15.10 domain: Overworld/Normal `0`, Nether/Hell `1`; persisted and projected through StartGame |
+| fixed-target Overworld biome source | `Generator\\OverworldBiomeSource` + native layered source + immutable `BiomeArea` | recovered 0.15.10 layer graph; deterministic seed/coordinate parity cross-checked byte-for-byte against an independent Java-1.8 layer oracle |
 | fixed-target block identity/state catalog | backed `BlockType` enum + `BlockData` + `BlockState` | exact 191 shipped asset identities as singleton semantic cases; scalar `(id << 4) | data` layout retained below the semantic API |
 | binary-derived block light properties | `BlockType::lightProperties()` projected through `world-light/BlockLightCatalog` | same authoritative block identities; scalar adapter only on the propagation boundary |
 | `ResidentChunkCell` / `ChunkLease` | shared owner-runtime cell + lifetime pin mirrored into native `WorldStore` | semantic resident identity + snapshot parity; safe unload cannot invalidate a live lease |
@@ -82,6 +83,14 @@ Chunk-layout oracle:
 Default generation colors use the matching fixed-target grass-color interpolation for the registered biome temperature/rainfall values, with binary-confirmed fixed overrides for swamp and mesa and the historical roofed-forest transform. These defaults are used only when creating a new biome column. Stored RGB is authoritative afterward and is never recomputed by the protocol encoder.
 
 Cobblestone exposes this as `BiomeId` + immutable `BiomeColumn`, stores full `u32` words in both PHP/native chunk backends, persists them in semantic payload v2, migrates old payload-v1 ID bytes explicitly, and projects the stored words unchanged to protocol 84.
+
+## Fixed-target Overworld biome-source parity
+
+The uploaded 0.15.10 executable establishes the GenLayer-style source family and concrete stage graph: island/fuzzy zoom, repeated land expansion, ocean reduction, snow/climate edges, mushroom/deep-ocean, biome initialization/edges/hills/rare mutation, shore, river branch/mix, smooth, and final Voronoi zoom. The recovered graph preserves the original integer-wrap RNG constants and stage seeds, the 32-bit MCPE world-seed input widened as raw unsigned bits into the 64-bit layer RNG, and the pre-1.13 Hills auxiliary-zoom zero-initialization quirk.
+
+`native/world::OverworldBiomeSource` owns that hot mechanism. PHP exposes a typed `Generator\\BiomeSource` / `OverworldBiomeSource` surface and receives one compact `BiomeArea` byte plane per coarse sample rather than crossing FFI once per column or allocating one object per cell. `BiomeArea::columnAt()` applies the catalog default color only when a semantic generated column is requested. Existing stored `BiomeColumn` words remain authoritative after generation/mutation.
+
+Independent validation uses `Cubitect/cubiomes@e61f90580cbdd883214a8054670dacae655e59c0` in `MC_1_8` mode only as a cross-check after the binary established the target graph. Seven hard-coded fixtures match byte-for-byte across positive/negative coordinates, multiple seeds, signed-32-bit seed limits, and odd area sizes. Flat remains preset-driven and intentionally bypasses this Overworld source.
 
 ## Deliberate adaptations
 

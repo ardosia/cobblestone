@@ -33,6 +33,7 @@ $required = [
     'cobblestone_session_protocol84_commit_prepared_view',
     'cobblestone_session_protocol84_flush_world_changes',
     'cobblestone_world_create',
+    'cobblestone_world_overworld_biomes',
     'cobblestone_world_storage_attach',
     'cobblestone_world_storage_prepare_loads',
     'cobblestone_world_storage_request_load',

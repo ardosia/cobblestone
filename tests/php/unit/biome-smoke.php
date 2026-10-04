@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Cobblestone\World\BiomeArea;
 use Cobblestone\World\BiomeCatalog;
 use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
@@ -46,6 +47,27 @@ biomeExpect((new BiomeId(BiomeId::PLAINS))->defaultColor() === 0x92bc59, 'Plains
 biomeExpect((new BiomeId(BiomeId::SWAMPLAND))->defaultColor() === 0x6a7039, 'Swampland fixed-target color mismatch');
 biomeExpect((new BiomeId(37))->defaultColor() === 0x90814d, 'Mesa fixed-target color mismatch');
 biomeExpect((new BiomeId(BiomeId::HELL))->defaultColor() === 0, 'Hell fixed-target color mismatch');
+
+
+$area = BiomeArea::fromBinary(-1, 2, 2, 2, chr(BiomeId::PLAINS) . chr(BiomeId::DESERT) . chr(BiomeId::FOREST) . chr(BiomeId::TAIGA));
+biomeExpect($area->originX === -1 && $area->originZ === 2, 'biome area origin mismatch');
+biomeExpect($area->idAt(0, 0)->value === BiomeId::PLAINS, 'biome area first id mismatch');
+biomeExpect($area->idAt(1, 0)->value === BiomeId::DESERT, 'biome area x ordering mismatch');
+biomeExpect($area->idAt(0, 1)->value === BiomeId::FOREST, 'biome area z ordering mismatch');
+biomeExpect(
+    $area->columnAt(1, 0)->word() === (new BiomeId(BiomeId::DESERT))->column()->word(),
+    'biome area column did not use catalog default color',
+);
+try {
+    $area->idAt(2, 0);
+    throw new RuntimeException('biome area accepted out-of-range local coordinate');
+} catch (OutOfBoundsException) {
+}
+try {
+    BiomeArea::fromBinary(0, 0, 1, 1, chr(9));
+    throw new RuntimeException('biome area accepted unsupported fixed-target biome');
+} catch (ValueError) {
+}
 
 $custom = new BiomeColumn(new BiomeId(BiomeId::FOREST), 0x123456);
 biomeExpect($custom->word() === 0x04123456, 'biome word layout mismatch');

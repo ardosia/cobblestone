@@ -299,7 +299,7 @@ Target direction:
 
 ### World generation
 
-Status: implemented Flat generation foundation.
+Status: implemented Flat generation foundation plus exact fixed-target Overworld biome-source foundation; Infinite/Old/Nether terrain generation remains pending.
 
 Current source:
 
@@ -312,6 +312,9 @@ Target design: WORLD_API.md.
 Target direction:
 
 - small Generator contract;
+- biome selection is a separate `BiomeSource` semantic boundary from terrain material generation;
+- `OverworldBiomeSource` samples the recovered 0.15.10 layered source natively and returns compact immutable `BiomeArea` byte planes through one coarse FFI call;
+- Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;
 - deterministic seed/coordinate behavior.

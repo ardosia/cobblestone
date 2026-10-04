@@ -1,3 +1,4 @@
+mod biome_source;
 mod block;
 mod block_extra;
 mod height;

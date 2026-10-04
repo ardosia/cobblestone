@@ -1,4 +1,5 @@
 mod biome;
+mod biome_source;
 mod block;
 mod change_log;
 mod chunk;
@@ -18,6 +19,7 @@ pub use biome::{
     BIOME_COLOR_MASK, biome_color, biome_id, biome_id_is_supported, default_biome_word,
     with_biome_color, with_biome_id,
 };
+pub use biome_source::OverworldBiomeSource;
 pub use block::{
     BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported, block_state_id_is_supported,
 };
