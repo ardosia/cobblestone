@@ -37,6 +37,35 @@ final class BiomeSource
         ];
     }
 
+    /** @return array{x: int, y: int, z: int} */
+    public static function overworldInitialSpawn(int $seed): array
+    {
+        if (!\function_exists('cobblestone_world_overworld_initial_spawn')) {
+            throw new RuntimeException(
+                'native Overworld initial-spawn resolver is unavailable; build/load cobblestone_core_php',
+            );
+        }
+
+        $payload = cobblestone_world_overworld_initial_spawn($seed);
+        if (strlen($payload) !== 12) {
+            throw new \UnexpectedValueException(
+                'native Overworld initial-spawn projection width mismatch',
+            );
+        }
+        $decoded = unpack('Vx/Vy/Vz', $payload);
+        if (!is_array($decoded) || !isset($decoded['x'], $decoded['y'], $decoded['z'])) {
+            throw new \UnexpectedValueException(
+                'native Overworld initial-spawn projection decode failed',
+            );
+        }
+
+        return [
+            'x' => self::signed32($decoded['x']),
+            'y' => self::signed32($decoded['y']),
+            'z' => self::signed32($decoded['z']),
+        ];
+    }
+
     public static function overworld(
         int $seed,
         int $x,

@@ -19,16 +19,25 @@ final class InfiniteGenerator implements Generator
 
     public function __construct(
         private readonly int $seed,
+        ?BlockPos $spawn = null,
     ) {
         if ($seed < -0x80000000 || $seed > 0x7fffffff) {
             throw new ValueError('MCPE 0.15.10 Infinite world seed must fit signed 32 bits');
         }
 
+        if ($spawn === null) {
+            $resolved = NativeBiomeSource::overworldInitialSpawn($seed);
+            $spawn = new BlockPos($resolved['x'], $resolved['y'], $resolved['z']);
+        }
+        $this->spawn = $spawn;
+    }
+
+    /** @internal Legacy-v1 persistent metadata creation boundary before safe-spawn migration. */
+    public static function provisional(int $seed): self
+    {
         $spawn = NativeBiomeSource::overworldSpawn($seed);
-        // Target LevelData stores LEVEL_SPAWN_HEIGHT and lets Player resolve terrain height later.
-        // Cobblestone does not have that Player semantic yet, so keep X/Z exact and use sea level
-        // as the safe temporary session-facing Y until that subsystem owns the sentinel behavior.
-        $this->spawn = new BlockPos($spawn['x'], 64, $spawn['z']);
+
+        return new self($seed, new BlockPos($spawn['x'], 64, $spawn['z']));
     }
 
     public function name(): string

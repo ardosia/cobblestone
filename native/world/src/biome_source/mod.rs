@@ -162,9 +162,9 @@ impl OverworldBiomeSource {
 
     /// Fixed-target BiomeSource::getSpawnPosition X/Z search.
     ///
-    /// The target stores an invalid Y sentinel for Player-side height resolution. Cobblestone
-    /// exposes only the deterministic X/Z here; the current PHP session layer supplies its own
-    /// safe temporary Y until Player spawn-height semantics are implemented.
+    /// The target stores an invalid Y sentinel for Player-side height resolution. This method
+    /// intentionally exposes only deterministic X/Z; Infinite first-spawn height resolution runs
+    /// later against the completed spawn chunk view.
     pub fn spawn_position(&self) -> (i32, i32) {
         let mut x = 0_i32;
         loop {

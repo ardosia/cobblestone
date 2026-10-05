@@ -53,7 +53,10 @@ pub use chunk::{
 };
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 pub use dimension::DimensionId;
-pub use infinite::{InfiniteGenerationResult, OverworldInfiniteGenerator, OverworldInfiniteState};
+pub use infinite::{
+    InfiniteGenerationResult, OverworldInfiniteGenerator, OverworldInfiniteState,
+    resolve_overworld_initial_spawn, resolve_overworld_spawn_from_store,
+};
 pub use population::PopulationNeighborhood;
 pub use population_biome::OverworldBiomeDecorator;
 pub use population_finalizer::OverworldPostDecorationFinalizer;

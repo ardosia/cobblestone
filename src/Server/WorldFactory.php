@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cobblestone\Server;
 
+use Cobblestone\World\BlockPos;
+use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Dimension;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Generator\Generator;
@@ -54,7 +56,7 @@ final class WorldFactory
             throw new \RuntimeException('persistent Infinite worlds require cobblestone_core_php');
         }
 
-        $creationGenerator = new InfiniteGenerator($seed);
+        $creationGenerator = InfiniteGenerator::provisional($seed);
         $nativeStore = NativeWorld::create();
         try {
             $metadata = $nativeStore->attachStorage(
@@ -76,14 +78,31 @@ final class WorldFactory
                     "persistent world generator {$metadata->generatorId} is not Infinite",
                 );
             }
-            if ($metadata->generatorSettingsVersion !== 1 || $metadata->generatorSettings !== '') {
+            if ($metadata->generatorSettings !== '') {
                 throw new \LogicException('persistent Infinite generator settings are unsupported');
             }
             if ($metadata->dimension !== Dimension::Overworld) {
                 throw new \LogicException('Infinite generator is only valid for the Overworld');
             }
 
-            $generator = new InfiniteGenerator($metadata->seed);
+            if ($metadata->generatorSettingsVersion === 1
+                || $metadata->generatorSettingsVersion === 2
+            ) {
+                $resolvedSpawn = self::resolvePersistentInfiniteSpawn(
+                    $nativeStore,
+                    $metadata->seed,
+                    $metadata->spawn,
+                );
+                $metadata = $nativeStore->migrateInfiniteSpawn($resolvedSpawn);
+                $generator = new InfiniteGenerator($metadata->seed, $metadata->spawn);
+            } elseif ($metadata->generatorSettingsVersion === 3) {
+                $generator = new InfiniteGenerator($metadata->seed, $metadata->spawn);
+            } else {
+                throw new \LogicException(
+                    "persistent Infinite generator settings version {$metadata->generatorSettingsVersion} is unsupported",
+                );
+            }
+
             $world = self::compose(
                 $metadata->name,
                 $metadata->seed,
@@ -187,6 +206,44 @@ final class WorldFactory
         $nativeStore = NativeWorld::available() ? NativeWorld::create() : null;
 
         return self::compose($name, $seed, $dimension, $generator, $nativeStore);
+    }
+
+    private static function resolvePersistentInfiniteSpawn(
+        NativeWorld $nativeStore,
+        int $seed,
+        BlockPos $provisionalSpawn,
+    ): BlockPos {
+        $center = $provisionalSpawn->chunk();
+
+        for ($chunkX = $center->x - 2; $chunkX <= $center->x + 2; ++$chunkX) {
+            for ($chunkZ = $center->z - 2; $chunkZ <= $center->z + 2; ++$chunkZ) {
+                $position = new ChunkPos($chunkX, $chunkZ);
+                $generated = false;
+                for ($attempt = 0; $attempt < 10_000; ++$attempt) {
+                    if ($nativeStore->generateInfinite($position, $seed)) {
+                        $generated = true;
+                        break;
+                    }
+                    // generateInfinite() polls its own dependency-load completions. Do not run the
+                    // full storage tick here: that may publish saves while adjacent loads are
+                    // still probing the same new region.
+                    usleep(1_000);
+                }
+                if (!$generated) {
+                    throw new \RuntimeException(
+                        "persistent Infinite spawn view did not resolve chunk {$chunkX}:{$chunkZ}",
+                    );
+                }
+            }
+        }
+
+        // Publish the resolved spawn only after the exact chunks it was derived from are durable.
+        $nativeStore->flushStorage();
+
+        return $nativeStore->resolveOverworldSpawn(
+            $provisionalSpawn->x,
+            $provisionalSpawn->z,
+        );
     }
 
     private static function compose(

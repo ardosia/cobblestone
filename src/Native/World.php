@@ -124,6 +124,28 @@ final class World
         return $this->storageAttached;
     }
 
+    /** @internal One-time fixed-target Infinite metadata migration from provisional v1 spawn. */
+    public function migrateInfiniteSpawn(BlockPos $spawn): Metadata
+    {
+        if (!$this->storageAttached) {
+            throw new \LogicException('native world storage is not attached');
+        }
+        if (!\function_exists('cobblestone_world_storage_migrate_infinite_spawn')) {
+            throw new \RuntimeException(
+                'native Infinite spawn migration is unavailable; rebuild cobblestone_core_php',
+            );
+        }
+
+        return Metadata::fromNative(
+            cobblestone_world_storage_migrate_infinite_spawn(
+                $this->requireHandle(),
+                $spawn->x,
+                $spawn->y,
+                $spawn->z,
+            ),
+        );
+    }
+
     /**
      * Builds the reusable private PHP/native load projection once for repeated polling.
      *
@@ -158,6 +180,43 @@ final class World
                 $position->x,
                 $position->z,
             ),
+        );
+    }
+
+    /** @internal Resolves target first-player spawn against resident authoritative chunks. */
+    public function resolveOverworldSpawn(int $x, int $z): BlockPos
+    {
+        if (!\function_exists('cobblestone_world_resolve_overworld_spawn')) {
+            throw new \RuntimeException(
+                'native authoritative Overworld spawn resolver is unavailable; rebuild cobblestone_core_php',
+            );
+        }
+
+        $payload = cobblestone_world_resolve_overworld_spawn(
+            $this->requireHandle(),
+            $x,
+            $z,
+        );
+        if (strlen($payload) !== 12) {
+            throw new \UnexpectedValueException(
+                'native authoritative Overworld spawn projection width mismatch',
+            );
+        }
+        $decoded = unpack('Vx/Vy/Vz', $payload);
+        if (!is_array($decoded) || !isset($decoded['x'], $decoded['y'], $decoded['z'])) {
+            throw new \UnexpectedValueException(
+                'native authoritative Overworld spawn projection decode failed',
+            );
+        }
+
+        $signed = static fn (int $value): int => $value >= 0x80000000
+            ? $value - 0x100000000
+            : $value;
+
+        return new BlockPos(
+            $signed($decoded['x']),
+            $signed($decoded['y']),
+            $signed($decoded['z']),
         );
     }
 

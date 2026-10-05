@@ -6,7 +6,7 @@ use cobblestone_storage::{
     AsyncLoadConfig, AsyncLoadService, AsyncSaveConfig, AsyncSaveService, LoadRequestState,
     RegionCoord, RegionStats, WORLD_METADATA_FILENAME, WorldDirectory,
 };
-use cobblestone_world::ChunkCoord;
+use cobblestone_world::{ChunkCoord, DimensionId};
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
@@ -466,6 +466,63 @@ pub fn cobblestone_world_storage_stats(handle_value: i64) -> PhpResult<Vec<Zval>
 }
 
 #[php_function]
+pub fn cobblestone_world_storage_migrate_infinite_spawn(
+    handle_value: i64,
+    spawn_x: i64,
+    spawn_y: i64,
+    spawn_z: i64,
+) -> PhpResult<Vec<Zval>> {
+    php_boundary(|| {
+        let spawn_x =
+            i32::try_from(spawn_x).map_err(|_| php_error("spawn x must fit signed 32 bits"))?;
+        let spawn_y = i32::try_from(spawn_y)
+            .ok()
+            .filter(|value| (0..=127).contains(value))
+            .ok_or_else(|| php_error("spawn y must be in fixed-target range 0..127"))?;
+        let spawn_z =
+            i32::try_from(spawn_z).map_err(|_| php_error("spawn z must fit signed 32 bits"))?;
+
+        let state = resolve_world_state(handle_value)?;
+        let mut persistence = match state.persistence.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let persistence = persistence
+            .as_mut()
+            .ok_or_else(|| php_error("native world storage is not attached"))?;
+
+        let current = persistence.directory.metadata();
+        if current.generator_id != infinite::INFINITE_GENERATOR_ID
+            || current.dimension != DimensionId::Overworld
+            || !current.generator_settings.is_empty()
+        {
+            return Err(php_error(
+                "safe-spawn migration requires fixed-target persistent Infinite metadata",
+            ));
+        }
+        if !matches!(current.generator_settings_version, 1 | 2) {
+            return Err(php_error(format!(
+                "safe-spawn migration requires Infinite metadata version 1 or 2, got {}",
+                current.generator_settings_version
+            )));
+        }
+
+        let mut updated = current.clone();
+        updated.generator_settings_version = 3;
+        updated.spawn_x = spawn_x;
+        updated.spawn_y = spawn_y;
+        updated.spawn_z = spawn_z;
+        let committed = persistence
+            .directory
+            .replace_metadata(updated)
+            .map_err(|error| php_error(error.to_string()))?
+            .clone();
+
+        metadata_values(false, &committed)
+    })
+}
+
+#[php_function]
 pub fn cobblestone_world_storage_flush(handle_value: i64) -> PhpResult<()> {
     php_boundary(|| {
         let state = resolve_world_state(handle_value)?;
@@ -487,5 +544,8 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
         .function(wrap_function!(cobblestone_world_storage_request_load))
         .function(wrap_function!(cobblestone_world_storage_tick))
         .function(wrap_function!(cobblestone_world_storage_stats))
+        .function(wrap_function!(
+            cobblestone_world_storage_migrate_infinite_spawn
+        ))
         .function(wrap_function!(cobblestone_world_storage_flush))
 }

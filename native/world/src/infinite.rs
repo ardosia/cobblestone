@@ -4,15 +4,17 @@ use std::collections::BTreeMap;
 use crate::population::{
     PopulationChunkPlanes, PopulationNeighborhood, generation_height_map, population_random,
 };
+use crate::population_feature::is_leaves;
+use crate::population_finalizer::material_blocks_motion;
 use crate::{
     CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED,
     CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkImport, ChunkSnapshot, MineshaftStructureState,
-    OverworldBiomeDecorator, OverworldCaveCarver, OverworldFreezeFrostPopulator,
-    OverworldLakePopulator, OverworldMineshaftStructures, OverworldMonsterRoomPopulator,
-    OverworldPostDecorationFinalizer, OverworldScatteredStructures, OverworldStrongholdStructures,
-    OverworldVillageStructures, ScatteredStructureState, StrongholdStructureState,
-    VillageStructureState, WorldStore, WorldStoreError, biome_id, default_biome_word,
-    linear_index_to_extra_key,
+    OverworldBiomeDecorator, OverworldBiomeSource, OverworldCaveCarver,
+    OverworldFreezeFrostPopulator, OverworldLakePopulator, OverworldMineshaftStructures,
+    OverworldMonsterRoomPopulator, OverworldPostDecorationFinalizer, OverworldScatteredStructures,
+    OverworldStrongholdStructures, OverworldVillageStructures, ScatteredStructureState,
+    StrongholdStructureState, VillageStructureState, WorldStore, WorldStoreError, biome_id,
+    default_biome_word, linear_index_to_extra_key,
 };
 
 const STATE_MAGIC: &[u8; 4] = b"CIG1";
@@ -372,6 +374,129 @@ const fn extra_key_to_linear_index(key: u16) -> u16 {
     (y << 8) | (z << 4) | x
 }
 
+/// Resolves the fixed-target first-player spawn from BiomeSource's X/Z selection against a
+/// fully generated 5x5 spawn view (PlayerChunkSource radius = CHUNK_WIDTH * 2).
+pub fn resolve_overworld_initial_spawn(seed: i32) -> Result<[i32; 3], WorldStoreError> {
+    let source = OverworldBiomeSource::new(seed);
+    let (spawn_x, spawn_z) = source.spawn_position();
+    let origin_chunk = ChunkCoord::new(spawn_x.div_euclid(16), spawn_z.div_euclid(16));
+
+    let store = WorldStore::new();
+    let mut generator = OverworldInfiniteGenerator::new(seed);
+
+    // Match InitialChunkView's authoritative X-then-Z center order. Each center keeps native
+    // cross-chunk writes resident for later centers before the spawn column is inspected.
+    for dx in -2_i32..=2 {
+        for dz in -2_i32..=2 {
+            let position = ChunkCoord::new(
+                origin_chunk.x().wrapping_add(dx),
+                origin_chunk.z().wrapping_add(dz),
+            );
+            let _ = generator.generate_into_store(&store, position)?;
+        }
+    }
+
+    resolve_overworld_spawn_from_store(&store, spawn_x, spawn_z)
+}
+
+pub fn resolve_overworld_spawn_from_store(
+    store: &WorldStore,
+    spawn_x: i32,
+    spawn_z: i32,
+) -> Result<[i32; 3], WorldStoreError> {
+    let origin_chunk = ChunkCoord::new(spawn_x.div_euclid(16), spawn_z.div_euclid(16));
+    let initial_y = above_top_solid(store, spawn_x, spawn_z)?;
+    let original = [spawn_x, i32::from(initial_y), spawn_z];
+    let mut candidate = original;
+    let offsets = [(8, 0), (-8, 0), (0, 8), (0, -8)];
+    let mut direction = 0_usize;
+
+    while direction < offsets.len() {
+        let mut danger_below =
+            column_has_water_or_lava_before_solid(store, candidate[0], candidate[1], candidate[2])?;
+        let mut attempts = 16_u8;
+
+        while danger_below && attempts > 1 && direction < offsets.len() {
+            attempts -= 1;
+            candidate[0] = candidate[0].wrapping_add(offsets[direction].0);
+            candidate[2] = candidate[2].wrapping_add(offsets[direction].1);
+
+            let candidate_chunk =
+                ChunkCoord::new(candidate[0].div_euclid(16), candidate[2].div_euclid(16));
+            if (candidate_chunk.x() - origin_chunk.x()).abs() > 2
+                || (candidate_chunk.z() - origin_chunk.z()).abs() > 2
+            {
+                direction += 1;
+                candidate = original;
+                break;
+            }
+
+            candidate[1] = i32::from(above_top_solid(store, candidate[0], candidate[2])?);
+            danger_below = column_has_water_or_lava_before_solid(
+                store,
+                candidate[0],
+                candidate[1],
+                candidate[2],
+            )?;
+        }
+
+        if !danger_below {
+            return Ok(candidate);
+        }
+        if attempts <= 1 {
+            break;
+        }
+    }
+
+    // Target fixStartSpawnPosition() leaves the original position unchanged if every bounded
+    // direction fails.
+    Ok(original)
+}
+
+fn above_top_solid(store: &WorldStore, world_x: i32, world_z: i32) -> Result<u8, WorldStoreError> {
+    let snapshot = store.snapshot(ChunkCoord::new(
+        world_x.div_euclid(16),
+        world_z.div_euclid(16),
+    ))?;
+    let local_x = world_x.rem_euclid(16) as usize;
+    let local_z = world_z.rem_euclid(16) as usize;
+    for y in (0_usize..128).rev() {
+        let id = snapshot.states()[(y << 8) | (local_z << 4) | local_x] >> 4;
+        if is_spawn_top_solid(id) {
+            return Ok((y + 1) as u8);
+        }
+    }
+    Ok(0)
+}
+
+fn column_has_water_or_lava_before_solid(
+    store: &WorldStore,
+    world_x: i32,
+    spawn_y: i32,
+    world_z: i32,
+) -> Result<bool, WorldStoreError> {
+    let snapshot = store.snapshot(ChunkCoord::new(
+        world_x.div_euclid(16),
+        world_z.div_euclid(16),
+    ))?;
+    let local_x = world_x.rem_euclid(16) as usize;
+    let local_z = world_z.rem_euclid(16) as usize;
+    for y in (0..spawn_y.clamp(0, 128) as usize).rev() {
+        let id = snapshot.states()[(y << 8) | (local_z << 4) | local_x] >> 4;
+        if matches!(id, 8..=11) {
+            return Ok(true);
+        }
+        if material_blocks_motion(id) {
+            return Ok(false);
+        }
+    }
+    Ok(false)
+}
+
+const fn is_spawn_top_solid(id: u16) -> bool {
+    matches!(id, 8 | 9) || is_leaves(id) || material_blocks_motion(id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -402,6 +527,15 @@ mod tests {
             }
         }
         hash
+    }
+
+    #[test]
+    fn mama_moose_initial_spawn_resolves_above_generated_surface() {
+        let spawn = resolve_overworld_initial_spawn(-1_385_905_961).unwrap();
+        eprintln!("mamaMOOSE resolved spawn: {spawn:?}");
+        assert_eq!(spawn, [396, 74, 32]);
+
+        assert_eq!(resolve_overworld_initial_spawn(0).unwrap(), [0, 65, 0]);
     }
 
     #[test]

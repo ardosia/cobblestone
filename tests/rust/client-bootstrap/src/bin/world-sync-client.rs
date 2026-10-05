@@ -295,6 +295,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let stream_torture = std::env::args().any(|argument| argument == "--stream-torture");
     let persistent_stream = std::env::args().any(|argument| argument == "--persistent-stream");
     let spawn_only = std::env::args().any(|argument| argument == "--spawn-only");
+    let expected_spawn = std::env::args().find_map(|argument| {
+        let value = argument.strip_prefix("--expect-spawn=")?;
+        let mut parts = value.split(',');
+        let x = parts.next()?.parse::<i32>().ok()?;
+        let y = parts.next()?.parse::<i32>().ok()?;
+        let z = parts.next()?.parse::<i32>().ok()?;
+        parts.next().is_none().then_some([x, y, z])
+    });
     let expect_nether = std::env::args().any(|argument| argument == "--expect-nether");
     let hold_east = std::env::args().any(|argument| argument == "--hold-east");
     let hold_west = std::env::args().any(|argument| argument == "--hold-west");
@@ -340,6 +348,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         start.dimension
                     )
                     .into());
+                }
+                if let Some(expected_spawn) = expected_spawn {
+                    if start.spawn != expected_spawn {
+                        return Err(format!(
+                            "unexpected StartGame spawn: expected {expected_spawn:?}, got {:?}",
+                            start.spawn
+                        )
+                        .into());
+                    }
+                    let expected_position = [
+                        expected_spawn[0] as f32 + 0.5,
+                        expected_spawn[1] as f32,
+                        expected_spawn[2] as f32 + 0.5,
+                    ];
+                    if start.position != expected_position {
+                        return Err(format!(
+                            "unexpected StartGame position: expected {expected_position:?}, got {:?}",
+                            start.position
+                        )
+                        .into());
+                    }
+                    println!(
+                        "world-sync-client: spawn-position=verified x={} y={} z={}",
+                        expected_spawn[0], expected_spawn[1], expected_spawn[2]
+                    );
                 }
                 if expect_nether {
                     println!("world-sync-client: dimension=nether verified");

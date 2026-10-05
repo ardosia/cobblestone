@@ -310,7 +310,7 @@ const fn recoverable_top_snow_block(id: u16) -> bool {
     )
 }
 
-const fn material_blocks_motion(id: u16) -> bool {
+pub(crate) const fn material_blocks_motion(id: u16) -> bool {
     material_is_solid(id)
         || matches!(
             id,
