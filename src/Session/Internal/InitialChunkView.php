@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\Session\Internal;
 
+use Cobblestone\World\ChunkLoadPending;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\ChunkSnapshot;
 use Cobblestone\Native\World\LoadStatus;
@@ -82,7 +83,13 @@ final class InitialChunkView
                 continue;
             }
 
-            if ($this->world->chunk($position, true) === null) {
+            try {
+                $chunk = $this->world->chunk($position, true);
+            } catch (ChunkLoadPending) {
+                return false;
+            }
+
+            if ($chunk === null) {
                 throw new LogicException(
                     "world failed to generate durably missing initial chunk {$position->x}:{$position->z}",
                 );

@@ -173,6 +173,7 @@ function testPhp(): void
         'pending-disconnect-smoke.php',
         'backpressure-view-smoke.php',
         'persistent-join-smoke.php',
+        'persistent-infinite-join-smoke.php',
         'server-smoke.php',
     ] as $test) {
         runWithExtension(ROOT . '/tests/php/integration/' . $test);

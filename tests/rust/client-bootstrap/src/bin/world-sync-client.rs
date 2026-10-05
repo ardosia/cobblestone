@@ -294,6 +294,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let radius_cycle = std::env::args().any(|argument| argument == "--radius-cycle");
     let stream_torture = std::env::args().any(|argument| argument == "--stream-torture");
     let persistent_stream = std::env::args().any(|argument| argument == "--persistent-stream");
+    let spawn_only = std::env::args().any(|argument| argument == "--spawn-only");
     let expect_nether = std::env::args().any(|argument| argument == "--expect-nether");
     let hold_east = std::env::args().any(|argument| argument == "--hold-east");
     let hold_west = std::env::args().any(|argument| argument == "--hold-west");
@@ -370,6 +371,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 spawned |= status.status() == 3;
             }
         }
+    }
+
+    if spawn_only {
+        println!("world-sync-client: spawn=verified");
+        client.disconnect(None).await?;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        return Ok(());
     }
 
     if transition_only {
