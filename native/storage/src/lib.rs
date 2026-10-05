@@ -1,6 +1,7 @@
 mod async_io;
 mod async_load;
 mod async_save;
+mod generator_state;
 mod metadata;
 mod record;
 mod region;
@@ -19,6 +20,10 @@ pub use async_save::{
     CompactionFailure, CompactionReceipt, CompactionSubmitError,
     MAX_ASYNC_SAVE_COMPLETION_CAPACITY, MAX_ASYNC_SAVE_QUEUE_CAPACITY, MAX_ASYNC_SAVE_WORKERS,
     SaveCompletion, SaveFailure, SaveReceipt, SaveSubmitError, SaveWorkerError,
+};
+pub use generator_state::{
+    GENERATOR_STATE_FILENAME, GENERATOR_STATE_HEADER_BYTES, GENERATOR_STATE_VERSION,
+    MAX_GENERATOR_STATE_BYTES, read_generator_state, write_generator_state,
 };
 pub use metadata::{
     LEGACY_WORLD_METADATA_PAYLOAD_VERSION, MAX_GENERATOR_SETTINGS_BYTES,
@@ -59,6 +64,12 @@ pub enum StorageError {
     WorldMetadataTooLarge { size: usize, limit: usize },
     #[error("world metadata generation space exhausted")]
     MetadataGenerationExhausted,
+    #[error("generator state is invalid: {0}")]
+    InvalidGeneratorState(&'static str),
+    #[error("generator state size {size} exceeds limit {limit}")]
+    GeneratorStateTooLarge { size: usize, limit: usize },
+    #[error("generator state belongs to generator {actual}, expected {expected}")]
+    GeneratorStateGeneratorMismatch { expected: u32, actual: u32 },
     #[error(
         "region coordinate mismatch: expected {expected_x}:{expected_z}, got {actual_x}:{actual_z}"
     )]
