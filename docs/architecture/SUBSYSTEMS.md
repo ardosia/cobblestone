@@ -323,8 +323,9 @@ Target direction:
 - `OverworldMonsterRoomPopulator` continues that population RNG stream for the eight fixed-target dungeon attempts, mutating the same 3x3 neighborhood while preserving commented-out chest-loot/spawner-entity semantics;
 - `OverworldFreezeFrostPopulator` applies the executable-verified 0.15.10 center 16x16 water-to-ice pass next, including fixed cold-biome temperatures, Y=127 rain-height quirks, and the zero pre-light block-light boundary; it deliberately places no top snow;
 - `OverworldOreDecorator` retains the isolated common `BiomeDecorator::decorateOres` + Mesa-extra-gold mechanism, while `OverworldBiomeDecorator` owns the actual post-freeze independently reseeded `Biome::decorate` stream and continues it through all recovered feature/tree families and biome-specific hooks using the cached pre-population heightmap;
+- `OverworldPostDecorationFinalizer` completes the recovered target stage set with perimeter water repair, generation-time Seasons/top-snow, generation-only liquid tick draining, final height recomputation, and packed sky/block-light output over the shared 3x3 neighborhood;
 - Ocean Monument is explicitly excluded from the 0.15.10 parity surface: target runtime/registry evidence is absent and Mojang introduced the live feature in 0.16;
-- no public Infinite generator is advertised yet because the generation-time water-edge, Seasons/top-snow, instant-tick, and final light/height finalizers remain before public composition;
+- no public Infinite generator is advertised yet only because the production composition/exposure boundary must wire these recovered stages into authoritative chunk ownership, historyful structure state, lifecycle flags, persistence, and whole-pipeline fixtures;
 - Flat generation remains preset/fixed-biome driven and does not route through the Overworld source;
 - mutable generation-owned ChunkDraft;
 - whole-chunk/coarse commit rather than thousands of scalar owner/native calls;

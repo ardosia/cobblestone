@@ -335,6 +335,18 @@ mod tests {
             .count()
     }
 
+    fn hash_center_states(region: &PopulationNeighborhood) -> u64 {
+        region
+            .center_states()
+            .iter()
+            .fold(0xcbf2_9ce4_8422_2325_u64, |mut hash, value| {
+                for byte in value.to_le_bytes() {
+                    hash = (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3);
+                }
+                hash
+            })
+    }
+
     #[test]
     fn exact_edge_offset_order_contains_sixty_columns() {
         let offsets: Vec<_> = edge_offsets().collect();
@@ -366,6 +378,28 @@ mod tests {
         assert_eq!(region.block_id(0, 3, 0), STILL_WATER);
         assert_eq!(region.block_id(0, 5, 0), FLOWING_WATER);
         assert_eq!(region.block_id(0, 6, 0), STILL_WATER);
+    }
+
+    #[test]
+    fn independent_cpp_edge_water_fixture_matches() {
+        // Standalone C++ oracle translated from the target edge-offset scan. It hashes the
+        // center chunk immediately after the two still-water runs are converted at their tops.
+        let center = ChunkCoord::new(0, 0);
+        let mut region = PopulationNeighborhood::filled(center, state(AIR, 0), 1);
+        region.set_generation_height_for_test(0, 0, 8);
+        for y in 1..=3 {
+            let _ = region.set_state(0, y, 0, state(STILL_WATER, 0));
+        }
+        for y in 5..=6 {
+            let _ = region.set_state(0, y, 0, state(STILL_WATER, 0));
+        }
+
+        fix_water_along_edges(&mut region);
+
+        assert_eq!(hash_center_states(&region), 0x7aca_e6ad_6447_a3b5);
+        assert_eq!(region.block_id(0, 1, 0), FLOWING_WATER);
+        assert_eq!(region.block_id(0, 2, 0), STILL_WATER);
+        assert_eq!(region.block_id(0, 5, 0), FLOWING_WATER);
     }
 
     #[test]
@@ -411,6 +445,31 @@ mod tests {
             Some(state(SNOW_LAYER, COVERED_BIT | 1))
         );
         assert_eq!(region.extra_data(8, 64, 8), (5_u16 << 8) | RED_FLOWER);
+    }
+
+    #[test]
+    fn independent_cpp_covered_top_snow_fixture_matches() {
+        // Standalone C++ oracle translated from TopSnowBlock recovery + rebuild semantics.
+        // Ten layers cover a data-5 red flower with a full 8-layer top-snow state plus a
+        // second 2-layer state, preserving the flower in extra data.
+        let center = ChunkCoord::new(0, 0);
+        let mut region = PopulationNeighborhood::filled(center, state(AIR, 0), 12);
+        let _ = region.set_state(8, 63, 8, state(GRASS, 0));
+        let _ = region.set_state(8, 64, 8, state(RED_FLOWER, 5));
+
+        rebuild_top_snow_to_depth(&mut region, (8, 64, 8), 10);
+
+        let mut hash = hash_center_states(&region);
+        let key = ((64_usize << 8) | (8 << 4) | 8) as u16;
+        let extra = region.extra_data(8, 64, 8);
+        for byte in key.to_le_bytes().into_iter().chain(extra.to_le_bytes()) {
+            hash = (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3);
+        }
+
+        assert_eq!(hash, 0xd764_a759_a386_f65e);
+        assert_eq!(region.state(8, 64, 8), Some(state(SNOW_LAYER, 15)));
+        assert_eq!(region.state(8, 65, 8), Some(state(SNOW_LAYER, 1)));
+        assert_eq!(extra, (5_u16 << 8) | RED_FLOWER);
     }
 
     #[test]

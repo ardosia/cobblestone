@@ -202,6 +202,14 @@ Biome-specific hooks preserve the fixed-target ordering around that common pass:
 
 Independent standalone C++ fixtures pin the combined RNG/placement behavior rather than validating Rust against itself. A synthetic Ocean/common stream fixture at seed 36 matches full-neighborhood hash `0x20ef402f27d495ff` and seven yellow-flower writes; a Desert seed-2471 fixture matches `0xe4bdf751cb876a87`, including one dead bush, four cactus blocks, and a complete 70-sandstone/12-slab/5-water well; and a direct viney Oak seed-1 fixture matches `0xf216b0707794ecda` with five logs, 54 leaves, and eight vines.
 
+## Fixed-target Infinite post-decoration finalizer parity
+
+`OverworldPostDecorationFinalizer` owns the target boundary after `Biome::decorate`. It preserves the executable order `_fixWaterAlongEdges` → generation-time Seasons/top-snow → generation tick drain → final light/height processing. The edge-water pass scans the sixty perimeter columns against the pre-population cached heightmap, converts the first still-water block in each vertical run to flowing water, and schedules its target delay-1 liquid tick. `SpringFeature` likewise performs its target immediate dynamic-liquid tick and shares this generation-only queue; this does not implement the general runtime scheduled/random tick system.
+
+Generation Seasons uses the fixed `89328` snow-noise seed and five-octave 3D simplex path, the target snow-biome accumulation/min/max profiles, target rain-height/placement rules, and covered top-snow extra-data semantics. The final lighting owner then recomputes the center heightmap from fixed-target light-block properties and produces packed sky/block-light nibble planes over the shared 3x3 neighborhood so cross-chunk emitters can affect the center before persistence.
+
+Independent standalone C++ fixtures pin each block-visible family. The edge-water two-run fixture matches center-state hash `0x7acae6ad6447a3b5`; the covered ten-layer top-snow fixture matches state+extra-data hash `0xd764a759a386f65e`; and the final light/height fixture with water attenuation plus an east-neighbor torch matches packed height/sky/block-light hash `0xeb4cef1c923ece33`.
+
 ## Deliberate adaptations
 
 Rust's `TerrainReadGuard`, `TerrainWriteGuard`, `LightReadGuard`, and `LightWriteGuard` exist because Ardosia's resident terrain/light cells are shared behind Rust locks. Cobblestone's architecture requires one authoritative PHP runtime owner for mutable gameplay state, so exposing lock guards to ordinary PHP would violate the project API invariant. Direct owner-local terrain/light facades replace those guard types.
