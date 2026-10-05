@@ -1,11 +1,13 @@
 use crate::WORLD_HEIGHT;
 use crate::population::{PopulationNeighborhood, state};
+use crate::population_tick::{on_liquid_placed, tick_dynamic_liquid};
 use crate::terrain_shape::noise::MtRandom;
 
 pub(crate) const AIR: u16 = 0;
 pub(crate) const STONE: u16 = 1;
 pub(crate) const GRASS: u16 = 2;
 pub(crate) const DIRT: u16 = 3;
+pub(crate) const COBBLESTONE: u16 = 4;
 pub(crate) const SAPLING: u16 = 6;
 pub(crate) const FLOWING_WATER: u16 = 8;
 pub(crate) const STILL_WATER: u16 = 9;
@@ -310,6 +312,7 @@ pub(crate) fn place_spring(
     region: &mut PopulationNeighborhood,
     pos: BlockPos,
     liquid: u16,
+    random: &mut MtRandom,
 ) -> bool {
     if block_id(region, pos.above(1)) != STONE || block_id(region, pos.below(1)) != STONE {
         return false;
@@ -331,7 +334,13 @@ pub(crate) fn place_spring(
         .count();
     let hole_count = neighbors.iter().filter(|p| is_empty(region, **p)).count();
     if rock_count == 3 && hole_count == 1 {
-        return set_block(region, pos, liquid, 0);
+        if !set_block(region, pos, liquid, 0) {
+            return false;
+        }
+        region.with_generation_ticks(|region, queue| {
+            on_liquid_placed(region, queue, pos.x, pos.y, pos.z);
+            tick_dynamic_liquid(region, queue, pos.x, pos.y, pos.z, liquid, random);
+        });
     }
     true
 }

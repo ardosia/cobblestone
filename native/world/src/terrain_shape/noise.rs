@@ -4,7 +4,7 @@ const MATRIX_A: u32 = 0x9908_b0df;
 const UPPER_MASK: u32 = 0x8000_0000;
 const LOWER_MASK: u32 = 0x7fff_ffff;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct MtRandom {
     state: [u32; MT_N],
     index: usize,
@@ -106,6 +106,18 @@ impl PerlinSimplexNoise {
         value
     }
 
+    pub(crate) fn value_3d(&self, x: f32, y: f32, z: f32) -> f32 {
+        let mut value = 0.0_f32;
+        let mut octave = 1.0_f32;
+        for level in &self.levels {
+            // Target SimplexNoise::_getValue(Vec3) notably does not add the constructor origin;
+            // construction still consumes the shared RNG stream, but point sampling uses raw XYZ.
+            value += level.value_3d(x * octave, y * octave, z * octave) / octave;
+            octave *= 0.5;
+        }
+        value
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn region(
         &self,
@@ -140,6 +152,21 @@ impl PerlinSimplexNoise {
         out
     }
 }
+
+const GRADIENTS: [[i32; 3]; 12] = [
+    [1, 1, 0],
+    [-1, 1, 0],
+    [1, -1, 0],
+    [-1, -1, 0],
+    [1, 0, 1],
+    [-1, 0, 1],
+    [1, 0, -1],
+    [-1, 0, -1],
+    [0, 1, 1],
+    [0, -1, 1],
+    [0, 1, -1],
+    [0, -1, -1],
+];
 
 struct SimplexNoise {
     origin_x: f32,
@@ -197,20 +224,7 @@ impl SimplexNoise {
     fn value_2d(&self, x: f32, y: f32) -> f32 {
         const F2: f32 = 0.366_025_4;
         const G2: f32 = 0.211_324_87;
-        const GRAD3: [[i32; 3]; 12] = [
-            [1, 1, 0],
-            [-1, 1, 0],
-            [1, -1, 0],
-            [-1, -1, 0],
-            [1, 0, 1],
-            [-1, 0, 1],
-            [1, 0, -1],
-            [-1, 0, -1],
-            [0, 1, 1],
-            [0, -1, 1],
-            [0, 1, -1],
-            [0, -1, -1],
-        ];
+        const GRAD3: [[i32; 3]; 12] = GRADIENTS;
 
         let skew = (x + y) * F2;
         let i = fast_floor(x + skew);
@@ -234,20 +248,105 @@ impl SimplexNoise {
         let gi2 =
             usize::from(self.permutation[ii + 1 + usize::from(self.permutation[jj + 1])]) % 12;
 
-        let n0 = simplex_corner(GRAD3[gi0], x0, y0);
-        let n1 = simplex_corner(GRAD3[gi1], x1, y1);
-        let n2 = simplex_corner(GRAD3[gi2], x2, y2);
+        let n0 = simplex_corner_2d(GRAD3[gi0], x0, y0);
+        let n1 = simplex_corner_2d(GRAD3[gi1], x1, y1);
+        let n2 = simplex_corner_2d(GRAD3[gi2], x2, y2);
         70.0 * (n0 + n1 + n2)
+    }
+
+    fn value_3d(&self, x: f32, y: f32, z: f32) -> f32 {
+        const F3: f32 = 1.0 / 3.0;
+        const G3: f32 = 1.0 / 6.0;
+
+        let skew = (x + y + z) * F3;
+        let i = fast_floor(x + skew);
+        let j = fast_floor(y + skew);
+        let k = fast_floor(z + skew);
+        let unskew = (i + j + k) as f32 * G3;
+        let x0 = x - (i as f32 - unskew);
+        let y0 = y - (j as f32 - unskew);
+        let z0 = z - (k as f32 - unskew);
+
+        let ((i1, j1, k1), (i2, j2, k2)) = if x0 >= y0 {
+            if y0 >= z0 {
+                ((1, 0, 0), (1, 1, 0))
+            } else if x0 >= z0 {
+                ((1, 0, 0), (1, 0, 1))
+            } else {
+                ((0, 0, 1), (1, 0, 1))
+            }
+        } else if y0 < z0 {
+            ((0, 0, 1), (0, 1, 1))
+        } else if x0 < z0 {
+            ((0, 1, 0), (0, 1, 1))
+        } else {
+            ((0, 1, 0), (1, 1, 0))
+        };
+
+        let x1 = x0 - i1 as f32 + G3;
+        let y1 = y0 - j1 as f32 + G3;
+        let z1 = z0 - k1 as f32 + G3;
+        let x2 = x0 - i2 as f32 + 2.0 * G3;
+        let y2 = y0 - j2 as f32 + 2.0 * G3;
+        let z2 = z0 - k2 as f32 + 2.0 * G3;
+        let x3 = x0 - 1.0 + 3.0 * G3;
+        let y3 = y0 - 1.0 + 3.0 * G3;
+        let z3 = z0 - 1.0 + 3.0 * G3;
+
+        let ii = (i & 255) as usize;
+        let jj = (j & 255) as usize;
+        let kk = (k & 255) as usize;
+        let gi0 = usize::from(
+            self.permutation
+                [ii + usize::from(self.permutation[jj + usize::from(self.permutation[kk])])],
+        ) % 12;
+        let gi1 = usize::from(
+            self.permutation[ii
+                + i1 as usize
+                + usize::from(
+                    self.permutation
+                        [jj + j1 as usize + usize::from(self.permutation[kk + k1 as usize])],
+                )],
+        ) % 12;
+        let gi2 = usize::from(
+            self.permutation[ii
+                + i2 as usize
+                + usize::from(
+                    self.permutation
+                        [jj + j2 as usize + usize::from(self.permutation[kk + k2 as usize])],
+                )],
+        ) % 12;
+        let gi3 = usize::from(
+            self.permutation[ii
+                + 1
+                + usize::from(self.permutation[jj + 1 + usize::from(self.permutation[kk + 1])])],
+        ) % 12;
+
+        let n0 = simplex_corner_3d(GRADIENTS[gi0], x0, y0, z0);
+        let n1 = simplex_corner_3d(GRADIENTS[gi1], x1, y1, z1);
+        let n2 = simplex_corner_3d(GRADIENTS[gi2], x2, y2, z2);
+        let n3 = simplex_corner_3d(GRADIENTS[gi3], x3, y3, z3);
+        32.0 * (n0 + n1 + n2 + n3)
     }
 }
 
-fn simplex_corner(gradient: [i32; 3], x: f32, y: f32) -> f32 {
+fn simplex_corner_2d(gradient: [i32; 3], x: f32, y: f32) -> f32 {
     let t = 0.5 - x * x - y * y;
     if t < 0.0 {
         0.0
     } else {
         let t2 = t * t;
         t2 * t2 * (gradient[0] as f32 * x + gradient[1] as f32 * y)
+    }
+}
+
+fn simplex_corner_3d(gradient: [i32; 3], x: f32, y: f32, z: f32) -> f32 {
+    let t = 0.6 - x * x - y * y - z * z;
+    if t < 0.0 {
+        0.0
+    } else {
+        let t2 = t * t;
+        t2 * t2 * (gradient[0] as f32 * x + gradient[1] as f32 * y + gradient[2] as f32 * z)
     }
 }
 

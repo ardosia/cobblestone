@@ -287,7 +287,7 @@ fn decorate_common(
         let y_param = random.next_int(120) as i32 + 8;
         let y = random.next_int(y_param as u32) as i32;
         let x = random.next_int(16) as i32;
-        let _ = place_spring(region, origin.offset(x, y, z), FLOWING_WATER);
+        let _ = place_spring(region, origin.offset(x, y, z), FLOWING_WATER, random);
     }
     for _ in 0..20 {
         let z = random.next_int(16) as i32;
@@ -295,7 +295,7 @@ fn decorate_common(
         let y_param_2 = random.next_int(y_param_1 as u32) as i32 + 8;
         let y = random.next_int(y_param_2 as u32) as i32;
         let x = random.next_int(16) as i32;
-        let _ = place_spring(region, origin.offset(x, y, z), FLOWING_LAVA);
+        let _ = place_spring(region, origin.offset(x, y, z), FLOWING_LAVA, random);
     }
 }
 

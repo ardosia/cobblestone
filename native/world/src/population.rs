@@ -1,5 +1,7 @@
 use std::array;
+use std::collections::BTreeMap;
 
+use crate::population_tick::GenerationTickQueue;
 use crate::terrain_shape::noise::MtRandom;
 use crate::{CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldCaveCarver, WORLD_HEIGHT};
 
@@ -8,13 +10,23 @@ struct PopulationChunk {
     states: Vec<u16>,
     biome_ids: Vec<u8>,
     generation_height_map: Vec<u8>,
+    extra_data: BTreeMap<u16, u16>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct PopulationNeighborhood {
     center: ChunkCoord,
     chunks: [PopulationChunk; 9],
+    generation_ticks: Option<GenerationTickQueue>,
 }
+
+impl PartialEq for PopulationNeighborhood {
+    fn eq(&self, other: &Self) -> bool {
+        self.center == other.center && self.chunks == other.chunks
+    }
+}
+
+impl Eq for PopulationNeighborhood {}
 
 impl PopulationNeighborhood {
     pub fn from_carved(seed: i32, center: ChunkCoord) -> Self {
@@ -34,10 +46,15 @@ impl PopulationNeighborhood {
                 states,
                 biome_ids,
                 generation_height_map,
+                extra_data: BTreeMap::new(),
             }
         });
 
-        Self { center, chunks }
+        Self {
+            center,
+            chunks,
+            generation_ticks: Some(GenerationTickQueue::new_target_seeded()),
+        }
     }
 
     pub fn center(&self) -> ChunkCoord {
@@ -100,6 +117,57 @@ impl PopulationNeighborhood {
         };
         self.chunks[chunk_index].states[block_index(local_x, y as usize, local_z)] = value;
         true
+    }
+
+    #[cfg(test)]
+    pub(crate) fn extra_data(&self, world_x: i32, y: i32, world_z: i32) -> u16 {
+        if !(0..WORLD_HEIGHT as i32).contains(&y) {
+            return 0;
+        }
+        let Some((chunk_index, local_x, local_z)) = self.resolve(world_x, world_z) else {
+            return 0;
+        };
+        self.chunks[chunk_index]
+            .extra_data
+            .get(&(block_index(local_x, y as usize, local_z) as u16))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub(crate) fn set_extra_data(
+        &mut self,
+        world_x: i32,
+        y: i32,
+        world_z: i32,
+        value: u16,
+    ) -> bool {
+        if !(0..WORLD_HEIGHT as i32).contains(&y) {
+            return false;
+        }
+        let Some((chunk_index, local_x, local_z)) = self.resolve(world_x, world_z) else {
+            return false;
+        };
+        let key = block_index(local_x, y as usize, local_z) as u16;
+        if value == 0 {
+            self.chunks[chunk_index].extra_data.remove(&key);
+        } else {
+            self.chunks[chunk_index].extra_data.insert(key, value);
+        }
+        true
+    }
+
+    pub(crate) fn with_generation_ticks<R>(
+        &mut self,
+        f: impl FnOnce(&mut Self, &mut GenerationTickQueue) -> R,
+    ) -> R {
+        let mut queue = self
+            .generation_ticks
+            .take()
+            .expect("generation tick queue is not reentrant");
+        let result = f(self, &mut queue);
+        debug_assert!(self.generation_ticks.is_none());
+        self.generation_ticks = Some(queue);
+        result
     }
 
     pub(crate) fn above_top_solid_block(
@@ -166,7 +234,9 @@ impl PopulationNeighborhood {
                     };
                     CHUNK_COLUMN_COUNT
                 ],
+                extra_data: BTreeMap::new(),
             }),
+            generation_ticks: Some(GenerationTickQueue::with_seed(0)),
         }
     }
 }
