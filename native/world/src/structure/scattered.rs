@@ -337,16 +337,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn independent_candidate_kind_fixtures_match_target_mt_and_raw_biomes() {
-        // Standalone C++ std::mt19937 LargeFeature/spacing oracle plus cubiomes MC_1_8
-        // pre-Voronoi biome lookup.
+    fn mcpe_locator_regressions_use_target_biome_graph() {
+        // Spacing/RNG is independently covered by the target MT tests. These source coordinates
+        // are regression snapshots after replacing the invalid Java 1.8 biome viability oracle
+        // with the 0.15.10 graph recovered from the target binary and offline chunk oracle.
         let fixtures = [
             (
                 0,
                 [
                     (ChunkCoord::new(981, -1016), ScatteredKind::DesertPyramid),
                     (ChunkCoord::new(627, -987), ScatteredKind::JunglePyramid),
-                    (ChunkCoord::new(-565, -1022), ScatteredKind::SwamplandHut),
+                    (ChunkCoord::new(291, -1012), ScatteredKind::SwamplandHut),
                 ],
             ),
             (
@@ -354,7 +355,7 @@ mod tests {
                 [
                     (ChunkCoord::new(-333, -1023), ScatteredKind::DesertPyramid),
                     (ChunkCoord::new(41, -1023), ScatteredKind::JunglePyramid),
-                    (ChunkCoord::new(720, -1002), ScatteredKind::SwamplandHut),
+                    (ChunkCoord::new(704, -1022), ScatteredKind::SwamplandHut),
                 ],
             ),
             (
@@ -362,15 +363,15 @@ mod tests {
                 [
                     (ChunkCoord::new(-780, -1016), ScatteredKind::DesertPyramid),
                     (ChunkCoord::new(-536, -893), ScatteredKind::JunglePyramid),
-                    (ChunkCoord::new(631, -1005), ScatteredKind::SwamplandHut),
+                    (ChunkCoord::new(229, -1022), ScatteredKind::SwamplandHut),
                 ],
             ),
             (
                 0x1234_5678,
                 [
                     (ChunkCoord::new(-919, -1022), ScatteredKind::DesertPyramid),
-                    (ChunkCoord::new(-921, -970), ScatteredKind::JunglePyramid),
-                    (ChunkCoord::new(405, -1020), ScatteredKind::SwamplandHut),
+                    (ChunkCoord::new(-875, -977), ScatteredKind::JunglePyramid),
+                    (ChunkCoord::new(329, -977), ScatteredKind::SwamplandHut),
                 ],
             ),
         ];

@@ -500,15 +500,15 @@ pub fn cobblestone_world_storage_migrate_infinite_spawn(
                 "safe-spawn migration requires fixed-target persistent Infinite metadata",
             ));
         }
-        if !matches!(current.generator_settings_version, 1 | 2) {
+        if !matches!(current.generator_settings_version, 1..=3) {
             return Err(php_error(format!(
-                "safe-spawn migration requires Infinite metadata version 1 or 2, got {}",
+                "safe-spawn migration requires Infinite metadata version 1, 2 or 3, got {}",
                 current.generator_settings_version
             )));
         }
 
         let mut updated = current.clone();
-        updated.generator_settings_version = 3;
+        updated.generator_settings_version = 4;
         updated.spawn_x = spawn_x;
         updated.spawn_y = spawn_y;
         updated.spawn_z = spawn_z;

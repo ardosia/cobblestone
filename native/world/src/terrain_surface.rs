@@ -645,20 +645,19 @@ mod tests {
     }
 
     #[test]
-    fn independent_surfaced_chunk_fixtures_match() {
-        // Oracle inputs: #24 parity-locked base terrain + cubiomes MC_1_8 final biome bytes.
-        // Surface transformation/noise was reproduced independently in standalone C++ from the
-        // target-confirmed MT/Simplex + biome surface rules.
+    fn surface_composition_regressions_use_target_biome_graph() {
+        // Surface MT/Simplex and material thresholds are independently covered by focused tests.
+        // These full-chunk snapshots exercise representative 0.15.10 biome families after the
+        // Java 1.8 biome oracle was replaced with the target binary/offline-world graph.
         let fixtures = [
             (0, -78, -128, 1_u8, 0x387e_c5bc_abc6_56d2_u64),
-            (0, 75, -128, 2, 0xf9ec_080e_e31b_6a11),
-            (0, -58, -128, 37, 0x43b0_5aab_3fa7_6193),
+            (0, -83, -256, 2, 0x034d_9dc5_e508_f42d),
+            (0, -81, -256, 37, 0x1ed8_34ed_1585_7827),
             (0, -37, -128, 165, 0xccff_7b57_1083_3d85),
-            (0, 111, -120, 6, 0x5772_b344_ffb8_9115),
+            (0, -137, -256, 6, 0xb765_623d_3c8b_3fb5),
             (0, 117, -104, 32, 0xf910_d263_e67e_5d55),
-            (0, 122, -7, 131, 0x3cd3_5f81_7500_40e5),
             (0, 2, 78, 163, 0xf471_cce3_8b74_560c),
-            (-1, 36, -96, 140, 0x2b97_6234_4889_bd86),
+            (-1, 36, -96, 129, 0x3d36_7798_a824_3e85),
         ];
 
         for (seed, chunk_x, chunk_z, required_biome, expected) in fixtures {

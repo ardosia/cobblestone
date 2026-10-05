@@ -374,24 +374,27 @@ mod tests {
     }
 
     #[test]
-    fn independent_base_terrain_fixtures_match() {
+    fn base_terrain_composition_regressions_use_target_biome_graph() {
+        // Density/noise constants remain independently covered below. These full-chunk snapshots
+        // compose that target math with the corrected 0.15.10 biome graph; the previous hashes
+        // were generated from Java 1.8 biome inputs and therefore were not target-authoritative.
         let fixtures = [
-            (0, 0, 0, 0xbbc3_f085_459a_37ef_u64, (16_740, 0, 16_028)),
+            (0, 0, 0, 0x7ada_e91b_cd7d_ab25_u64, (14_976, 1_152, 16_640)),
             (1, 0, 0, 0x368a_421e_0068_706d_u64, (12_611, 3_517, 16_640)),
-            (-1, -1, -1, 0x4c72_fbd3_70ec_feeb_u64, (17_066, 0, 15_702)),
+            (-1, -1, -1, 0x3d0e_b1b7_e0c7_70eb_u64, (17_012, 0, 15_756)),
             (
                 i32::MIN,
                 7,
                 -9,
-                0xcea8_5b03_f4dc_efa2_u64,
-                (18_335, 0, 14_433),
+                0xc959_6a5f_6064_4dc5_u64,
+                (18_608, 0, 14_160),
             ),
             (
                 0x1234_5678,
                 64,
                 -128,
-                0xe197_3c42_ba87_2265_u64,
-                (16_604, 0, 16_164),
+                0x962a_0836_f0a4_0938_u64,
+                (16_586, 1, 16_181),
             ),
         ];
 

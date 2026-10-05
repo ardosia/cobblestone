@@ -480,15 +480,14 @@ mod tests {
     }
 
     #[test]
-    fn independent_cave_chunk_fixtures_match() {
-        // Independent oracle chain: #25 standalone C++ surfaced bytes, then a separate C++
-        // LargeCaveFeature reproduction using the target-confirmed MCPE MT/random semantics.
-        // Every fixture is cave-bearing and includes writes from at least one neighboring source
-        // chunk inside the target's radius-8 source scan.
+    fn cave_composition_regressions_use_target_biome_graph() {
+        // LargeCaveFeature RNG/carving semantics remain independently covered. These complete
+        // cave-stage snapshots compose that logic with surfaced chunks from the corrected
+        // 0.15.10 biome graph.
         let fixtures = [
             (0, -78, -128, 0x3568_bd43_38d4_3642_u64),
-            (0, -58, -128, 0x9d83_2b9f_c319_40d3_u64),
-            (-1, 36, -96, 0x65bc_4fbf_84d0_1fc6_u64),
+            (0, -58, -128, 0xe896_7d10_1707_ed35_u64),
+            (-1, 36, -96, 0x775b_6523_e46a_a0c5_u64),
         ];
 
         for (seed, chunk_x, chunk_z, expected) in fixtures {

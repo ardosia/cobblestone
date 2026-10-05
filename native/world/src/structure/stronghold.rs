@@ -496,40 +496,41 @@ mod tests {
     use crate::structure::structure_source_random;
 
     #[test]
-    fn independent_locator_fixtures_match_target_mt_and_raw_biomes() {
-        // Independent oracle: std::mt19937 Stronghold/Village math plus cubiomes MC_1_8
-        // pre-Voronoi biome viability through a C bridge.
+    fn mcpe_locator_regressions_use_target_village_and_biome_graph() {
+        // Stronghold ring/grid math remains independently covered below. These three
+        // village-selected positions are regression snapshots of the 0.15.10 village/biome
+        // qualification path; the previous values used a Java 1.8 biome oracle.
         let fixtures = [
             (
                 0,
                 [
-                    ChunkCoord::new(-55, -25),
-                    ChunkCoord::new(12, 101),
-                    ChunkCoord::new(-112, -155),
+                    ChunkCoord::new(-29, 97),
+                    ChunkCoord::new(-197, -143),
+                    ChunkCoord::new(205, 287),
                 ],
             ),
             (
                 -1,
                 [
-                    ChunkCoord::new(-381, 530),
-                    ChunkCoord::new(102, -663),
-                    ChunkCoord::new(-320, 646),
+                    ChunkCoord::new(-15, -68),
+                    ChunkCoord::new(-100, 66),
+                    ChunkCoord::new(-295, 98),
                 ],
             ),
             (
                 i32::MIN,
                 [
-                    ChunkCoord::new(5, -68),
-                    ChunkCoord::new(96, -38),
-                    ChunkCoord::new(8, -160),
+                    ChunkCoord::new(-14, 80),
+                    ChunkCoord::new(-113, -58),
+                    ChunkCoord::new(-238, 0),
                 ],
             ),
             (
                 0x1234_5678,
                 [
-                    ChunkCoord::new(223, -160),
-                    ChunkCoord::new(-117, -376),
-                    ChunkCoord::new(426, -420),
+                    ChunkCoord::new(-276, -384),
+                    ChunkCoord::new(-157, -469),
+                    ChunkCoord::new(-390, 385),
                 ],
             ),
         ];
@@ -674,7 +675,7 @@ mod tests {
 
     #[test]
     fn runtime_discovers_selected_start_and_state_round_trips_idempotently() {
-        let source = ChunkCoord::new(-55, -25);
+        let source = ChunkCoord::new(-29, 97);
         let mut runtime = OverworldStrongholdStructures::new(0);
         let mut state = StrongholdStructureState::new();
         runtime.apply(&mut state, source);

@@ -95,7 +95,7 @@ try {
     infiniteExpect($memory->generatorType() === GeneratorType::Infinite, 'Infinite generator type mismatch');
     $spawn = $memory->spawn();
     infiniteExpect(
-        [$spawn->x, $spawn->y, $spawn->z] === [0, 65, 0],
+        [$spawn->x, $spawn->y, $spawn->z] === [820, 72, 4],
         'seed-0 target-resolved Infinite spawn mismatch',
     );
 
@@ -106,7 +106,7 @@ try {
     infiniteExpect($chunk->isLightPopulated(), 'Infinite center missing light-populated lifecycle');
 
     $snapshot = $chunk->snapshot();
-    infiniteExpect($snapshot->biomeId(8, 8) === 4, 'seed-0 Infinite center biome mismatch');
+    infiniteExpect($snapshot->biomeId(8, 8) === 7, 'seed-0 Infinite center biome mismatch');
     infiniteExpect(
         $snapshot->heightMap !== str_repeat("\0", 256),
         'Infinite center height map remained empty',
@@ -124,7 +124,7 @@ $root = sys_get_temp_dir()
     . getmypid()
     . '-'
     . bin2hex(random_bytes(4));
-$position = new ChunkPos(-26, -21);
+$position = new ChunkPos(-28, -18);
 $beforeHash = null;
 
 try {
@@ -217,7 +217,7 @@ try {
         infiniteExpect($migrated->seed() === -1_385_905_961, 'migration ignored stored seed');
         $spawn = $migrated->spawn();
         infiniteExpect(
-            [$spawn->x, $spawn->y, $spawn->z] === [396, 74, 32],
+            [$spawn->x, $spawn->y, $spawn->z] === [4, 63, 4],
             'legacy Infinite spawn did not migrate to target-resolved surface position',
         );
     } finally {
@@ -238,9 +238,9 @@ try {
             loadWorkers: 1,
         );
         infiniteExpect(!$metadata->created, 'migrated Infinite metadata reopened as new');
-        infiniteExpect($metadata->generatorSettingsVersion === 3, 'safe spawn migration did not persist v3');
+        infiniteExpect($metadata->generatorSettingsVersion === 4, 'safe spawn migration did not persist v4');
         infiniteExpect(
-            [$metadata->spawn->x, $metadata->spawn->y, $metadata->spawn->z] === [396, 74, 32],
+            [$metadata->spawn->x, $metadata->spawn->y, $metadata->spawn->z] === [4, 63, 4],
             'safe spawn migration did not persist resolved coordinates',
         );
     } finally {
@@ -250,67 +250,82 @@ try {
     infiniteRemoveTree($legacyRoot);
 }
 
-$v2Root = sys_get_temp_dir()
-    . '/cobblestone-native-infinite-spawn-v2-migration-'
-    . getmypid()
-    . '-'
-    . bin2hex(random_bytes(4));
-try {
-    $v2Store = NativeWorld::create();
+foreach ([2, 3] as $legacyVersion) {
+    $recoveryRoot = sys_get_temp_dir()
+        . "/cobblestone-native-infinite-spawn-v{$legacyVersion}-migration-"
+        . getmypid()
+        . '-'
+        . bin2hex(random_bytes(4));
     try {
-        $v2 = $v2Store->attachStorage(
-            $v2Root,
-            'Interrupted Spawn Migration',
-            -1_385_905_961,
-            GeneratorType::Infinite->value,
-            2,
-            '',
-            new BlockPos(396, 74, 32),
-            saveWorkers: 1,
-            loadWorkers: 1,
-        );
-        infiniteExpect($v2->created, 'v2 Infinite migration fixture was not created');
-        infiniteExpect($v2->generatorSettingsVersion === 2, 'v2 fixture did not start at v2');
-    } finally {
-        $v2Store->destroy();
-    }
+        $legacyStore = NativeWorld::create();
+        try {
+            $legacy = $legacyStore->attachStorage(
+                $recoveryRoot,
+                "Interrupted Spawn Migration v{$legacyVersion}",
+                -1_385_905_961,
+                GeneratorType::Infinite->value,
+                $legacyVersion,
+                '',
+                new BlockPos(396, 74, 32),
+                saveWorkers: 1,
+                loadWorkers: 1,
+            );
+            infiniteExpect(
+                $legacy->created,
+                "v{$legacyVersion} Infinite migration fixture was not created",
+            );
+            infiniteExpect(
+                $legacy->generatorSettingsVersion === $legacyVersion,
+                "v{$legacyVersion} fixture did not retain its version",
+            );
+        } finally {
+            $legacyStore->destroy();
+        }
 
-    $recovered = WorldFactory::persistentInfinite(
-        $v2Root,
-        'Ignored Recovery Name',
-        0,
-        saveWorkers: 1,
-        loadWorkers: 1,
-    );
-    try {
-        $spawn = $recovered->spawn();
-        infiniteExpect(
-            [$spawn->x, $spawn->y, $spawn->z] === [396, 74, 32],
-            'v2 Infinite spawn recovery changed the target-resolved position',
-        );
-    } finally {
-        $recovered->nativeStore()?->destroy();
-    }
-
-    $probeStore = NativeWorld::create();
-    try {
-        $metadata = $probeStore->attachStorage(
-            $v2Root,
-            'Ignored Recovery Probe',
+        $recovered = WorldFactory::persistentInfinite(
+            $recoveryRoot,
+            'Ignored Recovery Name',
             0,
-            GeneratorType::Infinite->value,
-            1,
-            '',
-            new BlockPos(0, 64, 0),
             saveWorkers: 1,
             loadWorkers: 1,
         );
-        infiniteExpect($metadata->generatorSettingsVersion === 3, 'v2 recovery did not persist v3');
+        try {
+            $spawn = $recovered->spawn();
+            infiniteExpect(
+                [$spawn->x, $spawn->y, $spawn->z] === [4, 63, 4],
+                "v{$legacyVersion} Infinite spawn recovery did not recompute target X/Z/Y",
+            );
+        } finally {
+            $recovered->nativeStore()?->destroy();
+        }
+
+        $probeStore = NativeWorld::create();
+        try {
+            $metadata = $probeStore->attachStorage(
+                $recoveryRoot,
+                'Ignored Recovery Probe',
+                0,
+                GeneratorType::Infinite->value,
+                1,
+                '',
+                new BlockPos(0, 64, 0),
+                saveWorkers: 1,
+                loadWorkers: 1,
+            );
+            infiniteExpect(
+                $metadata->generatorSettingsVersion === 4,
+                "v{$legacyVersion} recovery did not persist v4",
+            );
+            infiniteExpect(
+                [$metadata->spawn->x, $metadata->spawn->y, $metadata->spawn->z] === [4, 63, 4],
+                "v{$legacyVersion} recovery did not persist corrected spawn",
+            );
+        } finally {
+            $probeStore->destroy();
+        }
     } finally {
-        $probeStore->destroy();
+        infiniteRemoveTree($recoveryRoot);
     }
-} finally {
-    infiniteRemoveTree($v2Root);
 }
 
 fwrite(STDOUT, "native-infinite-smoke: passed\n");

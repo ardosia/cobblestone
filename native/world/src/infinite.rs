@@ -404,53 +404,12 @@ pub fn resolve_overworld_spawn_from_store(
     spawn_x: i32,
     spawn_z: i32,
 ) -> Result<[i32; 3], WorldStoreError> {
-    let origin_chunk = ChunkCoord::new(spawn_x.div_euclid(16), spawn_z.div_euclid(16));
-    let initial_y = above_top_solid(store, spawn_x, spawn_z)?;
-    let original = [spawn_x, i32::from(initial_y), spawn_z];
-    let mut candidate = original;
-    let offsets = [(8, 0), (-8, 0), (0, 8), (0, -8)];
-    let mut direction = 0_usize;
-
-    while direction < offsets.len() {
-        let mut danger_below =
-            column_has_water_or_lava_before_solid(store, candidate[0], candidate[1], candidate[2])?;
-        let mut attempts = 16_u8;
-
-        while danger_below && attempts > 1 && direction < offsets.len() {
-            attempts -= 1;
-            candidate[0] = candidate[0].wrapping_add(offsets[direction].0);
-            candidate[2] = candidate[2].wrapping_add(offsets[direction].1);
-
-            let candidate_chunk =
-                ChunkCoord::new(candidate[0].div_euclid(16), candidate[2].div_euclid(16));
-            if (candidate_chunk.x() - origin_chunk.x()).abs() > 2
-                || (candidate_chunk.z() - origin_chunk.z()).abs() > 2
-            {
-                direction += 1;
-                candidate = original;
-                break;
-            }
-
-            candidate[1] = i32::from(above_top_solid(store, candidate[0], candidate[2])?);
-            danger_below = column_has_water_or_lava_before_solid(
-                store,
-                candidate[0],
-                candidate[1],
-                candidate[2],
-            )?;
-        }
-
-        if !danger_below {
-            return Ok(candidate);
-        }
-        if attempts <= 1 {
-            break;
-        }
-    }
-
-    // Target fixStartSpawnPosition() leaves the original position unchanged if every bounded
-    // direction fails.
-    Ok(original)
+    // MCPE 0.15.10 Player::recheckSpawnPosition resolves the shared Y=128 sentinel with
+    // BlockSource::getTopSolidBlock(x, z, true, true) while preserving BiomeSource's X/Z.
+    // The later Player::fixSpawnPosition collision/liquid repair is gated to respawn state and
+    // must not be applied to the initial world entry.
+    let spawn_y = above_top_solid(store, spawn_x, spawn_z)?;
+    Ok([spawn_x, i32::from(spawn_y), spawn_z])
 }
 
 fn above_top_solid(store: &WorldStore, world_x: i32, world_z: i32) -> Result<u8, WorldStoreError> {
@@ -467,30 +426,6 @@ fn above_top_solid(store: &WorldStore, world_x: i32, world_z: i32) -> Result<u8,
         }
     }
     Ok(0)
-}
-
-fn column_has_water_or_lava_before_solid(
-    store: &WorldStore,
-    world_x: i32,
-    spawn_y: i32,
-    world_z: i32,
-) -> Result<bool, WorldStoreError> {
-    let snapshot = store.snapshot(ChunkCoord::new(
-        world_x.div_euclid(16),
-        world_z.div_euclid(16),
-    ))?;
-    let local_x = world_x.rem_euclid(16) as usize;
-    let local_z = world_z.rem_euclid(16) as usize;
-    for y in (0..spawn_y.clamp(0, 128) as usize).rev() {
-        let id = snapshot.states()[(y << 8) | (local_z << 4) | local_x] >> 4;
-        if matches!(id, 8..=11) {
-            return Ok(true);
-        }
-        if material_blocks_motion(id) {
-            return Ok(false);
-        }
-    }
-    Ok(false)
 }
 
 const fn is_spawn_top_solid(id: u16) -> bool {
@@ -532,10 +467,9 @@ mod tests {
     #[test]
     fn mama_moose_initial_spawn_resolves_above_generated_surface() {
         let spawn = resolve_overworld_initial_spawn(-1_385_905_961).unwrap();
-        eprintln!("mamaMOOSE resolved spawn: {spawn:?}");
-        assert_eq!(spawn, [396, 74, 32]);
+        assert_eq!(spawn, [4, 63, 4]);
 
-        assert_eq!(resolve_overworld_initial_spawn(0).unwrap(), [0, 65, 0]);
+        assert_eq!(resolve_overworld_initial_spawn(0).unwrap(), [820, 72, 4]);
     }
 
     #[test]
@@ -585,27 +519,30 @@ mod tests {
 
     #[test]
     fn representative_whole_pipeline_fixtures_are_stable() {
+        // These are composition-regression fixtures after the exact 0.15.10 biome graph is
+        // selected. Independent target parity for generated block planes is tracked separately;
+        // this test protects stage composition/lifecycle from accidental drift.
         let fixtures = [
             (
-                "normal",
+                "origin-river",
                 0,
                 ChunkCoord::new(0, 0),
-                4,
-                0x67fa_7aa3_351a_648a_u64,
+                7,
+                0x863d_9ed3_9028_9419_u64,
             ),
             (
                 "cold-snow",
                 42,
-                ChunkCoord::new(-26, -21),
+                ChunkCoord::new(-28, -18),
                 12,
-                0x6f1a_92cd_565a_12ed_u64,
+                0x7926_aba4_b770_6b3f_u64,
             ),
             (
                 "savanna",
                 0,
-                ChunkCoord::new(41, 48),
+                ChunkCoord::new(-128, -128),
                 35,
-                0x7444_fbd7_eeb3_3f33_u64,
+                0xc251_d7ce_b68b_f3a7_u64,
             ),
             (
                 "desert-pyramid",
@@ -618,8 +555,8 @@ mod tests {
                 "negative-seed-negative-chunk",
                 -1,
                 ChunkCoord::new(-78, -128),
-                7,
-                0x1c69_523b_ee8e_4f8e_u64,
+                4,
+                0x1eaa_36db_4261_f97b_u64,
             ),
         ];
 
@@ -648,8 +585,8 @@ mod tests {
                     .iter()
                     .filter(|state| (**state >> 4) == 79)
                     .count();
-                assert_eq!(snow, 209);
-                assert_eq!(ice, 29);
+                assert_eq!(snow, 66);
+                assert_eq!(ice, 0);
             }
             if name == "desert-pyramid" {
                 assert!(!generator.state.scattered.is_empty());

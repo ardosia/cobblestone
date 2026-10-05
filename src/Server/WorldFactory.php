@@ -85,17 +85,21 @@ final class WorldFactory
                 throw new \LogicException('Infinite generator is only valid for the Overworld');
             }
 
-            if ($metadata->generatorSettingsVersion === 1
-                || $metadata->generatorSettingsVersion === 2
+            if ($metadata->generatorSettingsVersion >= 1
+                && $metadata->generatorSettingsVersion <= 3
             ) {
+                // v1-v3 may contain the provisional/incorrect pre-0.15.10 spawn X/Z. Recompute
+                // BiomeSource's fixed-target X/Z from the authoritative stored seed before
+                // generating the spawn view; never use legacy metadata as the search anchor.
+                $targetSpawn = InfiniteGenerator::provisional($metadata->seed)->spawn();
                 $resolvedSpawn = self::resolvePersistentInfiniteSpawn(
                     $nativeStore,
                     $metadata->seed,
-                    $metadata->spawn,
+                    $targetSpawn,
                 );
                 $metadata = $nativeStore->migrateInfiniteSpawn($resolvedSpawn);
                 $generator = new InfiniteGenerator($metadata->seed, $metadata->spawn);
-            } elseif ($metadata->generatorSettingsVersion === 3) {
+            } elseif ($metadata->generatorSettingsVersion === 4) {
                 $generator = new InfiniteGenerator($metadata->seed, $metadata->spawn);
             } else {
                 throw new \LogicException(

@@ -99,7 +99,7 @@ $command = [
     '--',
     $bind,
     '--spawn-only',
-    '--expect-spawn=396,74,32',
+    '--expect-spawn=4,63,4',
 ];
 $descriptors = [
     0 => ['pipe', 'r'],
@@ -154,7 +154,7 @@ try {
     persistentInfiniteJoinExpect($spawned, 'persistent Infinite session never reached spawned state');
     persistentInfiniteJoinExpect($spawnedChunks === 25, 'persistent Infinite join sent wrong initial chunk count');
     persistentInfiniteJoinExpect(
-        str_contains($stdout, 'world-sync-client: spawn-position=verified x=396 y=74 z=32'),
+        str_contains($stdout, 'world-sync-client: spawn-position=verified x=4 y=63 z=4'),
         "persistent Infinite client observed wrong StartGame spawn\nstdout={$stdout}\nstderr={$stderr}",
     );
     persistentInfiniteJoinExpect(

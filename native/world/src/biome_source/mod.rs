@@ -168,23 +168,22 @@ impl OverworldBiomeSource {
     pub fn spawn_position(&self) -> (i32, i32) {
         let mut x = 0_i32;
         loop {
-            // The restored target asks a 10x10 raw-biome area and probes the four neighbors of
-            // each candidate. Sample one explicit padding cell on every side so those probes are
-            // represented without relying on target LayerData scratch-buffer padding.
+            // The target fills one logical 10x10 LayerData result then probes center + cardinal
+            // neighbors. Its C++ loop also touches scratch memory outside that logical rectangle
+            // on the border; those values are not generated biome data. Treat border candidates
+            // as invalid rather than inventing an extra generated halo or emulating stack UB.
             let raw_x = x / 4;
-            let raw = self.raw_layer.area(raw_x - 1, -1, 12, 12);
+            let raw = self.raw_layer.area(raw_x, 0, 10, 10);
 
-            for zo in 0..10_usize {
-                for xo in 0..10_usize {
-                    let cx = xo + 1;
-                    let cz = zo + 1;
-                    let index = cx + cz * 12;
+            for zo in 1..9_usize {
+                for xo in 1..9_usize {
+                    let index = xo + zo * 10;
                     let valid = [
                         raw[index],
                         raw[index - 1],
                         raw[index + 1],
-                        raw[index - 12],
-                        raw[index + 12],
+                        raw[index - 10],
+                        raw[index + 10],
                     ]
                     .into_iter()
                     .all(|id| {
@@ -224,8 +223,11 @@ fn zoom(world_seed: i64, parent: LayerRef, seed_mixup: i64) -> LayerRef {
 }
 
 fn zoom_times(world_seed: i64, mut parent: LayerRef, seed_mixup: i64, count: usize) -> LayerRef {
-    for index in 0..count {
-        parent = zoom(world_seed, parent, seed_mixup + index as i64);
+    // Fixed-target ZoomLayer::zoom(seed, parent, count) reuses seed + 1 for every generated
+    // layer; it does not advance by the loop index like the Java GenLayer helper.
+    let zoom_seed = seed_mixup.wrapping_add(1);
+    for _ in 0..count {
+        parent = zoom(world_seed, parent, zoom_seed);
     }
     parent
 }
@@ -286,24 +288,25 @@ mod tests {
     }
 
     #[test]
-    fn representative_area_hashes_match_independent_java_1_8_layer_oracle() {
-        // Derived independently with cubiomes MC_1_8 after the target binary established the
-        // layer graph/classes/seeds. These are fixed fixtures, not a runtime dependency.
-        let fixtures = [
-            (0, 0, 0, 16, 16, 0x4dc7_20c3_77aa_3b25_u64),
-            (1, 0, 0, 16, 16, 0xd80a_c658_736b_b725_u64),
-            (-1, -16, -16, 16, 16, 0x19d4_de88_1f0a_3b25_u64),
-            (0x1234_5678, 1024, -2048, 16, 16, 0x1ae8_1315_307d_5025_u64),
-            (i32::MIN, -3, 5, 17, 19, 0x6f95_6c37_652f_c0c3_u64),
-            (i32::MAX, 31, -33, 7, 11, 0x8a01_af81_74bb_582f_u64),
-            (42, -257, 258, 13, 9, 0x40b1_04e8_91c2_9a6b_u64),
-        ];
-        for (seed, x, z, width, height, expected) in fixtures {
-            let actual = hash_ids(&OverworldBiomeSource::new(seed).biome_ids(x, z, width, height));
-            assert_eq!(
-                actual, expected,
-                "seed={seed} at {x}:{z} size={width}x{height}",
-            );
-        }
+    fn mama_moose_matches_exact_01510_offline_chunk_oracle() {
+        let source = OverworldBiomeSource::new(-1_385_905_961);
+        let spawn = source.spawn_position();
+        let ids = source.biome_ids(0, 0, 16, 16);
+        eprintln!(
+            "mamaMOOSE biome source spawn={spawn:?} hash={:#018x} unique={:?}",
+            hash_ids(&ids),
+            {
+                let mut counts = std::collections::BTreeMap::new();
+                for &id in &ids {
+                    *counts.entry(id).or_insert(0_usize) += 1;
+                }
+                counts
+            }
+        );
+        assert_eq!(spawn, (4, 4));
+        assert_eq!(hash_ids(&ids), 0xdfba_91c4_44c4_dfc3);
+        assert_eq!(ids.iter().filter(|&&id| id == 1).count(), 239);
+        assert_eq!(ids.iter().filter(|&&id| id == 7).count(), 17);
+        assert!(ids.iter().all(|&id| matches!(id, 1 | 7)));
     }
 }

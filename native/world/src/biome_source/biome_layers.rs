@@ -46,10 +46,14 @@ impl Layer {
         height: usize,
     ) -> Vec<i32> {
         const HOT: [i32; 6] = [DESERT, DESERT, DESERT, SAVANNA, SAVANNA, PLAINS];
-        const LUSH: [i32; 6] = [
+        // Fixed-target MCPE weights Plains three times in the medium climate list.
+        // This differs from the Java 1.8 six-entry table.
+        const LUSH: [i32; 8] = [
             FOREST,
             ROOFED_FOREST,
             EXTREME_HILLS,
+            PLAINS,
+            PLAINS,
             PLAINS,
             BIRCH_FOREST,
             SWAMPLAND,

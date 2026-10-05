@@ -17,8 +17,9 @@ function nativeBiomeSourceExpect(bool $condition, string $message): void
 
 function nativeBiomeSourceHash(string $ids): string
 {
-    // Rust fixtures use exact u64 FNV-1a. PHP verifies the same independent oracle bytes with
-    // SHA-256 to avoid unsigned-u64 arithmetic differences at the language boundary.
+    // PHP locks the native projection with SHA-256 to avoid unsigned-u64 arithmetic differences
+    // at the language boundary. Target authority for the mamaMOOSE plane lives in the Rust
+    // offline-world oracle; the other entries are deterministic MCPE-graph regressions.
     return hash('sha256', $ids);
 }
 
@@ -28,10 +29,11 @@ nativeBiomeSourceExpect(
 );
 
 $fixtures = [
-    [0, 0, 0, 'ce82812d0dbffa772d5c0bb18bf60f68f8c40d3cd2f817b71ec274a4c9017fde'],
+    [0, 0, 0, '7c64f161a029b9671f12ba38ba1ee5d8916ac3a8bd256fd6ef85eb90a29b2895'],
     [1, 0, 0, '5341e6b2646979a70e57653007a1f310169421ec9bdd9f1a5648f75ade005af1'],
     [-1, -16, -16, '8e36e19f581188850ab74cc6bf867ae0f8303b86f6687126775cb67fb41b980f'],
-    [0x12345678, 1024, -2048, '26dbdb9e685ea5b8dfd5dabba790b373bf1256faaef13a66b3f4ce3438e9f4ed'],
+    [0x12345678, 1024, -2048, 'd27ce37030bbf895a19cab11705200f1d9a0b5bbe7bb94446a6975cd3d9e6167'],
+    [-1385905961, 0, 0, '6dd16db52d36ad9fd4afa853e745f069d27dfdb8f0d8727824cbb1361924986a'],
 ];
 
 foreach ($fixtures as [$seed, $x, $z, $expectedHash]) {
