@@ -7,6 +7,7 @@ use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\WorldFactory;
+use Cobblestone\World\Generator\WorldSeed;
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
@@ -38,8 +39,8 @@ $worldDir = is_string($worldDir) && $worldDir !== ''
     ? $worldDir
     : dirname(__DIR__) . '/worlds/world';
 $worldName = getenv('COBBLESTONE_WORLD_NAME') ?: 'Cobblestone';
-$worldSeedText = getenv('COBBLESTONE_WORLD_SEED') ?: '-1';
-$flatPreset = getenv('COBBLESTONE_FLAT_PRESET') ?: '2;7,2x3,2;1;';
+$worldSeedInput = getenv('COBBLESTONE_WORLD_SEED');
+$worldSeedInput = is_string($worldSeedInput) ? $worldSeedInput : '';
 $saveWorkers = (int) (getenv('COBBLESTONE_SAVE_WORKERS') ?: '2');
 $loadWorkers = (int) (getenv('COBBLESTONE_LOAD_WORKERS') ?: '2');
 $compactionMinDeadBytesText = getenv('COBBLESTONE_COMPACTION_MIN_DEAD_BYTES');
@@ -57,10 +58,6 @@ if ($maxConnections <= 0) {
 }
 if ($tickRate <= 0 || $tickRate > 1_000) {
     $logger->error('COBBLESTONE_TICK_RATE must be between 1 and 1000');
-    exit(1);
-}
-if (!preg_match('/^-?\d+$/', $worldSeedText)) {
-    $logger->error('COBBLESTONE_WORLD_SEED must be a signed integer');
     exit(1);
 }
 if ($saveWorkers <= 0 || $saveWorkers > 32) {
@@ -95,11 +92,11 @@ if ($compactionMinDeadPercent < 0 || $compactionMinDeadPercent > 100) {
 }
 
 try {
-    $world = WorldFactory::persistentFlat(
+    $worldSeed = WorldSeed::fromTargetInput($worldSeedInput, WorldSeed::random());
+    $world = WorldFactory::persistentInfinite(
         $worldDir,
         $worldName,
-        (int) $worldSeedText,
-        $flatPreset,
+        $worldSeed,
         saveWorkers: $saveWorkers,
         loadWorkers: $loadWorkers,
         compactionMinDeadBytes: $compactionMinDeadBytes,
@@ -127,6 +124,8 @@ $logger->info(
         'raknet' => 8,
         'tick_rate' => $tickRate,
         'world' => $server->world()->name(),
+        'world_seed' => $server->world()->seed(),
+        'world_generator' => $server->world()->generator()->name(),
         'world_dir' => $worldDir,
         'compaction_min_dead_bytes' => $compactionMinDeadBytes,
         'compaction_min_dead_percent' => $compactionMinDeadPercent,

@@ -480,6 +480,13 @@ mod tests {
                 2,
                 0xef24_9a32_d206_c5df_u64,
             ),
+            (
+                "negative-seed-negative-chunk",
+                -1,
+                ChunkCoord::new(-78, -128),
+                7,
+                0x1c69_523b_ee8e_4f8e_u64,
+            ),
         ];
 
         for (name, seed, target, expected_biome, expected_hash) in fixtures {

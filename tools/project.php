@@ -147,6 +147,7 @@ function testPhp(): void
         'world-block-catalog-smoke.php',
         'world-light-smoke.php',
         'world-parity-smoke.php',
+        'world-seed-smoke.php',
         'world-smoke.php',
         'world-mutation-smoke.php',
     ] as $test) {

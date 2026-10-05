@@ -69,14 +69,13 @@ The PHP/native boundary stays coarse. Native snapshots and atomic patches avoid 
 
 ## Persistence
 
-The production CLI uses the custom persistent world store at `worlds/world` by default.
+The production CLI uses the exact fixed-target Infinite Overworld generator with the custom persistent world store at `worlds/world` by default.
 
 Useful environment variables:
 
 - `COBBLESTONE_WORLD_DIR`
 - `COBBLESTONE_WORLD_NAME`
-- `COBBLESTONE_WORLD_SEED`
-- `COBBLESTONE_FLAT_PRESET`
+- `COBBLESTONE_WORLD_SEED` — MCPE 0.15.10 seed-box input (numeric or text); unset/single-character input uses a random 32-bit seed
 - `COBBLESTONE_SAVE_WORKERS`
 - `COBBLESTONE_LOAD_WORKERS`
 - `COBBLESTONE_COMPACTION_MIN_DEAD_BYTES`
