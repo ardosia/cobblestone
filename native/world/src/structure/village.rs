@@ -241,16 +241,17 @@ fn candidate_into_random(seed: u32, chunk: ChunkCoord, random: &mut MtRandom) ->
     let candidate_seed = mixed as u32;
 
     random.reseed(candidate_seed);
-    // MCPE 0.15.10 VillageFeature::isFeatureChunk uses the high 30 bits from each raw
-    // MT output before the spacing modulus: (genrand_int32() >> 2) % 28. This is not the
-    // generic Random::nextInt path used by several other worldgen features.
+    // MCPE 0.15.10 VillageFeature::isFeatureChunk takes each raw MT output modulo 28.
+    // The target Thumb code shifts the raw value while strength-reducing division by 28,
+    // but computes the remainder by subtracting quotient * 28 from the original output.
+    // Do not mistake that compiler sequence for (genrand_int32() >> 2) % 28.
     let bound = (TOWN_SPACING - MIN_TOWN_SEPARATION) as u32;
     center_x = center_x
         .wrapping_mul(TOWN_SPACING)
-        .wrapping_add(((random.next_u32() >> 2) % bound) as i32);
+        .wrapping_add((random.next_u32() % bound) as i32);
     center_z = center_z
         .wrapping_mul(TOWN_SPACING)
-        .wrapping_add(((random.next_u32() >> 2) % bound) as i32);
+        .wrapping_add((random.next_u32() % bound) as i32);
 
     (
         chunk.x() == center_x && chunk.z() == center_z,
@@ -308,7 +309,13 @@ mod tests {
     #[test]
     fn mama_moose_origin_village_sources() {
         let feature = VillageFeature::new(-1_385_905_961);
-        for source in [ChunkCoord::new(1, 8), ChunkCoord::new(1, 17)] {
+        // The real 0.15.10 offline world contains target Village Well signatures whose
+        // StartPiece origins map back to these three nearby source chunks.
+        for source in [
+            ChunkCoord::new(2, 3),
+            ChunkCoord::new(1, 6),
+            ChunkCoord::new(0, 9),
+        ] {
             assert!(candidate_with_random(feature.seed, source).0);
             assert!(feature.biome_allowed(source));
             assert!(
@@ -317,7 +324,11 @@ mod tests {
                     .contains(&source)
             );
         }
-        assert!(!candidate_with_random(feature.seed, ChunkCoord::new(2, 3)).0);
+
+        // These were false positives from the old misread (raw >> 2) % 28 oracle.
+        for source in [ChunkCoord::new(1, 8), ChunkCoord::new(1, 17)] {
+            assert!(!candidate_with_random(feature.seed, source).0);
+        }
     }
 
     #[test]
@@ -441,8 +452,10 @@ mod tests {
 
         // Target StructureStart tags do not serialize generatedChunkPositions. Reload therefore
         // restores durable starts/pieces while resetting per-chunk post-process bookkeeping.
+        // Compare that restored state on the same fresh population input; persisted populated
+        // chunks are not legitimately post-processed a second time after reload.
         let mut reloaded = decoded;
-        let mut replay = neighborhood.clone();
+        let mut replay = flat_population(source, 1);
         assert!(runtime.post_process(&mut reloaded, &mut replay, source));
         assert_eq!(
             hash_center(&replay),
@@ -473,40 +486,40 @@ mod tests {
             (
                 0,
                 &[
-                    (8, -160),
-                    (-99, -156),
-                    (-94, -155),
-                    (-119, -154),
-                    (-104, -154),
-                    (92, -150),
-                    (98, -149),
-                    (106, -144),
+                    (139, -158),
+                    (-112, -155),
+                    (42, -147),
+                    (-17, -141),
+                    (66, -141),
+                    (122, -141),
+                    (25, -134),
+                    (-94, -133),
                 ],
             ),
             (
                 -1,
                 &[
-                    (-27, -160),
-                    (-144, -159),
-                    (-77, -159),
-                    (-60, -155),
-                    (-58, -155),
-                    (-115, -152),
-                    (66, -149),
-                    (146, -139),
+                    (-79, -160),
+                    (92, -158),
+                    (99, -156),
+                    (-107, -151),
+                    (-36, -150),
+                    (17, -150),
+                    (21, -150),
+                    (-107, -136),
                 ],
             ),
             (
                 i32::MIN,
                 &[
-                    (128, -155),
-                    (-61, -148),
-                    (-160, -120),
-                    (-61, -115),
-                    (122, -115),
-                    (-20, -114),
-                    (40, -114),
-                    (23, -113),
+                    (8, -160),
+                    (-55, -153),
+                    (-149, -152),
+                    (21, -150),
+                    (-156, -147),
+                    (59, -147),
+                    (-119, -140),
+                    (-24, -133),
                 ],
             ),
         ];

@@ -346,11 +346,12 @@ try {
     );
     $villageStore = $village->nativeStore()
         ?? throw new RuntimeException('village test requires native storage');
-    infiniteAwaitChunk($village, new ChunkPos(0, 8));
-    $well = new ChunkPos(1, 8); // Independent 0.15.10 Village source (1,8), Well bounds x18..23, z130..135.
+    infiniteAwaitChunk($village, new ChunkPos(1, 3));
+    // Real 0.15.10 offline mamaMOOSE oracle: Village source (2,3), Well x34..39, z50..55.
+    $well = new ChunkPos(2, 3);
     infiniteExpect($villageStore->lifecycleFlags($well) === Chunk::LIFECYCLE_GENERATED,
         'cross-chunk village Well was not left generated-only before requesting its center');
-    $other = new ChunkPos(-1, 8);
+    $other = new ChunkPos(0, 3);
     $otherChunk = $village->adoptNativeChunk($other);
     infiniteExpect(!$otherChunk->isPopulated(), 'neighbor fixture was already populated');
     $completed = infiniteAwaitChunk($village, $other);
@@ -387,7 +388,7 @@ try {
         infiniteExpect(str_contains($wellStates, chr(85)),
             'village Well fence was not placed in its center chunk');
 
-        $resident = new ChunkPos(1, 9);
+        $resident = new ChunkPos(2, 4);
         $residentChunk = infiniteAwaitChunk($reopenedVillage, $resident);
         infiniteExpect($residentChunk->isPopulated() && $residentChunk->isLightPopulated(),
             'loaded generated-only neighbor was returned without population');

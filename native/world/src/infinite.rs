@@ -596,21 +596,20 @@ mod tests {
 
     #[test]
     fn village_well_is_placed_when_generated_neighbor_becomes_population_center() {
-        // Independent 0.15.10 source/topology fixture: mamaMOOSE Village starts at (1,8),
-        // with its Well in x18..23, z130..135. A (0,8) population first writes (1,8)
-        // as generated-only terrain; Well painting belongs to (1,8)'s own population.
+        // The real 0.15.10 mamaMOOSE world has a Village start at (2,3), with its
+        // Well in x34..39, z50..55. Population of (1,3) first writes (2,3) as
+        // generated-only terrain; Well painting belongs to (2,3)'s own population.
         let store = WorldStore::new();
         let mut generator = OverworldInfiniteGenerator::new(-1_385_905_961);
-        let well = ChunkCoord::new(1, 8);
+        let well = ChunkCoord::new(2, 3);
         generator
-            .generate_into_store(&store, ChunkCoord::new(0, 8))
+            .generate_into_store(&store, ChunkCoord::new(1, 3))
             .unwrap();
-        let road_chunk = store.snapshot(ChunkCoord::new(0, 8)).unwrap();
-        // The target StraightRoad runs across z131..133 through this populated center.
-        assert!((60..=85).any(|y| {
-            (0..16)
-                .any(|x| (3..=5).any(|z| road_chunk.states()[(y << 8) | (z << 4) | x] >> 4 == 198))
-        }));
+        let road_chunk = store.snapshot(ChunkCoord::new(1, 3)).unwrap();
+        assert!(
+            road_chunk.states().iter().any(|state| (*state >> 4) == 198),
+            "target Village path did not reach the adjacent populated center",
+        );
         assert_eq!(
             store.lifecycle_flags(well).unwrap(),
             CHUNK_LIFECYCLE_GENERATED
@@ -626,7 +625,30 @@ mod tests {
 
         generator.generate_into_store(&store, well).unwrap();
         assert_eq!(store.lifecycle_flags(well).unwrap(), FULL_LIFECYCLE);
-        assert!(fence_count(&store.snapshot(well).unwrap()) > 0);
+        let completed = store.snapshot(well).unwrap();
+        assert!(fence_count(&completed) > 0);
+
+        // Exact block sentinels decoded from the real protocol-84 offline LevelDB Well at
+        // world x34..39, z50..55. The chunk-local coordinates below pin its vertical
+        // alignment as well as the roof/support/water recipe.
+        for z in 3..=6 {
+            for x in 3..=6 {
+                assert_eq!(completed.states()[(69 << 8) | (z << 4) | x] >> 4, 4);
+            }
+        }
+        for (x, z) in [(3, 3), (6, 3), (3, 6), (6, 6)] {
+            assert_eq!(completed.states()[(68 << 8) | (z << 4) | x] >> 4, 85);
+            assert_eq!(completed.states()[(67 << 8) | (z << 4) | x] >> 4, 85);
+        }
+        for z in 4..=5 {
+            for x in 4..=5 {
+                assert_eq!(completed.states()[(66 << 8) | (z << 4) | x] >> 4, 0);
+                assert!(matches!(
+                    completed.states()[(65 << 8) | (z << 4) | x] >> 4,
+                    8 | 9
+                ));
+            }
+        }
     }
 
     #[test]
