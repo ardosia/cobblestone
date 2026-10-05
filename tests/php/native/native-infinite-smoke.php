@@ -6,6 +6,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\Server\WorldFactory;
+use Cobblestone\Session\Internal\InitialChunkView;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkLoadPending;
@@ -326,6 +327,76 @@ foreach ([2, 3] as $legacyVersion) {
     } finally {
         infiniteRemoveTree($recoveryRoot);
     }
+}
+
+// A generated-only neighbor is stored as part of another center's 3x3 population view.
+// When requested as a center, it must run its own structure post-process before delivery.
+$villageRoot = sys_get_temp_dir()
+    . '/cobblestone-native-infinite-village-neighbor-'
+    . getmypid()
+    . '-'
+    . bin2hex(random_bytes(4));
+try {
+    $village = WorldFactory::persistentInfinite(
+        $villageRoot,
+        'Village Neighbor Smoke',
+        -1_385_905_961,
+        saveWorkers: 1,
+        loadWorkers: 1,
+    );
+    $villageStore = $village->nativeStore()
+        ?? throw new RuntimeException('village test requires native storage');
+    infiniteAwaitChunk($village, new ChunkPos(0, 8));
+    $well = new ChunkPos(1, 8); // Independent 0.15.10 Village source (1,8), Well bounds x18..23, z130..135.
+    infiniteExpect($villageStore->lifecycleFlags($well) === Chunk::LIFECYCLE_GENERATED,
+        'cross-chunk village Well was not left generated-only before requesting its center');
+    $other = new ChunkPos(-1, 8);
+    $otherChunk = $village->adoptNativeChunk($other);
+    infiniteExpect(!$otherChunk->isPopulated(), 'neighbor fixture was already populated');
+    $completed = infiniteAwaitChunk($village, $other);
+    infiniteExpect($completed === $otherChunk && $completed->isPopulated() && $completed->isLightPopulated(),
+        'already-adopted generated-only village neighbor was returned without population');
+
+    $villageStore->flushStorage();
+    $villageStore->destroy();
+
+    $reopenedVillage = WorldFactory::persistentInfinite(
+        $villageRoot,
+        'Ignored Village Reopen',
+        0,
+        saveWorkers: 1,
+        loadWorkers: 1,
+    );
+    try {
+        $initialView = new InitialChunkView($reopenedVillage);
+        $projection = NativeWorld::encodeStorageLoadBatch([$well]);
+        $prepared = false;
+        for ($attempt = 0; $attempt < 1000; ++$attempt) {
+            if ($initialView->preparePersistent([$well], $projection)) {
+                $prepared = true;
+                break;
+            }
+            $reopenedVillage->nativeStore()?->storageTick(64);
+            usleep(1_000);
+        }
+        infiniteExpect($prepared, 'persisted generated-only Well did not finish initial view preparation');
+        $wellChunk = $reopenedVillage->chunk($well, false);
+        infiniteExpect($wellChunk !== null && $wellChunk->isPopulated() && $wellChunk->isLightPopulated(),
+            'persisted generated-only village Well was sent without population');
+        $wellStates = $wellChunk->snapshot()->blockIds;
+        infiniteExpect(str_contains($wellStates, chr(85)),
+            'village Well fence was not placed in its center chunk');
+
+        $resident = new ChunkPos(1, 9);
+        $residentChunk = infiniteAwaitChunk($reopenedVillage, $resident);
+        infiniteExpect($residentChunk->isPopulated() && $residentChunk->isLightPopulated(),
+            'loaded generated-only neighbor was returned without population');
+
+    } finally {
+        $reopenedVillage->nativeStore()?->destroy();
+    }
+} finally {
+    infiniteRemoveTree($villageRoot);
 }
 
 fwrite(STDOUT, "native-infinite-smoke: passed\n");

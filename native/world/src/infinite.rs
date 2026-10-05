@@ -595,6 +595,35 @@ mod tests {
     }
 
     #[test]
+    fn village_well_is_placed_when_generated_neighbor_becomes_population_center() {
+        // Independent 0.15.10 source/topology fixture: mamaMOOSE Village starts at (1,8),
+        // with its Well in x18..23, z130..135. A (0,8) population first writes (1,8)
+        // as generated-only terrain; Well painting belongs to (1,8)'s own population.
+        let store = WorldStore::new();
+        let mut generator = OverworldInfiniteGenerator::new(-1_385_905_961);
+        let well = ChunkCoord::new(1, 8);
+        generator
+            .generate_into_store(&store, ChunkCoord::new(0, 8))
+            .unwrap();
+        assert_eq!(
+            store.lifecycle_flags(well).unwrap(),
+            CHUNK_LIFECYCLE_GENERATED
+        );
+        let before = store.snapshot(well).unwrap();
+        let fence_count = |snapshot: &ChunkSnapshot| {
+            (60..=85)
+                .flat_map(|y| (2..=7).flat_map(move |z| (2..=7).map(move |x| (x, y, z))))
+                .filter(|&(x, y, z)| snapshot.states()[(y << 8) | (z << 4) | x] >> 4 == 85)
+                .count()
+        };
+        assert_eq!(fence_count(&before), 0);
+
+        generator.generate_into_store(&store, well).unwrap();
+        assert_eq!(store.lifecycle_flags(well).unwrap(), FULL_LIFECYCLE);
+        assert!(fence_count(&store.snapshot(well).unwrap()) > 0);
+    }
+
+    #[test]
     fn resident_generated_neighbor_is_authoritative_input() {
         let store = WorldStore::new();
         let first = ChunkCoord::new(0, 0);

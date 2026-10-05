@@ -8,6 +8,7 @@ use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\Native\World\LoadStatus;
 
 use Cobblestone\World\Generator\Generator;
+use Cobblestone\World\Generator\InfiniteGenerator;
 
 final class MainChunkSource
 {
@@ -43,13 +44,13 @@ final class MainChunkSource
     {
         $existing = $this->get($position);
         if ($existing !== null) {
-            return $existing;
+            return $this->completeInfiniteChunk($existing);
         }
 
         if ($this->nativeStore !== null && $this->nativeStore->hasStorage()) {
             $status = $this->nativeStore->requestStorageLoad($position);
             if ($status === LoadStatus::Resident) {
-                return $this->adoptNativeResident($position);
+                return $this->completeInfiniteChunk($this->adoptNativeResident($position));
             }
             if ($status !== LoadStatus::Missing) {
                 throw new ChunkLoadPending($position, $status);
@@ -77,6 +78,19 @@ final class MainChunkSource
         } finally {
             unset($this->loading[$key]);
         }
+    }
+
+    private function completeInfiniteChunk(Chunk $chunk): Chunk
+    {
+        // The native 3x3 population view persists generated-only neighbors. A loaded chunk
+        // is not ready to serve until its own center post-process and lighting have run.
+        if ($this->generator instanceof InfiniteGenerator
+            && (!$chunk->isPopulated() || !$chunk->isLightPopulated())
+        ) {
+            $this->generator->generate($chunk->position(), $this->seed, $this->nativeStore);
+        }
+
+        return $chunk;
     }
 
     public function adoptNativeResident(ChunkPos $position): Chunk

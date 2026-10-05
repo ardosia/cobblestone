@@ -63,26 +63,16 @@ final class InitialChunkView
             throw new LogicException('persistent chunk preparation returned the wrong status width');
         }
 
-        $resolved = [];
         foreach ($positions as $index => $position) {
             $status = LoadStatus::from(ord($statuses[$index]));
-            if (
-                $status !== LoadStatus::Resident
-                && $status !== LoadStatus::Missing
-            ) {
+            if ($status !== LoadStatus::Resident && $status !== LoadStatus::Missing) {
                 return false;
             }
-            $resolved[] = $status;
         }
 
-        foreach ($positions as $index => $position) {
-            if ($resolved[$index] === LoadStatus::Resident) {
-                if ($this->world->chunk($position, false) === null) {
-                    $this->world->adoptNativeChunk($position);
-                }
-                continue;
-            }
-
+        // A resident chunk can still be a generated-only neighbor of a populated center.
+        // Request each center through the generator before projecting it to the client.
+        foreach ($positions as $position) {
             try {
                 $chunk = $this->world->chunk($position, true);
             } catch (ChunkLoadPending) {
@@ -91,7 +81,7 @@ final class InitialChunkView
 
             if ($chunk === null) {
                 throw new LogicException(
-                    "world failed to generate durably missing initial chunk {$position->x}:{$position->z}",
+                    "world failed to populate initial chunk {$position->x}:{$position->z}",
                 );
             }
         }
