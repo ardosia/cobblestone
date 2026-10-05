@@ -32,6 +32,19 @@ pub fn cobblestone_world_overworld_biomes(
     })
 }
 
+#[php_function]
+pub fn cobblestone_world_overworld_spawn(seed: i64) -> PhpResult<Binary<u8>> {
+    php_boundary(|| {
+        let seed =
+            i32::try_from(seed).map_err(|_| php_error("world seed must fit signed 32 bits"))?;
+        let (x, z) = OverworldBiomeSource::new(seed).spawn_position();
+        let mut bytes = Vec::with_capacity(8);
+        bytes.extend_from_slice(&x.to_le_bytes());
+        bytes.extend_from_slice(&z.to_le_bytes());
+        Ok(Binary::new(bytes))
+    })
+}
+
 fn area_edge(value: i64, field: &'static str) -> PhpResult<usize> {
     let value =
         usize::try_from(value).map_err(|_| php_error(format!("{field} must be positive")))?;
@@ -51,5 +64,7 @@ fn area_end(origin: i32, length: usize, field: &'static str) -> PhpResult<i32> {
 }
 
 pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
-    module.function(wrap_function!(cobblestone_world_overworld_biomes))
+    module
+        .function(wrap_function!(cobblestone_world_overworld_biomes))
+        .function(wrap_function!(cobblestone_world_overworld_spawn))
 }

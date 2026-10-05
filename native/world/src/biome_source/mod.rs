@@ -10,6 +10,8 @@ use crate::{ChunkCoord, default_biome_word};
 
 use layer::{EdgeMode, Layer, LayerKind, LayerRef};
 
+const PLAYER_VALID_SPAWNS: [u8; 7] = [4, 1, 5, 19, 18, 21, 22];
+
 pub struct OverworldBiomeSource {
     raw_layer: LayerRef,
     final_layer: LayerRef,
@@ -157,6 +159,50 @@ impl OverworldBiomeSource {
             .map(|id| default_biome_word(id).expect("source only emits registered biomes"))
             .collect()
     }
+
+    /// Fixed-target BiomeSource::getSpawnPosition X/Z search.
+    ///
+    /// The target stores an invalid Y sentinel for Player-side height resolution. Cobblestone
+    /// exposes only the deterministic X/Z here; the current PHP session layer supplies its own
+    /// safe temporary Y until Player spawn-height semantics are implemented.
+    pub fn spawn_position(&self) -> (i32, i32) {
+        let mut x = 0_i32;
+        loop {
+            // The restored target asks a 10x10 raw-biome area and probes the four neighbors of
+            // each candidate. Sample one explicit padding cell on every side so those probes are
+            // represented without relying on target LayerData scratch-buffer padding.
+            let raw_x = x / 4;
+            let raw = self.raw_layer.area(raw_x - 1, -1, 12, 12);
+
+            for zo in 0..10_usize {
+                for xo in 0..10_usize {
+                    let cx = xo + 1;
+                    let cz = zo + 1;
+                    let index = cx + cz * 12;
+                    let valid = [
+                        raw[index],
+                        raw[index - 1],
+                        raw[index + 1],
+                        raw[index - 12],
+                        raw[index + 12],
+                    ]
+                    .into_iter()
+                    .all(|id| {
+                        u8::try_from(id)
+                            .ok()
+                            .is_some_and(|id| PLAYER_VALID_SPAWNS.contains(&id))
+                    });
+                    if valid {
+                        return (
+                            x.wrapping_add((xo as i32).wrapping_mul(4)),
+                            (zo as i32).wrapping_mul(4),
+                        );
+                    }
+                }
+            }
+            x = x.wrapping_add(40);
+        }
+    }
 }
 
 fn zoom_unseeded(parent: LayerRef) -> LayerRef {
@@ -217,6 +263,25 @@ mod tests {
         for (id, word) in ids.into_iter().zip(words) {
             assert_eq!(word >> 24, u32::from(id));
             assert_eq!(Some(word), default_biome_word(id));
+        }
+    }
+
+    #[test]
+    fn spawn_search_returns_target_valid_raw_biome_cross() {
+        for seed in [0, 1, -1, i32::MIN, i32::MAX, 0x1234_5678] {
+            let source = OverworldBiomeSource::new(seed);
+            let (x, z) = source.spawn_position();
+            assert_eq!(x.rem_euclid(4), 0, "seed={seed}");
+            assert_eq!(z.rem_euclid(4), 0, "seed={seed}");
+
+            let raw = source.raw_biome_ids(x / 4 - 1, z / 4 - 1, 3, 3);
+            for index in [4_usize, 3, 5, 1, 7] {
+                assert!(
+                    PLAYER_VALID_SPAWNS.contains(&raw[index]),
+                    "seed={seed} spawn={x}:{z} raw={:?}",
+                    raw
+                );
+            }
         }
     }
 

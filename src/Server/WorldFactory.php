@@ -8,6 +8,7 @@ use Cobblestone\World\Dimension;
 use Cobblestone\World\Generator\FlatGenerator;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
+use Cobblestone\World\Generator\InfiniteGenerator;
 use Cobblestone\World\MainChunkSource;
 use Cobblestone\World\Mutation\MutationCoordinator;
 use Cobblestone\Native\World as NativeWorld;
@@ -27,6 +28,81 @@ final class WorldFactory
         Dimension $dimension = Dimension::Overworld,
     ): World {
         return self::create($name, $seed, FlatGenerator::defaults(), $dimension);
+    }
+
+    public static function infinite(
+        string $name = 'Cobblestone',
+        int $seed = -1,
+    ): World {
+        if (!NativeWorld::available()) {
+            throw new \RuntimeException('Infinite worlds require cobblestone_core_php');
+        }
+
+        return self::create($name, $seed, new InfiniteGenerator($seed), Dimension::Overworld);
+    }
+
+    public static function persistentInfinite(
+        string $root,
+        string $name = 'Cobblestone',
+        int $seed = -1,
+        int $saveWorkers = 2,
+        int $loadWorkers = 2,
+        int $compactionMinDeadBytes = self::DEFAULT_COMPACTION_MIN_DEAD_BYTES,
+        int $compactionMinDeadPercent = self::DEFAULT_COMPACTION_MIN_DEAD_PERCENT,
+    ): World {
+        if (!NativeWorld::available()) {
+            throw new \RuntimeException('persistent Infinite worlds require cobblestone_core_php');
+        }
+
+        $creationGenerator = new InfiniteGenerator($seed);
+        $nativeStore = NativeWorld::create();
+        try {
+            $metadata = $nativeStore->attachStorage(
+                $root,
+                $name,
+                $seed,
+                GeneratorType::Infinite->value,
+                1,
+                '',
+                $creationGenerator->spawn(),
+                saveWorkers: $saveWorkers,
+                loadWorkers: $loadWorkers,
+                compactionMinDeadBytes: $compactionMinDeadBytes,
+                compactionMinDeadPercent: $compactionMinDeadPercent,
+                createDimension: Dimension::Overworld,
+            );
+            if ($metadata->generatorId !== GeneratorType::Infinite->value) {
+                throw new \LogicException(
+                    "persistent world generator {$metadata->generatorId} is not Infinite",
+                );
+            }
+            if ($metadata->generatorSettingsVersion !== 1 || $metadata->generatorSettings !== '') {
+                throw new \LogicException('persistent Infinite generator settings are unsupported');
+            }
+            if ($metadata->dimension !== Dimension::Overworld) {
+                throw new \LogicException('Infinite generator is only valid for the Overworld');
+            }
+
+            $generator = new InfiniteGenerator($metadata->seed);
+            $world = self::compose(
+                $metadata->name,
+                $metadata->seed,
+                $metadata->dimension,
+                $generator,
+                $nativeStore,
+            );
+            $world->setSpawn($metadata->spawn);
+            $world->setTime($metadata->time);
+            $world->setTimeStarted($metadata->timeRunning);
+
+            return $world;
+        } catch (Throwable $error) {
+            try {
+                $nativeStore->destroy();
+            } catch (Throwable) {
+            }
+            throw $error;
+        }
     }
 
     public static function persistentFlat(

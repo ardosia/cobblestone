@@ -450,6 +450,73 @@ mod tests {
     }
 
     #[test]
+    fn representative_whole_pipeline_fixtures_are_stable() {
+        let fixtures = [
+            (
+                "normal",
+                0,
+                ChunkCoord::new(0, 0),
+                4,
+                0x67fa_7aa3_351a_648a_u64,
+            ),
+            (
+                "cold-snow",
+                42,
+                ChunkCoord::new(-26, -21),
+                12,
+                0x6f1a_92cd_565a_12ed_u64,
+            ),
+            (
+                "savanna",
+                0,
+                ChunkCoord::new(41, 48),
+                35,
+                0x7444_fbd7_eeb3_3f33_u64,
+            ),
+            (
+                "desert-pyramid",
+                0,
+                ChunkCoord::new(981, -1016),
+                2,
+                0xef24_9a32_d206_c5df_u64,
+            ),
+        ];
+
+        for (name, seed, target, expected_biome, expected_hash) in fixtures {
+            let store = WorldStore::new();
+            let mut generator = OverworldInfiniteGenerator::new(seed);
+            generator.generate_into_store(&store, target).unwrap();
+            let snapshot = store.snapshot(target).unwrap();
+
+            assert_eq!(
+                biome_id(snapshot.biomes()[8 + 8 * 16]),
+                expected_biome,
+                "fixture={name}",
+            );
+            assert_eq!(semantic_hash(&snapshot), expected_hash, "fixture={name}");
+            assert_eq!(snapshot.lifecycle_flags(), FULL_LIFECYCLE, "fixture={name}");
+
+            if name == "cold-snow" {
+                let snow = snapshot
+                    .states()
+                    .iter()
+                    .filter(|state| (**state >> 4) == 78)
+                    .count();
+                let ice = snapshot
+                    .states()
+                    .iter()
+                    .filter(|state| (**state >> 4) == 79)
+                    .count();
+                assert_eq!(snow, 209);
+                assert_eq!(ice, 29);
+            }
+            if name == "desert-pyramid" {
+                assert!(!generator.state.scattered.is_empty());
+            }
+        }
+    }
+
+    #[test]
     fn resident_generated_neighbor_is_authoritative_input() {
         let store = WorldStore::new();
         let first = ChunkCoord::new(0, 0);

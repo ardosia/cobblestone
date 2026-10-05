@@ -162,6 +162,33 @@ final class World
     }
 
     /**
+     * Runs the complete native 0.15.10 Infinite pipeline for one center chunk.
+     *
+     * Returns false only while persistent 3x3 dependency loads are still in flight.
+     */
+    public function generateInfinite(ChunkPos $position, int $seed): bool
+    {
+        if (!\function_exists('cobblestone_world_generate_infinite')) {
+            throw new \RuntimeException(
+                'native Infinite generator is unavailable; rebuild cobblestone_core_php',
+            );
+        }
+
+        return match (cobblestone_world_generate_infinite(
+            $this->requireHandle(),
+            $seed,
+            $position->x,
+            $position->z,
+        )) {
+            0 => true,
+            1 => false,
+            default => throw new \UnexpectedValueException(
+                'native Infinite generator returned an unknown status',
+            ),
+        };
+    }
+
+    /**
      * Polls save completions and schedules dirty immutable snapshots entirely in Rust.
      *
      * @return array{
