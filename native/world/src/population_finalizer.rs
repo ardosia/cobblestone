@@ -5,6 +5,7 @@ use crate::population_feature::{
     RED_FLOWER, RED_MUSHROOM, SNOW, SNOW_LAYER, STILL_WATER, TALL_GRASS, YELLOW_FLOWER,
     block_solid_flag, material_is_solid,
 };
+use crate::population_light::{OverworldFinalizedLighting, finalize_center_lighting};
 use crate::population_tick::drain_generation_ticks;
 use crate::terrain_shape::noise::{MtRandom, PerlinSimplexNoise};
 
@@ -27,6 +28,14 @@ impl OverworldPostDecorationFinalizer {
         fix_water_along_edges(neighborhood);
         apply_generation_seasons(neighborhood);
         neighborhood.with_generation_ticks(drain_generation_ticks);
+    }
+
+    pub fn finalize(
+        &self,
+        neighborhood: &mut PopulationNeighborhood,
+    ) -> OverworldFinalizedLighting {
+        self.finalize_states(neighborhood);
+        finalize_center_lighting(neighborhood)
     }
 }
 

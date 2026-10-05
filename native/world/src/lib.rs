@@ -11,6 +11,7 @@ mod population_feature;
 mod population_finalizer;
 mod population_freeze;
 mod population_lake;
+mod population_light;
 mod population_monster_room;
 mod population_ore;
 mod population_tick;
@@ -56,6 +57,7 @@ pub use population_biome::OverworldBiomeDecorator;
 pub use population_finalizer::OverworldPostDecorationFinalizer;
 pub use population_freeze::OverworldFreezeFrostPopulator;
 pub use population_lake::OverworldLakePopulator;
+pub use population_light::OverworldFinalizedLighting;
 pub use population_monster_room::OverworldMonsterRoomPopulator;
 pub use population_ore::OverworldOreDecorator;
 pub use structure::{
