@@ -76,6 +76,7 @@ Useful environment variables:
 - `COBBLESTONE_WORLD_DIR`
 - `COBBLESTONE_WORLD_NAME`
 - `COBBLESTONE_WORLD_SEED` — MCPE 0.15.10 seed-box input (numeric or text); unset/single-character input uses a random 32-bit seed
+- `COBBLESTONE_VIEW_DISTANCE` — maximum client chunk radius 1..3 (default 3; a 7×7 chunk view when the client requests at least 3)
 - `COBBLESTONE_SAVE_WORKERS`
 - `COBBLESTONE_LOAD_WORKERS`
 - `COBBLESTONE_COMPACTION_MIN_DEAD_BYTES`

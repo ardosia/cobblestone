@@ -177,9 +177,13 @@ function testPhp(): void
         'server-smoke.php',
     ] as $test) {
         runWithExtension(ROOT . '/tests/php/integration/' . $test);
+        if ($test === 'persistent-infinite-join-smoke.php') {
+            runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--wide-initial']);
+        }
         if ($test === 'world-sync-smoke.php') {
             runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--transition-only']);
             runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--radius-cycle']);
+            runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--wide-initial']);
             runWithExtension(ROOT . '/tests/php/integration/' . $test, ['--stream-torture']);
         }
     }

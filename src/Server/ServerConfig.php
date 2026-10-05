@@ -12,7 +12,7 @@ final readonly class ServerConfig
         public string $bind = '0.0.0.0:19132',
         public int $maxConnections = 100,
         public string $name = 'Cobblestone',
-        public int $initialChunkRadius = 2,
+        public int $initialChunkRadius = 3,
     ) {
         if (trim($bind) === '') {
             throw new InvalidArgumentException('server bind address must not be empty');

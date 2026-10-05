@@ -292,6 +292,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         std::env::args().any(|argument| argument == "--move-after-update");
     let transition_only = std::env::args().any(|argument| argument == "--transition-only");
     let radius_cycle = std::env::args().any(|argument| argument == "--radius-cycle");
+    let wide_initial = std::env::args().any(|argument| argument == "--initial-radius=3");
     let stream_torture = std::env::args().any(|argument| argument == "--stream-torture");
     let persistent_stream = std::env::args().any(|argument| argument == "--persistent-stream");
     let spawn_only = std::env::args().any(|argument| argument == "--spawn-only");
@@ -383,27 +384,56 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let requested_radius: i32 = if wide_initial { 3 } else { 2 };
     let request = RawPacket::new(
         REQUEST_CHUNK_RADIUS_ID,
-        NativeBuffer::copy_from_slice(&2_i32.to_be_bytes()),
+        NativeBuffer::copy_from_slice(&requested_radius.to_be_bytes()),
     );
     let request_frame = encode_game_frame(&request, limits)?;
     send_frame(&mut client, request_frame.as_slice()).await?;
 
     let mut spawned = false;
+    let mut initial_radius_ack = false;
+    let mut initial_chunks = std::collections::BTreeSet::new();
     while !spawned {
         let payload = next_payload(&mut client).await?;
         for packet in raw_packets(&payload, limits)? {
-            if packet.id() != packet_id::PLAY_STATUS {
-                continue;
+            if packet.id() == CHUNK_RADIUS_UPDATED_ID {
+                initial_radius_ack |= packet.body().as_slice() == requested_radius.to_be_bytes();
             }
-            let frame = encode_game_frame(&packet, limits)?;
-            if let BootstrapPacket::PlayStatus(status) =
-                decode_bootstrap_frame(frame.as_slice(), limits)?
+            if packet.id() == cobblestone_protocol84::FULL_CHUNK_DATA_ID && packet.body().len() >= 8
             {
-                spawned |= status.status() == 3;
+                let body = packet.body().as_slice();
+                initial_chunks.insert((
+                    i32::from_be_bytes(body[0..4].try_into()?),
+                    i32::from_be_bytes(body[4..8].try_into()?),
+                ));
+            }
+            if packet.id() == packet_id::PLAY_STATUS {
+                let frame = encode_game_frame(&packet, limits)?;
+                if let BootstrapPacket::PlayStatus(status) =
+                    decode_bootstrap_frame(frame.as_slice(), limits)?
+                {
+                    spawned |= status.status() == 3;
+                }
             }
         }
+    }
+    if wide_initial {
+        let center = expected_spawn
+            .map(|spawn| (spawn[0].div_euclid(16), spawn[2].div_euclid(16)))
+            .unwrap_or((8, 8));
+        let expected = (-3..=3)
+            .flat_map(|dx| (-3..=3).map(move |dz| (center.0 + dx, center.1 + dz)))
+            .collect::<std::collections::BTreeSet<_>>();
+        if !initial_radius_ack || initial_chunks != expected {
+            return Err(format!(
+                "initial radius 3 view mismatch: ack={initial_radius_ack} chunks={} expected=49",
+                initial_chunks.len(),
+            )
+            .into());
+        }
+        println!("world-sync-client: initial-radius=verified radius=3 chunks=49");
     }
 
     if spawn_only {

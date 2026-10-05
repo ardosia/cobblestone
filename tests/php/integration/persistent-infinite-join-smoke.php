@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+$wideInitial = in_array('--wide-initial', $argv, true);
+
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\ServerState;
@@ -70,7 +72,7 @@ $server = Server::create(
         bind: $bind,
         maxConnections: 4,
         name: 'Cobblestone Persistent Infinite Join Test',
-        initialChunkRadius: 2,
+        initialChunkRadius: $wideInitial ? 3 : 2,
     ),
     world: $world,
 );
@@ -101,6 +103,9 @@ $command = [
     '--spawn-only',
     '--expect-spawn=4,63,4',
 ];
+if ($wideInitial) {
+    $command[] = '--initial-radius=3';
+}
 $descriptors = [
     0 => ['pipe', 'r'],
     1 => ['pipe', 'w'],
@@ -152,11 +157,17 @@ try {
         "persistent Infinite join client failed\nstdout={$stdout}\nstderr={$stderr}",
     );
     persistentInfiniteJoinExpect($spawned, 'persistent Infinite session never reached spawned state');
-    persistentInfiniteJoinExpect($spawnedChunks === 25, 'persistent Infinite join sent wrong initial chunk count');
+    persistentInfiniteJoinExpect($spawnedChunks === ($wideInitial ? 49 : 25), 'persistent Infinite join sent wrong initial chunk count');
     persistentInfiniteJoinExpect(
         str_contains($stdout, 'world-sync-client: spawn-position=verified x=4 y=63 z=4'),
         "persistent Infinite client observed wrong StartGame spawn\nstdout={$stdout}\nstderr={$stderr}",
     );
+    if ($wideInitial) {
+        persistentInfiniteJoinExpect(
+            str_contains($stdout, 'world-sync-client: initial-radius=verified radius=3 chunks=49'),
+            "persistent Infinite client missed radius-3 chunk coverage\nstdout={$stdout}\nstderr={$stderr}",
+        );
+    }
     persistentInfiniteJoinExpect(
         str_contains($stdout, 'world-sync-client: spawn=verified'),
         "persistent Infinite client never observed PLAY_STATUS spawned\nstdout={$stdout}\nstderr={$stderr}",

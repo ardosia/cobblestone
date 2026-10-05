@@ -6,6 +6,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 $transitionOnly = in_array('--transition-only', $argv, true);
 $radiusCycle = in_array('--radius-cycle', $argv, true);
+$wideInitial = in_array('--wide-initial', $argv, true);
 $streamTorture = in_array('--stream-torture', $argv, true);
 
 use Cobblestone\Native\Session\Packet;
@@ -24,6 +25,10 @@ function worldSyncExpect(bool $condition, string $message): void
     if (!$condition) {
         throw new RuntimeException($message);
     }
+}
+
+if ($wideInitial) {
+    worldSyncExpect((new ServerConfig())->initialChunkRadius === 3, 'server default chunk radius is not 3');
 }
 
 function worldSyncPinCountOrZero(NativeWorld $store, ChunkPos $position): int
@@ -57,7 +62,7 @@ $server = Server::create(
         $bind,
         4,
         'Cobblestone World Sync Test',
-        initialChunkRadius: $radiusCycle ? 3 : 2,
+        initialChunkRadius: $radiusCycle || $wideInitial ? 3 : 2,
     ),
     packetHandler: static function (Packet $packet) use (&$movementHandled, &$server, $transitionOnly): void {
         if ($packet->packetId !== 0x10) {
@@ -84,16 +89,16 @@ $spawned = false;
 $mutated = false;
 $server->on(
     SessionSpawned::class,
-    static function (SessionSpawned $event) use ($server, $transitionOnly, $radiusCycle, $streamTorture, &$spawned, &$mutated): void {
+    static function (SessionSpawned $event) use ($server, $transitionOnly, $radiusCycle, $wideInitial, $streamTorture, &$spawned, &$mutated): void {
         $spawned = true;
-        worldSyncExpect($event->chunksSent > 0, 'world-sync client spawned without chunks');
+        worldSyncExpect($event->chunksSent === ($wideInitial ? 49 : 25), 'world-sync initial view chunk count mismatch');
         $store = $server->world()->nativeStore();
         worldSyncExpect($store !== null, 'world-sync server did not use native world storage');
         worldSyncExpect(
             $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
             'spawned client view did not pin its streamed center chunk',
         );
-        if ($transitionOnly || $radiusCycle || $streamTorture) {
+        if ($transitionOnly || $radiusCycle || $wideInitial || $streamTorture) {
             return;
         }
 
@@ -124,8 +129,11 @@ $command = [
     $bind,
     $streamTorture
         ? '--stream-torture'
-        : ($radiusCycle ? '--radius-cycle' : ($transitionOnly ? '--transition-only' : '--move-after-update')),
+        : ($wideInitial ? '--spawn-only' : ($radiusCycle ? '--radius-cycle' : ($transitionOnly ? '--transition-only' : '--move-after-update'))),
 ];
+if ($wideInitial) {
+    $command[] = '--initial-radius=3';
+}
 $descriptors = [
     0 => ['pipe', 'r'],
     1 => ['pipe', 'w'],
@@ -258,11 +266,16 @@ try {
 
     worldSyncExpect($exitCode === 0, "world-sync client failed: {$stderr}");
     worldSyncExpect($spawned, 'world-sync session never reached spawned state');
-    if (!$radiusCycle) {
+    if (!$radiusCycle && !$wideInitial) {
         worldSyncExpect($movementHandled, 'world-sync MovePlayer never reached post-spawn gameplay handling');
     }
 
-    if ($streamTorture) {
+    if ($wideInitial) {
+        worldSyncExpect(
+            str_contains($stdout, 'world-sync-client: initial-radius=verified radius=3 chunks=49'),
+            "world-sync client did not observe all 49 initial chunks\nstdout={$stdout}\nstderr={$stderr}",
+        );
+    } elseif ($streamTorture) {
         worldSyncExpect($streamTortureCommitted, 'stream-torture did not return to the original view cleanly');
         foreach ([
             'world-sync-client: stream-torture rapid=verified',
