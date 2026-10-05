@@ -5,7 +5,7 @@ use crate::terrain_shape::noise::MtRandom;
 
 use super::village_place::VillagePostProcessor;
 use super::village_plan::{SemanticCursor, VillagePlan, VillageStyle};
-use super::{StructureStartCache, structure_source_chunks, structure_source_random};
+use super::{StructureStartCache, chunk_hash, structure_source_chunks, structure_source_random};
 
 const TOWN_SPACING: i32 = 40;
 const MIN_TOWN_SEPARATION: i32 = 12;
@@ -13,6 +13,13 @@ const VILLAGE_SALT: i64 = 10_387_312;
 const X_SEED_SCALE: i64 = 341_873_128_712;
 const Z_SEED_SCALE: i64 = 132_897_987_541;
 const VILLAGE_SOURCE_RADIUS: i32 = 4;
+
+// GNU libstdc++ 4.9's default unordered_map starts at 11 buckets and doubles through
+// this prime-policy sequence. Village state rejects more than 4096 starts on reload,
+// so 7517 is the last bucket count reachable by any durable state.
+const GNU49_VILLAGE_BUCKET_COUNTS: &[usize] = &[11, 23, 47, 97, 199, 409, 823, 1741, 3739, 7517];
+const GNU49_EMPTY_BUCKET: usize = usize::MAX;
+const GNU49_BEFORE_BEGIN: usize = usize::MAX - 1;
 
 const PLAINS: u8 = 1;
 const DESERT: u8 = 2;
@@ -197,12 +204,125 @@ impl OverworldVillageStructures {
         random: &mut MtRandom,
     ) -> bool {
         let processor = VillagePostProcessor::new(population_seed(self.seed, target));
+        let target_order = target_structure_map_iteration_order(&state.starts);
         let mut changed = false;
-        for start in state.starts.iter_mut() {
+        for index in target_order {
+            let start = state
+                .starts
+                .get_mut(index)
+                .expect("target Village start order contains valid indices");
             changed |= processor.process_start(start, neighborhood, target, random);
         }
         changed
     }
+}
+
+fn target_structure_map_iteration_order(starts: &StructureStartCache<VillagePlan>) -> Vec<usize> {
+    let sources: Vec<_> = starts.iter().map(|start| start.core.source()).collect();
+    gnu49_unordered_map_iteration_order(&sources)
+}
+
+fn gnu49_unordered_map_iteration_order(sources: &[ChunkCoord]) -> Vec<usize> {
+    if sources.is_empty() {
+        return Vec::new();
+    }
+
+    let mut bucket_count = GNU49_VILLAGE_BUCKET_COUNTS[0];
+    let mut next_resize = bucket_count;
+    let mut bucket_before = vec![GNU49_EMPTY_BUCKET; bucket_count];
+    let mut next = vec![None; sources.len()];
+    let mut head = None;
+
+    for index in 0..sources.len() {
+        let element_count_after = index + 1;
+        if element_count_after >= next_resize {
+            let min_buckets = element_count_after;
+            if min_buckets >= bucket_count {
+                let requested = (min_buckets + 1).max(bucket_count * 2);
+                let new_bucket_count = GNU49_VILLAGE_BUCKET_COUNTS
+                    .iter()
+                    .copied()
+                    .find(|count| *count >= requested)
+                    .expect("durable Village start count fits GNU 4.9 bucket table");
+
+                let old_order = linked_iteration_order(head, &next);
+                bucket_count = new_bucket_count;
+                next_resize = bucket_count;
+                bucket_before = vec![GNU49_EMPTY_BUCKET; bucket_count];
+                head = None;
+                for old_index in old_order {
+                    next[old_index] = None;
+                    gnu49_insert_node(
+                        sources,
+                        old_index,
+                        bucket_count,
+                        &mut bucket_before,
+                        &mut next,
+                        &mut head,
+                    );
+                }
+            } else {
+                next_resize = bucket_count;
+            }
+        }
+
+        gnu49_insert_node(
+            sources,
+            index,
+            bucket_count,
+            &mut bucket_before,
+            &mut next,
+            &mut head,
+        );
+    }
+
+    linked_iteration_order(head, &next)
+}
+
+fn gnu49_insert_node(
+    sources: &[ChunkCoord],
+    index: usize,
+    bucket_count: usize,
+    bucket_before: &mut [usize],
+    next: &mut [Option<usize>],
+    head: &mut Option<usize>,
+) {
+    let bucket = target_chunk_bucket(sources[index], bucket_count);
+    let before = bucket_before[bucket];
+
+    if before == GNU49_EMPTY_BUCKET {
+        next[index] = *head;
+        if let Some(old_head) = *head {
+            let old_bucket = target_chunk_bucket(sources[old_head], bucket_count);
+            debug_assert_eq!(bucket_before[old_bucket], GNU49_BEFORE_BEGIN);
+            bucket_before[old_bucket] = index;
+        }
+        *head = Some(index);
+        bucket_before[bucket] = GNU49_BEFORE_BEGIN;
+        return;
+    }
+
+    if before == GNU49_BEFORE_BEGIN {
+        next[index] = *head;
+        *head = Some(index);
+        return;
+    }
+
+    next[index] = next[before];
+    next[before] = Some(index);
+}
+
+fn target_chunk_bucket(source: ChunkCoord, bucket_count: usize) -> usize {
+    (chunk_hash(source.x(), source.z()) as u32 as usize) % bucket_count
+}
+
+fn linked_iteration_order(mut head: Option<usize>, next: &[Option<usize>]) -> Vec<usize> {
+    let mut order = Vec::with_capacity(next.len());
+    while let Some(index) = head {
+        order.push(index);
+        head = next[index];
+    }
+    order
 }
 
 struct CandidateCheck {
@@ -328,6 +448,98 @@ mod tests {
         // These were false positives from the old misread (raw >> 2) % 28 oracle.
         for source in [ChunkCoord::new(1, 8), ChunkCoord::new(1, 17)] {
             assert!(!candidate_with_random(feature.seed, source).0);
+        }
+    }
+
+    #[test]
+    fn gnu49_structure_map_order_matches_mama_moose_offline_overwrites() {
+        let sources = [
+            ChunkCoord::new(2, 3),
+            ChunkCoord::new(1, 6),
+            ChunkCoord::new(0, 9),
+        ];
+        assert_eq!(gnu49_unordered_map_iteration_order(&sources), [2, 1, 0]);
+
+        let same_bucket = [
+            ChunkCoord::new(0, 0),
+            ChunkCoord::new(0, 11),
+            ChunkCoord::new(0, 1),
+        ];
+        assert_eq!(gnu49_unordered_map_iteration_order(&same_bucket), [2, 1, 0]);
+
+        let rehash: Vec<_> = (0..11).map(|z| ChunkCoord::new(0, z)).collect();
+        assert_eq!(
+            gnu49_unordered_map_iteration_order(&rehash),
+            [10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        );
+    }
+
+    #[test]
+    fn mama_moose_cross_start_overwrites_match_offline_precedence() {
+        let seed = -1_385_905_961;
+        let runtime = OverworldVillageStructures::new(seed);
+        let offline_sources = [
+            ChunkCoord::new(2, 3),
+            ChunkCoord::new(1, 6),
+            ChunkCoord::new(0, 9),
+        ];
+
+        let mut farm_house_state = VillageStructureState::new();
+        for source in offline_sources {
+            farm_house_state.starts.push(
+                runtime
+                    .feature
+                    .plan(source)
+                    .expect("offline-backed Village source"),
+            );
+        }
+
+        // Real 0.15.10 output at x50..55,z80 is the (2,3) BookHouse stair roof even
+        // though the (1,6) Farmland bounds overlap the same columns. Synthetic flat
+        // terrain shifts Y, but the winning block family must stay the house.
+        let farm_house_target = ChunkCoord::new(3, 5);
+        let mut farm_house = flat_population(farm_house_target, PLAINS);
+        assert!(runtime.post_process(&mut farm_house_state, &mut farm_house, farm_house_target));
+        for x in 50..=55 {
+            let top_y = (0..128)
+                .rev()
+                .find(|y| farm_house.block_id(x, *y, 80) != 0)
+                .expect("flat column stays non-air");
+            assert_eq!(
+                farm_house.block_id(x, top_y, 80),
+                53,
+                "Farmland incorrectly won the cross-start overlap at x={x}",
+            );
+        }
+
+        let mut road_house_state = VillageStructureState::new();
+        for source in offline_sources {
+            road_house_state.starts.push(
+                runtime
+                    .feature
+                    .plan(source)
+                    .expect("offline-backed Village source"),
+            );
+        }
+
+        // The real offline world has GrassPath as the top solid block across this
+        // (1,6) StraightRoad / (0,9) TwoRoomHouse overlap. The road therefore runs
+        // after the house and intentionally paints the house roof/top surface.
+        let road_house_target = ChunkCoord::new(0, 8);
+        let mut road_house = flat_population(road_house_target, PLAINS);
+        assert!(runtime.post_process(&mut road_house_state, &mut road_house, road_house_target));
+        for z in 128..=133 {
+            for x in 11..=13 {
+                let top_y = (0..128)
+                    .rev()
+                    .find(|y| road_house.block_id(x, *y, z) != 0)
+                    .expect("flat column stays non-air");
+                assert_eq!(
+                    road_house.block_id(x, top_y, z),
+                    198,
+                    "target StraightRoad did not win the cross-start overlap at {x},{z}",
+                );
+            }
         }
     }
 

@@ -237,6 +237,10 @@ impl<T> StructureStartCache<T> {
         self.starts.iter_mut()
     }
 
+    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.starts.get_mut(index)
+    }
+
     pub(crate) fn push(&mut self, start: T) {
         self.starts.push(start);
     }
