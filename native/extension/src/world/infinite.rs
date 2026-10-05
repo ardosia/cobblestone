@@ -2,9 +2,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use cobblestone_storage::{read_generator_state, write_generator_state};
-use cobblestone_world::{
-    ChunkCoord, OverworldInfiniteGenerator, OverworldInfiniteState,
-};
+use cobblestone_world::{ChunkCoord, OverworldInfiniteGenerator, OverworldInfiniteState};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 
@@ -125,8 +123,8 @@ pub fn cobblestone_world_generate_infinite(
     chunk_z: i64,
 ) -> PhpResult<i64> {
     php_boundary(|| {
-        let seed =
-            i32::try_from(seed).map_err(|_| php_error("Infinite world seed must fit signed 32 bits"))?;
+        let seed = i32::try_from(seed)
+            .map_err(|_| php_error("Infinite world seed must fit signed 32 bits"))?;
         let target = position(chunk_x, chunk_z)?;
         let state = resolve_world_state(handle_value)?;
         let required = neighborhood(target);
