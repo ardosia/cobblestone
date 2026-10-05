@@ -14,7 +14,7 @@ mod geometry;
 mod state;
 mod sync;
 
-pub(crate) use geometry::ChunkViewDelta;
+pub(crate) use geometry::{ChunkViewDelta, prioritize_for_player};
 use state::world_views;
 
 pub(crate) use state::{
@@ -79,10 +79,14 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
 
 #[cfg(test)]
 mod view_delta_tests {
-    use super::geometry::{chunk_view_delta, chunk_view_transition, view_positions};
+    use super::geometry::{
+        chunk_view_delta, chunk_view_transition, prioritize_for_player, view_positions,
+    };
+    use std::sync::Arc;
+
     use super::state::{WorldView, apply_view_delta};
     use super::*;
-    use cobblestone_world::{ChunkCoord, ChunkPatch, WORLD_CHANGE_LOG_CAPACITY};
+    use cobblestone_world::{ChunkCoord, ChunkPatch, WORLD_CHANGE_LOG_CAPACITY, WorldStore};
 
     fn positions(values: &[(i32, i32)]) -> Vec<ChunkCoord> {
         values.iter().map(|&(x, z)| ChunkCoord::new(x, z)).collect()
@@ -150,17 +154,28 @@ mod view_delta_tests {
     }
 
     #[test]
-    fn diagonal_shift_keeps_x_then_z_order() {
+    fn diagonal_shift_keeps_target_x_fast_grid_order() {
         let delta =
             chunk_view_delta(ChunkCoord::new(0, 0), 1, ChunkCoord::new(1, 1)).expect("delta");
 
         assert_eq!(
             delta.entering,
-            positions(&[(0, 2), (1, 2), (2, 0), (2, 1), (2, 2)])
+            positions(&[(2, 0), (2, 1), (0, 2), (1, 2), (2, 2)])
         );
         assert_eq!(
             delta.leaving,
-            positions(&[(-1, -1), (-1, 0), (-1, 1), (0, -1), (1, -1)])
+            positions(&[(-1, -1), (0, -1), (1, -1), (-1, 0), (-1, 1)])
+        );
+    }
+
+    #[test]
+    fn target_streaming_priority_prefers_chunk_min_nearest_player() {
+        let mut entering = positions(&[(0, 9), (1, 9), (2, 9), (0, 10), (1, 10)]);
+        prioritize_for_player(&mut entering, [20.0, 64.0, 148.0]);
+
+        assert_eq!(
+            entering,
+            positions(&[(1, 9), (2, 9), (1, 10), (0, 9), (0, 10)])
         );
     }
 
@@ -223,6 +238,26 @@ mod view_delta_tests {
         }
         assert_eq!(view.store.pin_count(shared_leaving).unwrap(), 1);
         assert_eq!(view.store.pin_count(ChunkCoord::new(0, 0)).unwrap(), 1);
+    }
+
+    #[test]
+    fn target_priority_reordering_still_commits_the_same_view_geometry() {
+        let mut view = pinned_view(ChunkCoord::new(0, 0), 1);
+        let mut delta =
+            chunk_view_delta(view.center, view.radius, ChunkCoord::new(1, 0)).expect("delta");
+        prioritize_for_player(&mut delta.entering, [24.5, 64.0, 0.5]);
+        assert_eq!(
+            delta.entering,
+            positions(&[(2, 0), (2, 1), (2, -1)]),
+            "fixture must exercise an order different from raw GridArea order",
+        );
+        for &position in &delta.entering {
+            view.store.ensure_chunk(position, 1).unwrap();
+        }
+
+        apply_view_delta(&mut view, &delta).expect("priority-reordered view delta");
+        assert_eq!(view.center, ChunkCoord::new(1, 0));
+        assert_eq!(view.pinned_chunks, view_positions(ChunkCoord::new(1, 0), 1));
     }
 
     #[test]
@@ -309,7 +344,7 @@ mod view_delta_tests {
         );
 
         let mut recovered = pending.into_keys().collect::<Vec<_>>();
-        recovered.sort_unstable_by_key(|position| (position.x(), position.z()));
+        recovered.sort_unstable_by_key(|position| (position.z(), position.x()));
         assert_eq!(recovered, view_positions(ChunkCoord::new(1, 0), 1));
         assert!(!recovered.contains(&ChunkCoord::new(-1, 0)));
     }

@@ -23,11 +23,28 @@ final class InitialChunkView
     public function positions(int $radius, ChunkPos $center): array
     {
         $positions = [];
-        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
-            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
+        // Target GridArea/Bounds iteration advances X first, then Z.
+        for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
+            for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
                 $positions[] = new ChunkPos($x, $z);
             }
         }
+
+        $spawn = $this->world->spawn();
+        usort(
+            $positions,
+            static function (ChunkPos $left, ChunkPos $right) use ($spawn): int {
+                $leftDx = ($left->x * 16) - ($spawn->x + 0.5);
+                $leftDz = ($left->z * 16) - ($spawn->z + 0.5);
+                $rightDx = ($right->x * 16) - ($spawn->x + 0.5);
+                $rightDz = ($right->z * 16) - ($spawn->z + 0.5);
+
+                $leftPriority = (int) sqrt(($leftDx * $leftDx) + ($leftDz * $leftDz));
+                $rightPriority = (int) sqrt(($rightDx * $rightDx) + ($rightDz * $rightDz));
+
+                return $leftPriority <=> $rightPriority;
+            },
+        );
 
         return $positions;
     }
@@ -35,13 +52,13 @@ final class InitialChunkView
     public function ensure(int $radius, ChunkPos $center): int
     {
         $count = 0;
-        for ($x = $center->x - $radius; $x <= $center->x + $radius; ++$x) {
-            for ($z = $center->z - $radius; $z <= $center->z + $radius; ++$z) {
-                if ($this->world->chunk(new ChunkPos($x, $z)) === null) {
-                    throw new LogicException("world failed to generate initial chunk {$x}:{$z}");
-                }
-                ++$count;
+        foreach ($this->positions($radius, $center) as $position) {
+            if ($this->world->chunk($position) === null) {
+                throw new LogicException(
+                    "world failed to generate initial chunk {$position->x}:{$position->z}",
+                );
             }
+            ++$count;
         }
 
         return $count;

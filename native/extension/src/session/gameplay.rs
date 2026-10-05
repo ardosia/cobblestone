@@ -15,6 +15,7 @@ use crate::session::view::{
     queue_view_delta_chunks,
 };
 
+use super::view::prioritize_for_player;
 use projection::encode_view_delta;
 #[cfg(test)]
 use state::{MAX_PLAYER_COORDINATE, PlayerState};
@@ -82,6 +83,9 @@ pub fn cobblestone_session_protocol84_track_move_player(
             Some(radius) => plan_view_transition(owner, session_id, state.chunk, radius),
             None => plan_view_delta(owner, session_id, state.chunk),
         };
+        if let Some(delta) = state.view_delta.as_mut() {
+            prioritize_for_player(&mut delta.entering, state.position);
+        }
         let projection = encode_view_delta(state.view_delta.as_ref()).map_err(php_error)?;
         player_states().insert((owner, session_id), state);
         Ok(projection)
@@ -105,14 +109,17 @@ pub fn cobblestone_session_protocol84_plan_chunk_radius(
             )));
         }
 
-        let chunk = {
+        let (chunk, position) = {
             let states = player_states();
-            states
+            let state = states
                 .get(&(owner, session_id))
-                .ok_or_else(|| php_error("cannot resize chunk view before spawned player state"))?
-                .chunk
+                .ok_or_else(|| php_error("cannot resize chunk view before spawned player state"))?;
+            (state.chunk, state.position)
         };
-        let delta = plan_view_transition(owner, session_id, chunk, effective_radius);
+        let mut delta = plan_view_transition(owner, session_id, chunk, effective_radius);
+        if let Some(delta) = delta.as_mut() {
+            prioritize_for_player(&mut delta.entering, position);
+        }
         let projection = encode_view_delta(delta.as_ref()).map_err(php_error)?;
 
         let mut states = player_states();

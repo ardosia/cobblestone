@@ -59,6 +59,17 @@ pub(crate) fn plan_view_transition(
     chunk_view_transition(view.center, view.radius, to_center, to_radius)
 }
 
+fn same_chunk_set(left: &[ChunkCoord], right: &[ChunkCoord]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut left = left.to_vec();
+    let mut right = right.to_vec();
+    left.sort_unstable_by_key(|position| (position.x(), position.z()));
+    right.sort_unstable_by_key(|position| (position.x(), position.z()));
+    left == right
+}
+
 pub(super) fn apply_view_delta(view: &mut WorldView, delta: &ChunkViewDelta) -> Result<(), String> {
     if view.center != delta.from_center || view.radius != delta.from_radius {
         return Err(
@@ -71,7 +82,9 @@ pub(super) fn apply_view_delta(view: &mut WorldView, delta: &ChunkViewDelta) -> 
             .ok_or_else(|| {
                 "pending chunk view delta does not change the active view".to_string()
             })?;
-    if expected != *delta {
+    if !same_chunk_set(&expected.entering, &delta.entering)
+        || !same_chunk_set(&expected.leaving, &delta.leaving)
+    {
         return Err("pending chunk view delta does not match the active view geometry".into());
     }
 

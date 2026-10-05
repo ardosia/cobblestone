@@ -156,10 +156,8 @@ impl OverworldInfiniteGenerator {
         store: &WorldStore,
         target: ChunkCoord,
     ) -> Result<InfiniteGenerationResult, WorldStoreError> {
-        let snapshots = neighborhood_snapshots(store, target)?;
-        if snapshots[4]
-            .as_ref()
-            .is_some_and(|snapshot| snapshot.lifecycle_flags() & FULL_LIFECYCLE == FULL_LIFECYCLE)
+        if store.contains_chunk(target)
+            && store.lifecycle_flags(target)? & FULL_LIFECYCLE == FULL_LIFECYCLE
         {
             return Ok(InfiniteGenerationResult {
                 changed_chunks: 0,
@@ -167,39 +165,134 @@ impl OverworldInfiniteGenerator {
             });
         }
 
-        let mut preserved = Vec::with_capacity(9);
-        let chunks = array::from_fn(|index| {
+        let mut changed_chunks = 0;
+        for index in 0..9 {
             let position = neighborhood_position(target, index);
-            if let Some(snapshot) = snapshots[index]
-                .as_ref()
-                .filter(|snapshot| snapshot.lifecycle_flags() & CHUNK_LIFECYCLE_GENERATED != 0)
-            {
-                preserved.push(PreservedChunk::from_snapshot(snapshot));
-                planes_from_snapshot(snapshot)
-            } else {
-                let carved = self.carver.generate(position);
-                let (states, biome_ids) = carved.into_parts();
-                preserved.push(PreservedChunk::fresh(&biome_ids));
-                PopulationChunkPlanes {
-                    generation_height_map: generation_height_map(&states),
-                    states,
-                    biome_ids,
-                    extra_data: BTreeMap::new(),
-                }
+            if self.ensure_generated_chunk(store, position)? {
+                changed_chunks += 1;
+                changed_chunks += self.post_process_area(store, position)?;
             }
-        });
-        let preserved: [PreservedChunk; 9] = preserved
-            .try_into()
-            .expect("nine population-neighborhood preservation entries");
+        }
 
+        // Persistent callers preflight the target 3x3, so it is necessarily ready after the
+        // generation pass even when every dependency was already resident/generated.
+        changed_chunks += self.post_process_area(store, target)?;
+
+        let generated_center = store.contains_chunk(target)
+            && store.lifecycle_flags(target)? & FULL_LIFECYCLE == FULL_LIFECYCLE;
+        Ok(InfiniteGenerationResult {
+            changed_chunks,
+            generated_center,
+        })
+    }
+
+    fn ensure_generated_chunk(
+        &mut self,
+        store: &WorldStore,
+        position: ChunkCoord,
+    ) -> Result<bool, WorldStoreError> {
+        if store.contains_chunk(position)
+            && store.lifecycle_flags(position)? & CHUNK_LIFECYCLE_GENERATED != 0
+        {
+            return Ok(false);
+        }
+
+        let carved = self.carver.generate(position);
+        let (states, biome_ids) = carved.into_parts();
+        let height_map = generation_height_map(&states);
+        let biomes = biome_ids
+            .iter()
+            .map(|id| default_biome_word(*id).expect("generated biome id is fixed-target valid"))
+            .collect();
+
+        // Target StructureFeature::addFeature runs during chunk generation, before that chunk can
+        // make any neighboring center eligible for post-processing.
+        self.villages.apply(&mut self.state.village, position);
+        self.mineshafts.apply(&mut self.state.mineshaft, position);
+        self.strongholds.apply(&mut self.state.stronghold, position);
+        self.scattered.apply(&mut self.state.scattered, position);
+
+        store.install_generated_chunk(
+            position,
+            ChunkImport {
+                terrain_revision: 0,
+                light_revision: 0,
+                lifecycle_flags: CHUNK_LIFECYCLE_GENERATED,
+                states,
+                sky_light: vec![0; CHUNK_NIBBLE_BYTES],
+                block_light: vec![0; CHUNK_NIBBLE_BYTES],
+                biomes,
+                height_map,
+                extra_data: BTreeMap::new(),
+            },
+        )
+    }
+
+    fn post_process_area(
+        &mut self,
+        store: &WorldStore,
+        generated: ChunkCoord,
+    ) -> Result<usize, WorldStoreError> {
+        const OFFSETS: [(i32, i32); 9] = [
+            (0, 0),
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1),
+        ];
+
+        let mut changed_chunks = 0;
+        for (offset_x, offset_z) in OFFSETS {
+            let center = ChunkCoord::new(
+                generated.x().wrapping_add(offset_x),
+                generated.z().wrapping_add(offset_z),
+            );
+            changed_chunks += self.try_post_process_center(store, center)?;
+        }
+        Ok(changed_chunks)
+    }
+
+    fn try_post_process_center(
+        &mut self,
+        store: &WorldStore,
+        target: ChunkCoord,
+    ) -> Result<usize, WorldStoreError> {
+        if !store.contains_chunk(target) {
+            return Ok(0);
+        }
+        let center_flags = store.lifecycle_flags(target)?;
+        if center_flags & CHUNK_LIFECYCLE_GENERATED == 0
+            || center_flags & FULL_LIFECYCLE == FULL_LIFECYCLE
+        {
+            return Ok(0);
+        }
+
+        let snapshots = neighborhood_snapshots(store, target)?;
+        if snapshots.iter().any(|snapshot| {
+            snapshot
+                .as_ref()
+                .is_none_or(|snapshot| snapshot.lifecycle_flags() & CHUNK_LIFECYCLE_GENERATED == 0)
+        }) {
+            return Ok(0);
+        }
+
+        let snapshots: [ChunkSnapshot; 9] = snapshots
+            .into_iter()
+            .map(|snapshot| snapshot.expect("ready post-process neighborhood is complete"))
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("nine ready population-neighborhood snapshots");
+
+        let preserved: [PreservedChunk; 9] =
+            array::from_fn(|index| PreservedChunk::from_snapshot(&snapshots[index]));
+        let chunks = array::from_fn(|index| planes_from_snapshot(&snapshots[index]));
         let mut neighborhood = PopulationNeighborhood::from_planes(target, chunks);
 
         self.lakes.populate(&mut neighborhood);
-
-        self.villages.apply(&mut self.state.village, target);
-        self.mineshafts.apply(&mut self.state.mineshaft, target);
-        self.strongholds.apply(&mut self.state.stronghold, target);
-        self.scattered.apply(&mut self.state.scattered, target);
 
         let mut structure_random = population_random(self.seed_bits, target);
         let _ = self.villages.post_process_with_random(
@@ -273,10 +366,7 @@ impl OverworldInfiniteGenerator {
             }
         }
 
-        Ok(InfiniteGenerationResult {
-            changed_chunks,
-            generated_center: true,
-        })
+        Ok(changed_chunks)
     }
 }
 
@@ -295,20 +385,6 @@ impl PreservedChunk {
             sky_light: snapshot.sky_light().to_vec(),
             block_light: snapshot.block_light().to_vec(),
             biome_words: snapshot.biomes().to_vec(),
-        }
-    }
-
-    fn fresh(biome_ids: &[u8]) -> Self {
-        Self {
-            lifecycle_flags: 0,
-            sky_light: vec![0; CHUNK_NIBBLE_BYTES],
-            block_light: vec![0; CHUNK_NIBBLE_BYTES],
-            biome_words: biome_ids
-                .iter()
-                .map(|id| {
-                    default_biome_word(*id).expect("generated biome id is fixed-target valid")
-                })
-                .collect(),
         }
     }
 }
@@ -648,6 +724,90 @@ mod tests {
                     8 | 9
                 ));
             }
+        }
+    }
+
+    #[test]
+    fn mama_moose_smithy_alignment_is_first_intersecting_chunk_history() {
+        let seed = -1_385_905_961;
+        let bounds = crate::structure::StructureBounds::new(12, 64, 150, 21, 69, 156);
+        let mut averages = Vec::new();
+
+        for target in [ChunkCoord::new(0, 9), ChunkCoord::new(1, 9)] {
+            let carver = OverworldCaveCarver::new(seed);
+            let chunks = array::from_fn(|index| {
+                let position = neighborhood_position(target, index);
+                let carved = carver.generate(position);
+                let (states, biome_ids) = carved.into_parts();
+                PopulationChunkPlanes {
+                    generation_height_map: generation_height_map(&states),
+                    states,
+                    biome_ids,
+                    extra_data: BTreeMap::new(),
+                }
+            });
+            let mut neighborhood = PopulationNeighborhood::from_planes(target, chunks);
+            OverworldLakePopulator::new(seed).populate(&mut neighborhood);
+
+            let chunk_box = crate::structure::StructureBounds::new(
+                target.x() * 16,
+                0,
+                target.z() * 16,
+                target.x() * 16 + 15,
+                127,
+                target.z() * 16 + 15,
+            );
+            let mut total = 0;
+            let mut count = 0;
+            for z in bounds.z0..=bounds.z1 {
+                for x in bounds.x0..=bounds.x1 {
+                    if !chunk_box.contains(x, 64, z) {
+                        continue;
+                    }
+                    let y = (0..128)
+                        .rev()
+                        .find(|y| {
+                            let id = neighborhood.block_id(x, *y, z);
+                            !is_leaves(id) && material_blocks_motion(id)
+                        })
+                        .map_or(0, |y| y + 1)
+                        .max(64);
+                    total += y;
+                    count += 1;
+                }
+            }
+            averages.push(total / count);
+        }
+
+        // The real 0.15.10 APK clips VillagePiece::getAverageGroundHeight to the
+        // currently post-processed chunk. This Smithy therefore lands at either Y=68
+        // or Y=67 depending on which intersecting chunk reaches post-processing first.
+        assert_eq!(averages, [68, 67]);
+    }
+
+    #[test]
+    fn mama_moose_priority_center_matches_offline_smithy_alignment() {
+        let store = WorldStore::new();
+        let mut generator = OverworldInfiniteGenerator::new(-1_385_905_961);
+        let target = ChunkCoord::new(1, 9);
+
+        generator.generate_into_store(&store, target).unwrap();
+        let chunk = store.snapshot(target).unwrap();
+        let block_id = |world_x: i32, y: usize, world_z: i32| {
+            let local_x = world_x.rem_euclid(16) as usize;
+            let local_z = world_z.rem_euclid(16) as usize;
+            chunk.states()[(y << 8) | (local_z << 4) | local_x] >> 4
+        };
+
+        // Direct protocol-84 offline LevelDB sentinels for the South-facing Smithy from
+        // source (0,9): floor/roof are one block below the coordinate-ordered server
+        // history, and its three exterior stair positions remain stair-free.
+        assert_eq!(block_id(16, 67, 150), 4);
+        assert_eq!(block_id(16, 71, 150), 4);
+        assert_eq!(block_id(16, 72, 150), 44);
+        for x in 18..=20 {
+            assert_ne!(block_id(x, 67, 149), 67);
+            assert_ne!(block_id(x, 68, 149), 67);
         }
     }
 

@@ -16,13 +16,32 @@ pub(super) fn view_positions(center: ChunkCoord, radius: i32) -> Vec<ChunkCoord>
     let side = usize::try_from(radius.saturating_mul(2).saturating_add(1)).unwrap_or(0);
     let mut positions = Vec::with_capacity(side.saturating_mul(side));
 
-    for x in min_x..=max_x {
-        for z in min_z..=max_z {
+    // MCPE GridArea/Bounds iteration advances X first, then Z.
+    for z in min_z..=max_z {
+        for x in min_x..=max_x {
             positions.push(ChunkCoord::new(x, z));
         }
     }
 
     positions
+}
+
+/// Serializes the target streaming worker's chunk priority into a deterministic request order.
+///
+/// MCPE 0.15.10 queues chunk loads at _getChunkPriority(chunk) = floor(distance(chunk.min,
+/// player)) + time*16. The common time term does not affect ordering inside one view update.
+/// Its worker consumes the smallest priority first. Stable sorting preserves the target GridArea
+/// insertion order for equal integer-distance priorities.
+pub(crate) fn prioritize_for_player(positions: &mut [ChunkCoord], player: [f32; 3]) {
+    positions.sort_by_key(|position| streaming_distance_priority(*position, player));
+}
+
+fn streaming_distance_priority(position: ChunkCoord, player: [f32; 3]) -> i32 {
+    let chunk_x = position.x() as f32 * 16.0;
+    let chunk_z = position.z() as f32 * 16.0;
+    let dx = chunk_x - player[0];
+    let dz = chunk_z - player[2];
+    dx.mul_add(dx, dz * dz).sqrt() as i32
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
