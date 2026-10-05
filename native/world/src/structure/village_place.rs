@@ -1,5 +1,6 @@
 use crate::ChunkCoord;
 use crate::population::{PopulationNeighborhood, state};
+use crate::population_finalizer::material_blocks_motion;
 use crate::terrain_shape::noise::MtRandom;
 
 use super::village_plan::{
@@ -100,7 +101,7 @@ fn process_piece(
     post_seed: u32,
 ) {
     if piece.kind == VillagePieceKind::StraightRoad {
-        // Target path mutation body is commented out in this fixed-target branch.
+        paint_road(piece.bounds, style, neighborhood, chunk_box);
         return;
     }
 
@@ -146,6 +147,45 @@ fn process_piece(
         VillagePieceKind::LightPost => writer.light_post(),
         VillagePieceKind::StraightRoad => {}
     }
+}
+
+fn paint_road(
+    bounds: StructureBounds,
+    style: VillageStyle,
+    neighborhood: &mut PopulationNeighborhood,
+    chunk_box: StructureBounds,
+) {
+    // The 0.15.10 StraightRoad::postProcess scans world X/Z inside its bounds, clipping
+    // against the target chunk at Y=64. It paints the highest solid block with biome-adapted
+    // grass path, or planks when the top material is liquid (APK ARM Thumb RVA 0xd6f748).
+    let path = biome_block(style, GRASS_PATH, 0);
+    let over_water = biome_block(style, PLANKS, 0);
+    for x in bounds.x0..=bounds.x1 {
+        for z in bounds.z0..=bounds.z1 {
+            if !chunk_box.contains(x, 64, z) {
+                continue;
+            }
+            let y = road_top_solid_y(neighborhood, x, z);
+            let (block, data) = if is_liquid(neighborhood.block_id(x, y, z)) {
+                over_water
+            } else {
+                path
+            };
+            neighborhood.set_state(x, y, z, state(block, data));
+        }
+    }
+}
+
+fn road_top_solid_y(neighborhood: &PopulationNeighborhood, x: i32, z: i32) -> i32 {
+    // LevelChunk::getTopSolidBlock(x,z,true,false) in the 0.15.10 APK uses
+    // Material::getBlocksMotion() or liquids, excluding leaves when the second flag is false.
+    for y in (0..128).rev() {
+        let id = neighborhood.block_id(x, y, z);
+        if !matches!(id, 18 | 161) && (material_blocks_motion(id) || is_liquid(id)) {
+            return y;
+        }
+    }
+    -1
 }
 
 fn average_ground_height(
@@ -1200,6 +1240,58 @@ mod tests {
         assert_eq!(biome_block(VillageStyle::Savanna, PLANKS, 0), (PLANKS, 4));
         assert_eq!(biome_block(VillageStyle::Taiga, LOG2, 0), (LOG, 1));
         assert_eq!(biome_block(VillageStyle::Taiga, FENCE, 0), (FENCE, 1));
+    }
+
+    #[test]
+    fn target_01510_road_paints_cross_chunk_path_and_wood_over_water() {
+        // MCPE 0.15.10 APK StraightRoad::postProcess (ARM Thumb RVA 0xd6f748)
+        // calls getTopSolidBlock and writes GrassPath, or WoodPlanks above liquid.
+        let mut neighborhood =
+            PopulationNeighborhood::filled(ChunkCoord::new(0, 0), state(AIR, 0), 1);
+        for x in 14..=18 {
+            for z in 3..=5 {
+                neighborhood.set_state(x, 62, z, state(1, 0));
+                neighborhood.set_state(x, 63, z, state(GRASS, 0));
+            }
+        }
+        neighborhood.set_state(15, 63, 3, state(WATER, 0));
+        neighborhood.set_state(14, 64, 4, state(31, 1)); // tall grass does not block motion
+        neighborhood.set_state(16, 70, 4, state(18, 0)); // leaves excluded by target query
+        neighborhood.set_state(17, 63, 4, state(FLOWING_LAVA, 0));
+        let mut road = VillagePiecePlan {
+            kind: VillagePieceKind::StraightRoad,
+            bounds: StructureBounds::new(14, 74, 3, 18, 76, 5),
+            orientation: StructureOrientation::East,
+            gen_depth: 0,
+            extra: VillagePieceExtra::StraightRoad { length: 5 },
+            height_position: -1,
+            placed_chest: false,
+        };
+        let mut random = MtRandom::new(0);
+        process_piece(
+            &mut road,
+            VillageStyle::Plains,
+            false,
+            &mut neighborhood,
+            chunk_bounds(ChunkCoord::new(0, 0)),
+            &mut random,
+            0,
+        );
+        assert_eq!(neighborhood.state(14, 63, 4), Some(state(GRASS_PATH, 0)));
+        assert_eq!(neighborhood.state(15, 63, 3), Some(state(PLANKS, 0)));
+        assert_eq!(neighborhood.state(16, 63, 4), Some(state(GRASS, 0)));
+        process_piece(
+            &mut road,
+            VillageStyle::Plains,
+            false,
+            &mut neighborhood,
+            chunk_bounds(ChunkCoord::new(1, 0)),
+            &mut random,
+            0,
+        );
+        assert_eq!(neighborhood.state(16, 63, 4), Some(state(GRASS_PATH, 0)));
+        assert_eq!(neighborhood.state(17, 63, 4), Some(state(PLANKS, 0)));
+        assert_eq!(road.height_position, -1);
     }
 
     #[test]

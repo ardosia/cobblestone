@@ -605,6 +605,12 @@ mod tests {
         generator
             .generate_into_store(&store, ChunkCoord::new(0, 8))
             .unwrap();
+        let road_chunk = store.snapshot(ChunkCoord::new(0, 8)).unwrap();
+        // The target StraightRoad runs across z131..133 through this populated center.
+        assert!((60..=85).any(|y| {
+            (0..16)
+                .any(|x| (3..=5).any(|z| road_chunk.states()[(y << 8) | (z << 4) | x] >> 4 == 198))
+        }));
         assert_eq!(
             store.lifecycle_flags(well).unwrap(),
             CHUNK_LIFECYCLE_GENERATED

@@ -321,9 +321,11 @@ mod tests {
     }
 
     #[test]
-    fn independent_full_chunk_style_fixtures_match() {
-        // Standalone C++ oracle: independent target MT/topology implementation plus the fixed
-        // target Well/SimpleHouse/SmallHut recipes over synthetic y=63 flat terrain.
+    fn independent_house_recipe_fixtures_match_without_roads() {
+        // Standalone restored-source C++ oracle: target MT/topology and the fixed
+        // Well/SimpleHouse/SmallHut recipes over synthetic y=63 flat terrain. That later
+        // source comments out StraightRoad painting, unlike the actual 0.15.10 APK; exclude
+        // roads here to preserve independent coverage of the unchanged house recipes.
         let source = ChunkCoord::new(-221, -239);
         let check = candidate_check(0, source);
         // Planner oracle: candidate qualification is covered separately. The target candidate
@@ -342,6 +344,8 @@ mod tests {
         for (style, biome, expected) in fixtures {
             let mut plan = base.clone();
             plan.style = style;
+            plan.pieces
+                .retain(|piece| piece.kind != VillagePieceKind::StraightRoad);
             let mut neighborhood = flat_population(source, biome);
             let post_seed = population_seed(0, source);
             let mut random = MtRandom::new(post_seed);
