@@ -4,6 +4,7 @@ mod block;
 mod change_log;
 mod chunk;
 mod dimension;
+mod infinite;
 mod patch;
 mod population;
 mod population_biome;
@@ -52,6 +53,7 @@ pub use chunk::{
 };
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 pub use dimension::DimensionId;
+pub use infinite::{InfiniteGenerationResult, OverworldInfiniteGenerator, OverworldInfiniteState};
 pub use population::PopulationNeighborhood;
 pub use population_biome::OverworldBiomeDecorator;
 pub use population_finalizer::OverworldPostDecorationFinalizer;

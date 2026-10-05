@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::{
-    ChunkCoord, ChunkEviction, ChunkImport, ChunkRecord, ChunkSnapshot, WorldStore,
+    ChunkCoord, ChunkData, ChunkEviction, ChunkImport, ChunkRecord, ChunkSnapshot, WorldStore,
     WorldStoreError, default_biome_word, read_lock, validate_import, validate_lifecycle_flags,
     write_lock,
 };
@@ -52,6 +52,71 @@ impl WorldStore {
         let mut chunks = write_lock(&region.chunks);
         chunks.insert(position, ChunkRecord::from_import(import));
         Ok(())
+    }
+
+    /// Installs generator-owned semantic output without treating it as already persisted.
+    ///
+    /// Generator composition owns semantic data/lifecycle, while the store owns revision
+    /// monotonicity and dirty watermarks. Incoming import revision fields are therefore ignored.
+    pub(crate) fn install_generated_chunk(
+        &self,
+        position: ChunkCoord,
+        import: ChunkImport,
+    ) -> Result<bool, WorldStoreError> {
+        validate_import(&import)?;
+        let new_data = Arc::new(ChunkData {
+            states: import.states,
+            sky_light: import.sky_light,
+            block_light: import.block_light,
+            biomes: import.biomes,
+            height_map: import.height_map,
+            extra_data: import.extra_data,
+        });
+
+        let region = self.region_or_create(position);
+        let mut chunks = write_lock(&region.chunks);
+        let Some(chunk) = chunks.get_mut(&position) else {
+            chunks.insert(
+                position,
+                ChunkRecord {
+                    terrain_revision: 0,
+                    light_revision: 0,
+                    persisted_terrain_revision: None,
+                    persisted_light_revision: None,
+                    persisted_lifecycle_flags: None,
+                    pin_count: 0,
+                    lifecycle_flags: import.lifecycle_flags,
+                    data: new_data,
+                },
+            );
+            return Ok(true);
+        };
+
+        let terrain_changed = chunk.data.states != new_data.states
+            || chunk.data.biomes != new_data.biomes
+            || chunk.data.height_map != new_data.height_map
+            || chunk.data.extra_data != new_data.extra_data;
+        let light_changed = chunk.data.sky_light != new_data.sky_light
+            || chunk.data.block_light != new_data.block_light;
+        let lifecycle_changed = chunk.lifecycle_flags != import.lifecycle_flags;
+
+        if terrain_changed {
+            chunk.terrain_revision = chunk
+                .terrain_revision
+                .checked_add(1)
+                .ok_or(WorldStoreError::TerrainRevisionExhausted)?;
+        }
+        if light_changed {
+            chunk.light_revision = chunk
+                .light_revision
+                .checked_add(1)
+                .ok_or(WorldStoreError::LightRevisionExhausted)?;
+        }
+        if terrain_changed || light_changed {
+            chunk.data = new_data;
+        }
+        chunk.lifecycle_flags = import.lifecycle_flags;
+        Ok(terrain_changed || light_changed || lifecycle_changed)
     }
 
     pub fn lifecycle_flags(&self, position: ChunkCoord) -> Result<u8, WorldStoreError> {

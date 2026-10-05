@@ -6,17 +6,17 @@ use crate::terrain_shape::noise::MtRandom;
 use crate::{CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldCaveCarver, WORLD_HEIGHT};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct PopulationChunk {
-    states: Vec<u16>,
-    biome_ids: Vec<u8>,
-    generation_height_map: Vec<u8>,
-    extra_data: BTreeMap<u16, u16>,
+pub(crate) struct PopulationChunkPlanes {
+    pub(crate) states: Vec<u16>,
+    pub(crate) biome_ids: Vec<u8>,
+    pub(crate) generation_height_map: Vec<u8>,
+    pub(crate) extra_data: BTreeMap<u16, u16>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PopulationNeighborhood {
     center: ChunkCoord,
-    chunks: [PopulationChunk; 9],
+    chunks: [PopulationChunkPlanes; 9],
     generation_ticks: Option<GenerationTickQueue>,
 }
 
@@ -42,7 +42,7 @@ impl PopulationNeighborhood {
             debug_assert_eq!(states.len(), CHUNK_BLOCK_COUNT);
             debug_assert_eq!(biome_ids.len(), CHUNK_COLUMN_COUNT);
             let generation_height_map = generation_height_map(&states);
-            PopulationChunk {
+            PopulationChunkPlanes {
                 states,
                 biome_ids,
                 generation_height_map,
@@ -55,6 +55,33 @@ impl PopulationNeighborhood {
             chunks,
             generation_ticks: Some(GenerationTickQueue::new_target_seeded()),
         }
+    }
+
+    pub(crate) fn from_planes(center: ChunkCoord, chunks: [PopulationChunkPlanes; 9]) -> Self {
+        debug_assert!(
+            chunks
+                .iter()
+                .all(|chunk| chunk.states.len() == CHUNK_BLOCK_COUNT)
+        );
+        debug_assert!(
+            chunks
+                .iter()
+                .all(|chunk| chunk.biome_ids.len() == CHUNK_COLUMN_COUNT)
+        );
+        debug_assert!(
+            chunks
+                .iter()
+                .all(|chunk| chunk.generation_height_map.len() == CHUNK_COLUMN_COUNT)
+        );
+        Self {
+            center,
+            chunks,
+            generation_ticks: Some(GenerationTickQueue::new_target_seeded()),
+        }
+    }
+
+    pub(crate) fn into_planes(self) -> [PopulationChunkPlanes; 9] {
+        self.chunks
     }
 
     pub fn center(&self) -> ChunkCoord {
@@ -223,7 +250,7 @@ impl PopulationNeighborhood {
     pub(crate) fn filled(center: ChunkCoord, state: u16, biome_id: u8) -> Self {
         Self {
             center,
-            chunks: array::from_fn(|_| PopulationChunk {
+            chunks: array::from_fn(|_| PopulationChunkPlanes {
                 states: vec![state; CHUNK_BLOCK_COUNT],
                 biome_ids: vec![biome_id; CHUNK_COLUMN_COUNT],
                 generation_height_map: vec![
@@ -269,7 +296,7 @@ fn top_solid_for_population(id: u16, include_water: bool) -> bool {
     }
 }
 
-fn generation_height_map(states: &[u16]) -> Vec<u8> {
+pub(crate) fn generation_height_map(states: &[u16]) -> Vec<u8> {
     let mut heights = vec![0_u8; CHUNK_COLUMN_COUNT];
     for z in 0..16 {
         for x in 0..16 {
