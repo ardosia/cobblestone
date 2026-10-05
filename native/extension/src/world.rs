@@ -2,6 +2,7 @@ mod biome_source;
 mod block;
 mod block_extra;
 mod height;
+mod infinite;
 mod lifecycle;
 mod light;
 mod patch;
@@ -33,6 +34,7 @@ struct NativeWorldState {
     store: Arc<WorldStore>,
     protocol84_cache: Mutex<protocol84::Protocol84Cache>,
     persistence: Mutex<Option<storage::NativeWorldPersistence>>,
+    infinite: Mutex<Option<infinite::NativeInfiniteGenerator>>,
 }
 
 fn world_arena() -> MutexGuard<'static, Arena<NativeWorld>> {

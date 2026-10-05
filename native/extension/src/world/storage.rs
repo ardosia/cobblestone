@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use cobblestone_storage::{
     AsyncLoadConfig, AsyncLoadService, AsyncSaveConfig, AsyncSaveService, LoadRequestState,
@@ -13,7 +14,7 @@ use ext_php_rs::types::{ZendHashTable, Zval};
 
 use crate::boundary::{php_boundary, php_error};
 
-use super::{position, resolve_world_state};
+use super::{NativeWorldState, infinite, position, resolve_world_state};
 
 mod loads;
 mod metadata;
@@ -21,8 +22,7 @@ mod tick;
 
 use loads::{decode_chunk_positions, poll_load_completions};
 use metadata::{metadata_values, parse_creation_metadata, zval};
-pub(super) use tick::flush_persistence;
-use tick::tick_persistence;
+use tick::{flush_persistence, tick_persistence};
 
 const MAX_COMPACTION_CANDIDATES: usize = 4096;
 
@@ -69,6 +69,85 @@ impl NativeWorldPersistence {
     pub(super) fn clear_missing(&mut self, position: ChunkCoord) {
         self.load_missing.remove(&position);
     }
+}
+
+pub(super) fn prepare_generation_neighborhood(
+    state: &Arc<NativeWorldState>,
+    positions: &[ChunkCoord],
+) -> PhpResult<bool> {
+    let mut persistence = match state.persistence.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let Some(persistence) = persistence.as_mut() else {
+        return Ok(true);
+    };
+
+    poll_load_completions(&state.store, persistence, positions.len().max(1))?;
+    let mut ready = true;
+    for &position in positions {
+        if state.store.contains_chunk(position) || persistence.load_missing.contains(&position) {
+            continue;
+        }
+        match persistence
+            .loads
+            .request(position)
+            .map_err(|error| php_error(error.to_string()))?
+        {
+            LoadRequestState::Queued | LoadRequestState::Joined => ready = false,
+        }
+    }
+    Ok(ready)
+}
+
+pub(super) fn clear_missing_after_generation(
+    state: &Arc<NativeWorldState>,
+    positions: &[ChunkCoord],
+) {
+    let mut persistence = match state.persistence.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let Some(persistence) = persistence.as_mut() else {
+        return;
+    };
+    for &position in positions {
+        persistence.clear_missing(position);
+    }
+}
+
+fn persist_generator_state_if_safe(
+    state: &Arc<NativeWorldState>,
+    persistence: &mut NativeWorldPersistence,
+) -> PhpResult<()> {
+    if !persistence.save_in_flight.is_empty()
+        || !state
+            .store
+            .dirty_snapshots_excluding(1, &persistence.save_in_flight)
+            .is_empty()
+    {
+        return Ok(());
+    }
+
+    infinite::persist_if_dirty(
+        state,
+        persistence.directory.root(),
+        persistence.directory.world_uuid(),
+        persistence.directory.metadata().generator_id,
+    )
+}
+
+pub(super) fn flush_all(
+    state: &Arc<NativeWorldState>,
+    persistence: &mut NativeWorldPersistence,
+) -> PhpResult<()> {
+    flush_persistence(&state.store, persistence)?;
+    infinite::persist_if_dirty(
+        state,
+        persistence.directory.root(),
+        persistence.directory.world_uuid(),
+        persistence.directory.metadata().generator_id,
+    )
 }
 
 #[php_function]
@@ -144,6 +223,13 @@ pub fn cobblestone_world_storage_attach(
         let loads =
             AsyncLoadService::start(load_config).map_err(|error| php_error(error.to_string()))?;
         let values = metadata_values(created, directory.metadata())?;
+        infinite::restore_persistent(
+            &state,
+            directory.root(),
+            directory.world_uuid(),
+            directory.metadata().generator_id,
+            directory.metadata().seed,
+        )?;
 
         *persistence = Some(NativeWorldPersistence {
             directory,
@@ -277,6 +363,7 @@ pub fn cobblestone_world_storage_tick(handle_value: i64, budget: i64) -> PhpResu
 
         let load_completed = poll_load_completions(&state.store, persistence, budget)?;
         let tick = tick_persistence(&state.store, persistence, budget)?;
+        persist_generator_state_if_safe(&state, persistence)?;
         Ok(vec![
             zval(i64::try_from(tick.save_completed).unwrap_or(i64::MAX))?,
             zval(i64::try_from(tick.save_scheduled).unwrap_or(i64::MAX))?,
@@ -387,7 +474,7 @@ pub fn cobblestone_world_storage_flush(handle_value: i64) -> PhpResult<()> {
             Err(poisoned) => poisoned.into_inner(),
         };
         if let Some(persistence) = persistence.as_mut() {
-            flush_persistence(&state.store, persistence)?;
+            flush_all(&state, persistence)?;
         }
         Ok(())
     })

@@ -20,6 +20,7 @@ pub fn cobblestone_world_create() -> PhpResult<i64> {
                     store: Arc::new(WorldStore::new()),
                     protocol84_cache: Mutex::new(protocol84::Protocol84Cache::default()),
                     persistence: Mutex::new(None),
+                    infinite: Mutex::new(None),
                 }),
             })
             .map_err(|_| php_error("native world handle capacity exhausted"))?;
@@ -55,7 +56,7 @@ pub fn cobblestone_world_destroy(handle_value: i64) -> PhpResult<()> {
                 Err(poisoned) => poisoned.into_inner(),
             };
             if let Some(persistence) = persistence.as_mut() {
-                storage::flush_persistence(&state.store, persistence)?;
+                storage::flush_all(&state, persistence)?;
             }
         }
 
@@ -82,7 +83,7 @@ pub(super) fn shutdown() {
             Err(poisoned) => poisoned.into_inner(),
         };
         if let Some(persistence) = persistence.as_mut() {
-            let _ = storage::flush_persistence(&world.state.store, persistence);
+            let _ = storage::flush_all(&world.state, persistence);
         }
     }
 }

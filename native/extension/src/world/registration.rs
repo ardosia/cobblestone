@@ -6,6 +6,7 @@ pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
     let module = super::block::register(module);
     let module = super::block_extra::register(module);
     let module = super::height::register(module);
+    let module = super::infinite::register(module);
     let module = super::light::register(module);
     let module = super::patch::register(module);
     let module = super::residency::register(module);
