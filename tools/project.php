@@ -50,9 +50,22 @@ function extensionPath(): string
     };
 }
 
+/** @return list<string> */
+function composerCommand(): array
+{
+    // Composer exports its PHP entry point to scripts it runs. On Windows the
+    // launcher may be a batch file, which array-form proc_open cannot execute.
+    $binary = getenv('COMPOSER_BINARY');
+    if ($binary !== false && is_file($binary)) {
+        return [PHP_BINARY, $binary];
+    }
+
+    return ['composer'];
+}
+
 function setupComposer(): void
 {
-    run(['composer', 'install', '--no-interaction', '--prefer-dist']);
+    run([...composerCommand(), 'install', '--no-interaction', '--prefer-dist']);
 }
 
 function ensureAutoload(): void
@@ -61,17 +74,17 @@ function ensureAutoload(): void
         fail('Composer packages are not installed; run composer setup');
     }
 
-    run(['composer', 'dump-autoload', '--no-interaction', '--classmap-authoritative']);
+    run([...composerCommand(), 'dump-autoload', '--no-interaction', '--classmap-authoritative']);
 }
 
 function validateComposer(): void
 {
-    run(['composer', 'validate', '--strict', '--no-check-publish', ROOT . '/composer.json']);
+    run([...composerCommand(), 'validate', '--strict', '--no-check-publish', ROOT . '/composer.json']);
 }
 
 function buildNative(): void
 {
-    run(['cargo', '+' . nativeToolchain(), 'build', '--release'], NATIVE_EXTENSION);
+    run(['cargo', '+' . nativeToolchain(), 'build', '--locked', '--release'], NATIVE_EXTENSION);
 }
 
 function checkNative(): void
@@ -79,8 +92,8 @@ function checkNative(): void
     $toolchain = '+' . nativeToolchain();
 
     run(['cargo', $toolchain, 'fmt', '--check'], NATIVE_EXTENSION);
-    run(['cargo', $toolchain, 'check'], NATIVE_EXTENSION);
-    run(['cargo', $toolchain, 'clippy', '--', '-D', 'warnings'], NATIVE_EXTENSION);
+    run(['cargo', $toolchain, 'check', '--locked'], NATIVE_EXTENSION);
+    run(['cargo', $toolchain, 'clippy', '--locked', '--', '-D', 'warnings'], NATIVE_EXTENSION);
 }
 
 function checkWorkspace(): void
@@ -88,13 +101,13 @@ function checkWorkspace(): void
     $toolchain = '+' . WORKSPACE_TOOLCHAIN;
 
     run(['cargo', $toolchain, 'fmt', '--all', '--', '--check']);
-    run(['cargo', $toolchain, 'check', '--workspace', '--all-targets']);
-    run(['cargo', $toolchain, 'clippy', '--workspace', '--all-targets', '--', '-D', 'warnings']);
+    run(['cargo', $toolchain, 'check', '--locked', '--workspace', '--all-targets']);
+    run(['cargo', $toolchain, 'clippy', '--locked', '--workspace', '--all-targets', '--', '-D', 'warnings']);
 }
 
 function testWorkspace(): void
 {
-    run(['cargo', '+' . WORKSPACE_TOOLCHAIN, 'test', '--workspace', '--lib', '--tests']);
+    run(['cargo', '+' . WORKSPACE_TOOLCHAIN, 'test', '--locked', '--workspace', '--lib', '--tests']);
 }
 
 function checkPhpStatic(): void

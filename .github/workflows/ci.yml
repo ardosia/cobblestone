@@ -80,9 +80,9 @@ jobs:
       - name: Run runtime torture probes
         shell: bash
         run: |
-          cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin runtime-torture
-          cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin ownership-torture
-          cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin completion-gc-torture
+          cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin runtime-torture
+          cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin ownership-torture
+          cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin completion-gc-torture
       - name: Install pinned nightly Rust for Windows adapter
         if: runner.os == 'Windows'
         shell: bash
@@ -99,9 +99,9 @@ jobs:
         shell: bash
         run: |
           cargo +1.98.0 fmt --check
-          cargo +1.98.0 check
-          cargo +1.98.0 clippy -- -D warnings
-          cargo +1.98.0 build --release
+          cargo +1.98.0 check --locked
+          cargo +1.98.0 clippy --locked -- -D warnings
+          cargo +1.98.0 build --locked --release
       - name: Build Windows PHP adapter
         if: runner.os == 'Windows'
         working-directory: native/extension
@@ -110,9 +110,13 @@ jobs:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
         run: |
           cargo +nightly-2026-09-20 fmt --check
-          cargo +nightly-2026-09-20 check
-          cargo +nightly-2026-09-20 clippy -- -D warnings
-          cargo +nightly-2026-09-20 build --release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo +nightly-2026-09-20 check --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo +nightly-2026-09-20 clippy --locked -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo +nightly-2026-09-20 build --locked --release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate PHP adapter
         shell: bash
         run: composer test:php

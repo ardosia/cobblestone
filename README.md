@@ -115,7 +115,7 @@ composer native:build
 composer test:php
 ```
 
-`composer verify` is the broad local validation command. GitHub Actions are currently manual-dispatch only.
+`composer setup` installs dependencies from the committed lock file. `composer verify` is the broad local validation command. GitHub Actions run the quality gate on pull requests and pushes to `main`; manual dispatch additionally runs the Ubuntu/Windows platform matrix.
 
 ## Architecture
 
