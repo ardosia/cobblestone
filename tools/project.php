@@ -137,7 +137,6 @@ function runWithExtension(string $script, array $arguments = []): void
 
     run([
         PHP_BINARY,
-        '-n',
         '-d',
         'extension=' . $extension,
         $script,

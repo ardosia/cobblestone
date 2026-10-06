@@ -100,9 +100,13 @@ jobs:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
         run: |
           cargo +nightly-2026-09-20 fmt --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo +nightly-2026-09-20 check --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo +nightly-2026-09-20 clippy --locked -- -D warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo +nightly-2026-09-20 build --locked --release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate PHP adapter
         shell: bash
         run: composer test:php
