@@ -11,7 +11,7 @@ use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session as NativeSessions;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Session\Internal\BootstrapUpdate;
 use Cobblestone\Session\Event\SessionConnected;
 use Cobblestone\Session\Event\SessionDisconnected;

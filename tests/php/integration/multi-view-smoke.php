@@ -5,7 +5,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Server\Server;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;

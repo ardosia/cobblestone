@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\Server;
 
+use Cobblestone\Config\StorageConfig;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Dimension;
@@ -21,9 +22,6 @@ use Throwable;
 /** @internal Application composition root for concrete world mechanisms. */
 final class WorldFactory
 {
-    public const DEFAULT_COMPACTION_MIN_DEAD_BYTES = 64 * 1024 * 1024;
-    public const DEFAULT_COMPACTION_MIN_DEAD_PERCENT = 50;
-
     public static function flat(
         string $name = 'Cobblestone',
         int $seed = -1,
@@ -47,11 +45,9 @@ final class WorldFactory
         string $root,
         string $name = 'Cobblestone',
         int $seed = -1,
-        int $saveWorkers = 2,
-        int $loadWorkers = 2,
-        int $compactionMinDeadBytes = self::DEFAULT_COMPACTION_MIN_DEAD_BYTES,
-        int $compactionMinDeadPercent = self::DEFAULT_COMPACTION_MIN_DEAD_PERCENT,
+        ?StorageConfig $storage = null,
     ): World {
+        $storage ??= new StorageConfig();
         if (!NativeWorld::available()) {
             throw new \RuntimeException('persistent Infinite worlds require cobblestone_core_php');
         }
@@ -67,10 +63,10 @@ final class WorldFactory
                 1,
                 '',
                 $creationGenerator->spawn(),
-                saveWorkers: $saveWorkers,
-                loadWorkers: $loadWorkers,
-                compactionMinDeadBytes: $compactionMinDeadBytes,
-                compactionMinDeadPercent: $compactionMinDeadPercent,
+                saveWorkers: $storage->saveWorkers,
+                loadWorkers: $storage->loadWorkers,
+                compactionMinDeadBytes: $storage->compactionMinDeadBytes,
+                compactionMinDeadPercent: $storage->compactionMinDeadPercent,
                 createDimension: Dimension::Overworld,
             );
             if ($metadata->generatorId !== GeneratorType::Infinite->value) {
@@ -133,12 +129,10 @@ final class WorldFactory
         string $name = 'Cobblestone',
         int $seed = -1,
         ?string $preset = null,
-        int $saveWorkers = 2,
-        int $loadWorkers = 2,
-        int $compactionMinDeadBytes = self::DEFAULT_COMPACTION_MIN_DEAD_BYTES,
-        int $compactionMinDeadPercent = self::DEFAULT_COMPACTION_MIN_DEAD_PERCENT,
+        ?StorageConfig $storage = null,
         Dimension $dimension = Dimension::Overworld,
     ): World {
+        $storage ??= new StorageConfig();
         if (!NativeWorld::available()) {
             throw new \RuntimeException('persistent worlds require cobblestone_core_php native world storage');
         }
@@ -162,10 +156,10 @@ final class WorldFactory
                 1,
                 $creationPreset,
                 $creationGenerator->spawn(),
-                saveWorkers: $saveWorkers,
-                loadWorkers: $loadWorkers,
-                compactionMinDeadBytes: $compactionMinDeadBytes,
-                compactionMinDeadPercent: $compactionMinDeadPercent,
+                saveWorkers: $storage->saveWorkers,
+                loadWorkers: $storage->loadWorkers,
+                compactionMinDeadBytes: $storage->compactionMinDeadBytes,
+                compactionMinDeadPercent: $storage->compactionMinDeadPercent,
                 createDimension: $dimension,
             );
             if ($metadata->generatorId !== GeneratorType::Flat->value) {

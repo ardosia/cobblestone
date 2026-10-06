@@ -223,4 +223,4 @@ Cobblestone retains height map, sparse extra block data, generated/populated/lig
 
 ## Validation boundary
 
-Parity is not considered verified until the relevant Cobblestone revision passes canonical local `composer verify`, including native-world, world parity, mutation, and light smokes.
+Parity is not considered verified until the relevant Cobblestone revision passes canonical local `cargo +1.98.0 xtask verify`, including native-world, world parity, mutation, and light smokes.

@@ -25,21 +25,21 @@
     }
   },
   "scripts": {
-    "setup": "@php tools/project.php setup",
-    "build": "@php tools/project.php build",
+    "setup": "cargo +1.98.0 xtask setup",
+    "build": "cargo +1.98.0 xtask build",
     "bench:scheduler": "@php benchmarks/php/scheduler.php",
     "bench:storage": "cargo run --quiet --release -p cobblestone-storage --example storage_bench",
-    "check": "@php tools/project.php check",
-    "modules": "@php tools/project.php modules",
-    "native:build": "@php tools/project.php native:build",
-    "native:check": "@php tools/project.php native:check",
-    "serve": "@php tools/project.php serve",
-    "test": "@php tools/project.php test",
-    "test:php": "@php tools/project.php test:php",
+    "check": "cargo +1.98.0 xtask check",
+    "modules": "cargo +1.98.0 xtask modules",
+    "native:build": "cargo +1.98.0 xtask native-build",
+    "native:check": "cargo +1.98.0 xtask native-check",
+    "serve": "cargo +1.98.0 xtask serve",
+    "test": "cargo +1.98.0 xtask test",
+    "test:php": "cargo +1.98.0 xtask test-php",
     "analyse": "phpstan analyse --no-progress",
     "format:check": "php-cs-fixer fix --dry-run --diff --using-cache=no",
     "test:phpunit": "phpunit --configuration phpunit.xml.dist",
-    "verify": "@php tools/project.php verify"
+    "verify": "cargo +1.98.0 xtask verify"
   },
   "config": {
     "optimize-autoloader": true,

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use Cobblestone\Config\StorageConfig;
 use Cobblestone\Server\Server;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\Session\Event\SessionDisconnected;
@@ -75,8 +76,7 @@ $seedWorld = WorldFactory::persistentFlat(
     'Persistent Join',
     $seed,
     $preset,
-    saveWorkers: 2,
-    loadWorkers: 2,
+    storage: new StorageConfig(saveWorkers: 2, loadWorkers: 2),
     dimension: Dimension::Nether,
 );
 $seedStore = $seedWorld->nativeStore();
@@ -137,8 +137,7 @@ $world = WorldFactory::persistentFlat(
     'Ignored Creation Name',
     -999,
     '2;1;1;',
-    saveWorkers: 2,
-    loadWorkers: 2,
+    storage: new StorageConfig(saveWorkers: 2, loadWorkers: 2),
 );
 $store = $world->nativeStore();
 persistentJoinExpect($store !== null, 'reopened persistent join world lacks native store');

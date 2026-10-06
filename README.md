@@ -16,7 +16,17 @@ PHP owns gameplay semantics and the ordinary plugin/developer API. Rust owns tra
 Code is organized by responsibility rather than language package bureaucracy:
 
 ```text
+app/
+└── server.php
+
+spec/
+├── target.toml
+├── blocks.toml
+└── biomes.toml
+
 src/
+├── Application/
+├── Config/
 ├── Command/
 ├── Event/
 ├── Log/
@@ -29,6 +39,7 @@ src/
 └── World/
 
 native/
+├── target/
 ├── runtime/
 ├── world/
 ├── protocol84/
@@ -36,6 +47,9 @@ native/
 ├── session/
 ├── storage/
 └── extension/
+
+dev/
+└── xtask/
 
 tests/php/
 ├── unit/
@@ -49,6 +63,7 @@ PHP is one Composer package. The root autoloader maps `Cobblestone\\` to `src/`.
 
 The native workspace is split by mechanism ownership:
 
+- `target`: generated flat API for cross-language fixed-target identities/layout from `spec/`
 - `runtime`: handles, ownership, workers, completion primitives, region routing
 - `world`: authoritative native chunk/world state, revisions, residency, snapshots, patches
 - `protocol84`: fixed-target packet, NBT, Batch, chunk, login, and gameplay wire logic
@@ -69,7 +84,7 @@ The PHP/native boundary stays coarse. Native snapshots and atomic patches avoid 
 
 ## Persistence
 
-The production CLI uses the MCPE 0.15.10-targeted Infinite Overworld generator with the custom persistent world store at `worlds/world` by default. Compatibility-sensitive generation is driven by executable/offline-world evidence rather than modern Minecraft behavior; unresolved parity gaps stay in GitHub Issues instead of being hidden in documentation.
+The production application entry point is `app/server.php`; it uses the MCPE 0.15.10-targeted Infinite Overworld generator with the custom persistent world store at `worlds/world` by default. Compatibility-sensitive generation is driven by executable/offline-world evidence rather than modern Minecraft behavior; unresolved parity gaps stay in GitHub Issues instead of being hidden in documentation.
 
 Useful environment variables:
 
@@ -88,34 +103,32 @@ See `docs/architecture/WORLD_STORAGE.md` for the storage model and `docs/archite
 
 ## Developer workflow
 
-First checkout or after PHP dependency changes:
+The repository driver is Rust `xtask`. On first checkout or after PHP dependency changes:
 
 ```text
-composer setup
+cargo +1.98.0 xtask setup
 ```
 
 Common commands:
 
 ```text
-composer modules
-composer build
-composer check
-composer test
-composer verify
-composer serve
-composer bench:scheduler
-composer bench:storage
+cargo +1.98.0 xtask modules
+cargo +1.98.0 xtask build
+cargo +1.98.0 xtask check
+cargo +1.98.0 xtask test
+cargo +1.98.0 xtask verify
+cargo +1.98.0 xtask serve
 ```
 
-Focused native commands:
+Focused native/PHP commands:
 
 ```text
-composer native:check
-composer native:build
-composer test:php
+cargo +1.98.0 xtask native-check
+cargo +1.98.0 xtask native-build
+cargo +1.98.0 xtask test-php
 ```
 
-`composer setup` installs dependencies from the committed lock file. `composer verify` is the broad local validation command. GitHub Actions run the quality gate on pull requests and pushes to `main`; manual dispatch additionally runs the Ubuntu/Windows platform matrix.
+Composer keeps matching aliases such as `composer verify` and `composer serve` for convenience; it is no longer the orchestration implementation. Benchmarks remain available as `composer bench:scheduler` and `composer bench:storage`. `cargo +1.98.0 xtask setup` installs dependencies from the committed Composer lock file, while `cargo +1.98.0 xtask verify` is the canonical broad local validation command. GitHub Actions run the same quality gate on pull requests and pushes to `main`; manual dispatch additionally runs the Ubuntu/Windows platform matrix.
 
 ## Architecture
 

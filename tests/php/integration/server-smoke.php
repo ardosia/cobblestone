@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Cobblestone\Server\Event\ServerStarted;
 use Cobblestone\Server\Server;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Tests\ServerSmokePlugin;

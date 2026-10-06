@@ -26,8 +26,9 @@ Prefer readonly values loaded once near the composition root:
 $config = new ServerConfig(
     bind: '0.0.0.0:19132',
     name: 'Cobblestone',
-    maxPlayers: 200,
-    worldPath: 'worlds/world',
+    maxConnections: 200,
+    initialChunkRadius: 3,
+    tickRate: 20,
 );
 ~~~
 
@@ -48,7 +49,7 @@ A future loader may combine:
 3. environment overrides;
 4. explicit CLI overrides.
 
-The resulting ServerConfig is the authority for that process.
+The application source loader produces one `ApplicationConfig`, which owns the typed `ServerConfig`, `WorldConfig`, and `StorageConfig` values for that process.
 
 Do not let each subsystem invent its own precedence rules.
 

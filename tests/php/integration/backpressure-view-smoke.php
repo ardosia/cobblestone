@@ -7,7 +7,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session\ViewSendResult;
 use Cobblestone\Server\Server;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Internal\ChunkViewPreparation;
 use Cobblestone\Session\Event\SessionDisconnected;

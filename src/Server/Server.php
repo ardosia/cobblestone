@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cobblestone\Server;
 
 use Closure;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Command\CommandBinding;
 use Cobblestone\Command\Internal\CommandTree;
 use Cobblestone\Command\Literal;
@@ -68,7 +69,7 @@ final class Server
         ?LoggerFactory $logs = null,
         ?Closure $packetHandler = null,
     ): self {
-        $logs ??= LoggerFactory::console(getenv('COBBLESTONE_LOG_LEVEL') ?: 'INFO');
+        $logs ??= LoggerFactory::console();
         $world ??= WorldFactory::flat();
 
         return new self(
@@ -243,11 +244,11 @@ final class Server
     }
 
     public function run(
-        int $tickRate = 20,
+        ?int $tickRate = null,
         int $nativeEventBudget = 256,
     ): int {
         $ticks = new TickLoop(
-            new TickLoopConfig(tickRate: $tickRate),
+            new TickLoopConfig(tickRate: $tickRate ?? $this->config->tickRate),
             $this->logs->logger('Cobblestone.Tick'),
         );
 

@@ -40,11 +40,13 @@ Sibling modules must not reach into each other's private Rust structs or depend 
 
 ## Repository module layout
 
-PHP product code lives under root `src/`, while Rust/native mechanism crates live under root `native/`; each Rust crate keeps Cargo-standard local `src/` and test directories.
+The production PHP front controller lives at `app/server.php`; PHP product code lives under root `src/`, fixed-target source data under root `spec/`, Rust/native mechanism crates under root `native/`, and repository orchestration under `dev/xtask`. Each Rust crate keeps Cargo-standard local `src/` and test directories.
 
 PHP code lives in one root Composer package under `src/`, organized by semantic namespace. `Cobblestone\\` maps directly to `src/`; domains such as `Session`, `World`, `Command`, and `Plugin` are namespace/filesystem boundaries rather than separately versioned packages.
 
 The root Composer package owns the PHP dependency graph directly. Internal boundaries are enforced by namespace direction, tests, and repository validation rather than local path-package manifests. Command registration/dispatch lives under `src/Command`, owner-runtime event dispatch under `src/Event`, and monotonic tick pacing under `src/Tick`.
+
+Application startup has one configuration boundary. `ApplicationConfig` parses process environment into typed `ServerConfig`, `WorldConfig`, and `StorageConfig`; `Application` performs concrete world/server composition; `app/server.php` only loads the autoloader, obtains that configuration, runs the application, and reports startup failure. Native adapters retain defensive validation at the FFI boundary but do not own application defaults. Repository setup/check/test/build/serve orchestration is implemented by Rust `xtask`; Composer scripts are thin aliases and do not duplicate the workflow.
 
 The PHP world graph is deliberately one-way. `src/World` owns the semantic model and its internal collaborators. `Generator` and `WorldEdit` remain explicit contracts because generation is a real extension point and world editing is the public semantic callback surface. Resident chunk indexing (`MainChunkSource`), mutation coordination (`MutationCoordinator`), region mapping (`RegionMap`), and lighting access are concrete internal mechanisms because Cobblestone has exactly one implementation of each and no plugin-facing substitution requirement. `WorldFactory` remains the composition root for the default graph. Player, entity, block, and inventory remain deferred until their work begins.
 
@@ -212,7 +214,7 @@ See `docs/provenance/WORLD015.md` for the fixed-target evidence boundary, `docs/
 
 The application logging boundary is PSR-3. The default implementation uses Monolog and a Spring Boot-inspired console layout containing millisecond timestamp, level, PID, application name, execution label, logger name, message, and structured key/value context. Cobblestone does not print a startup banner. Plugins receive scoped `LoggerInterface` instances and are not coupled to Monolog.
 
-The executable delegates pacing to a monotonic `TickLoop` instead of owning a raw infinite loop. The loop targets the configured tick rate, reports sustained lateness as both milliseconds and ticks behind, throttles warnings, and rebases after excessive backlog rather than spinning through obsolete deadlines. Task scheduling is separately due-indexed: dormant callbacks and sleeping Fibers contribute heap storage but no linear per-tick scan; cancellation uses lazy invalidation with bounded periodic heap compaction.
+The application delegates pacing to a monotonic `TickLoop` instead of owning a raw infinite loop. The loop targets the configured tick rate, reports sustained lateness as both milliseconds and ticks behind, throttles warnings, and rebases after excessive backlog rather than spinning through obsolete deadlines. Task scheduling is separately due-indexed: dormant callbacks and sleeping Fibers contribute heap storage but no linear per-tick scan; cancellation uses lazy invalidation with bounded periodic heap compaction.
 
 `Server` owns an explicit Starting/Running/Stopping/Stopped lifecycle. Stop requests end the loop after the current tick. SIGINT/SIGTERM are handled where pcntl exists, and a PHP shutdown hook provides a final best-effort stop. Shutdown continues through stopping-event dispatch, native-session shutdown, plugin disable, scheduler shutdown, and explicit persistent-world flushing even if an earlier phase fails.
 

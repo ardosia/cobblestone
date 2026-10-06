@@ -6,8 +6,9 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 $wideInitial = in_array('--wide-initial', $argv, true);
 
+use Cobblestone\Config\StorageConfig;
 use Cobblestone\Server\Server;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\Session\Event\SessionSpawned;
@@ -59,8 +60,7 @@ $world = WorldFactory::persistentInfinite(
     $storageRoot,
     'Persistent Infinite Join',
     -1_385_905_961,
-    saveWorkers: 2,
-    loadWorkers: 2,
+    storage: new StorageConfig(saveWorkers: 2, loadWorkers: 2),
 );
 persistentInfiniteJoinExpect(
     $world->generatorType() === GeneratorType::Infinite,

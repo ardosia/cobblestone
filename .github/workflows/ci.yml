@@ -38,7 +38,7 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist
       - name: Verify repository
-        run: composer verify
+        run: cargo +1.98.0 xtask verify
       - name: Check Rust dependency policy (workspace)
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
@@ -119,4 +119,4 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate PHP adapter
         shell: bash
-        run: composer test:php
+        run: cargo +1.98.0 xtask test-php

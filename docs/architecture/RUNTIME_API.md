@@ -35,8 +35,9 @@ A target shape is:
 $config = new ServerConfig(
     bind: '0.0.0.0:19132',
     name: 'Cobblestone',
-    maxPlayers: 200,
-    worldPath: 'worlds/world',
+    maxConnections: 200,
+    initialChunkRadius: 3,
+    tickRate: 20,
 );
 
 $server = Server::create($config);

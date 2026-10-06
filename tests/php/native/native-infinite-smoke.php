@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use Cobblestone\Config\StorageConfig;
 use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\Session\Internal\InitialChunkView;
@@ -133,8 +134,7 @@ try {
         $root,
         'Infinite Persistent Smoke',
         42,
-        saveWorkers: 2,
-        loadWorkers: 2,
+        storage: new StorageConfig(saveWorkers: 2, loadWorkers: 2),
     );
     $store = $world->nativeStore()
         ?? throw new RuntimeException('persistent Infinite world did not expose native store');
@@ -154,8 +154,7 @@ try {
         $root,
         'Ignored Reopen Name',
         -999,
-        saveWorkers: 1,
-        loadWorkers: 1,
+        storage: new StorageConfig(saveWorkers: 1, loadWorkers: 1),
     );
     try {
         infiniteExpect($reopened->name() === 'Infinite Persistent Smoke', 'reopen ignored stored world name');
@@ -211,8 +210,7 @@ try {
         $legacyRoot,
         'Ignored Migration Name',
         0,
-        saveWorkers: 1,
-        loadWorkers: 1,
+        storage: new StorageConfig(saveWorkers: 1, loadWorkers: 1),
     );
     try {
         infiniteExpect($migrated->seed() === -1_385_905_961, 'migration ignored stored seed');
@@ -287,8 +285,7 @@ foreach ([2, 3] as $legacyVersion) {
             $recoveryRoot,
             'Ignored Recovery Name',
             0,
-            saveWorkers: 1,
-            loadWorkers: 1,
+            storage: new StorageConfig(saveWorkers: 1, loadWorkers: 1),
         );
         try {
             $spawn = $recovered->spawn();
@@ -341,8 +338,7 @@ try {
         $villageRoot,
         'Village Neighbor Smoke',
         -1_385_905_961,
-        saveWorkers: 1,
-        loadWorkers: 1,
+        storage: new StorageConfig(saveWorkers: 1, loadWorkers: 1),
     );
     $villageStore = $village->nativeStore()
         ?? throw new RuntimeException('village test requires native storage');
@@ -369,8 +365,7 @@ try {
         $villageRoot,
         'Ignored Village Reopen',
         0,
-        saveWorkers: 1,
-        loadWorkers: 1,
+        storage: new StorageConfig(saveWorkers: 1, loadWorkers: 1),
     );
     try {
         $initialView = new InitialChunkView($reopenedVillage);

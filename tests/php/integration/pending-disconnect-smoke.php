@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use Cobblestone\Config\StorageConfig;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Server\Server;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\Session\Internal\ChunkViewPreparation;
@@ -61,8 +62,7 @@ $world = WorldFactory::persistentFlat(
     'Pending Disconnect',
     5150,
     '2;7,2x3,2;1;',
-    saveWorkers: 1,
-    loadWorkers: 1,
+    storage: new StorageConfig(saveWorkers: 1, loadWorkers: 1),
 );
 $store = $world->nativeStore();
 pendingDisconnectExpect($store !== null, 'pending-disconnect test requires native storage');

@@ -11,7 +11,7 @@ $streamTorture = in_array('--stream-torture', $argv, true);
 
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Server\Server;
-use Cobblestone\Server\ServerConfig;
+use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Session\Event\SessionSpawned;
 use Cobblestone\World\BlockPos;
