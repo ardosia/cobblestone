@@ -37,8 +37,8 @@ pub use biome::{
 };
 pub use biome_source::OverworldBiomeSource;
 pub use block::{
-    BLOCK_IDS, INTERNAL_WORLD_BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported,
-    block_state_id_is_supported, world_block_id_is_supported, world_block_state_id_is_supported,
+    MAX_LEGACY_STATE_ID, block_id_is_supported, block_state_id_is_supported,
+    world_block_id_is_supported, world_block_state_id_is_supported,
 };
 use change_log::WorldChangeLog;
 pub use change_log::{

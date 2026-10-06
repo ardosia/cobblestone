@@ -204,6 +204,7 @@ dependencies = [
  "cobblestone-runtime",
  "cobblestone-session",
  "cobblestone-storage",
+ "cobblestone-target",
  "cobblestone-transport",
  "cobblestone-world",
  "ext-php-rs",
@@ -215,6 +216,7 @@ version = "0.0.1"
 dependencies = [
  "bitflags",
  "cobblestone-runtime",
+ "cobblestone-target",
  "flate2",
  "thiserror",
 ]
@@ -244,6 +246,7 @@ dependencies = [
 name = "cobblestone-storage"
 version = "0.0.1"
 dependencies = [
+ "cobblestone-target",
  "cobblestone-world",
  "crc32c",
  "thiserror",
@@ -251,10 +254,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cobblestone-target"
+version = "0.0.1"
+
+[[package]]
 name = "cobblestone-transport"
 version = "0.0.1"
 dependencies = [
  "bytes",
+ "cobblestone-target",
  "raknet-rust",
  "thiserror",
  "tokio",
@@ -266,6 +274,7 @@ name = "cobblestone-world"
 version = "0.0.1"
 dependencies = [
  "cobblestone-runtime",
+ "cobblestone-target",
 ]
 
 [[package]]

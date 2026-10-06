@@ -8,6 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+cobblestone-target.workspace = true
 bytes.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

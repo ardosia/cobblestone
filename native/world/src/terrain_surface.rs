@@ -1,7 +1,7 @@
 use crate::terrain_shape::noise::{MtRandom, PerlinSimplexNoise};
-use crate::{CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldTerrainShape};
-
-const WORLD_HEIGHT: usize = 128;
+use crate::{
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldTerrainShape, WORLD_HEIGHT,
+};
 const SEA_LEVEL: i32 = 63;
 
 const AIR: u16 = state(0, 0);

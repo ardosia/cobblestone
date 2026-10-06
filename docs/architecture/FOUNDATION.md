@@ -10,6 +10,12 @@ The governing split is:
 
 This excludes both a Rust server with PHP bolted on as a guest and a traditional single-threaded PHP server that exposes thread primitives to plugins.
 
+## Fixed-target specification
+
+Cross-language facts that define the one supported compatibility target live under root `spec/`. Target identity/protocol numbers, chunk shape, the public block identity/asset catalog plus executable-only End Portal identity, and registered biome IDs/default colors are authored there once. `cargo xtask generate` emits the flat `cobblestone-target` Rust API and the corresponding committed PHP target/catalog sources; `cargo xtask generate --check` is part of repository validation and fails on drift. Generated module paths are implementation details rather than consumer API.
+
+Algorithm-local compatibility values such as RNG constants, structure coordinates, terrain thresholds, and population quirks remain beside the algorithms that give them meaning. Cobblestone policy such as worker limits, queue sizes, view policy, and tick configuration likewise does not belong in the target specification.
+
 ## Ownership model
 
 Mutable authoritative objects have one owning PHP runtime. Long-lived identities such as players, entities, worlds, sessions, and selected chunk state use native-backed generational handles. A handle provides identity only. Native ownership metadata determines where mutation is legal.
@@ -22,12 +28,12 @@ Immutable/native shared values such as packet buffers, snapshots, chunk snapshot
 
 Initial module families are:
 
+- `cobblestone-target`: generated flat Rust API for shared fixed-target identities/layout sourced from root `spec/`; it contains no gameplay algorithm or server policy.
 - `cobblestone-runtime`: runtime identity, generational handles, bounded workers, completion plumbing, cancellation, immutable buffers, ownership epochs, and generic region routing.
 - `cobblestone-world`: authoritative native chunk/world state, snapshots, revisions, residency, patches, and the bounded world change journal.
 - `cobblestone-transport`: protocol-8 RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
 - `cobblestone-protocol84`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
 - `cobblestone-session`: stable gameplay-session identity and lifecycle above transport/codec; it hides RakNet connection objects and Batch envelopes from the owning runtime while preserving bounded backpressure and malformed-input behavior.
-- A separate `cobblestone-world` crate is deferred until the native world mechanism needs an independently versioned boundary; splitting the already-working store merely for taxonomy is not a goal.
 - `cobblestone-storage`: custom world metadata/region/chunk persistence. The v1 record/region durability core is implemented; async save/load orchestration, metadata publication, and compaction remain isolated here rather than entering `core`.
 
 Sibling modules must not reach into each other's private Rust structs or depend on unstable struct layouts.

@@ -1,4 +1,5 @@
-target/
+/target/
+/native/extension/target/
 vendor/
 worlds/
 .DS_Store

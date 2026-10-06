@@ -10,6 +10,7 @@ use cobblestone_protocol84::{
     decode_game_frame, encode_bootstrap_frame, encode_game_frame, packet_id,
 };
 use cobblestone_runtime::NativeBuffer;
+use cobblestone_target::ChunkShape;
 use cobblestone_transport::{Connection, NetworkConfig, NetworkServer, Reliability};
 
 const DEFAULT_BIND: &str = "0.0.0.0:19132";
@@ -196,10 +197,10 @@ fn chunk_radius_updated(radius: i32) -> RawPacket {
 }
 
 fn empty_layered_chunk_payload() -> NativeBuffer {
-    const BLOCK_IDS: usize = 16 * 16 * 128;
-    const NIBBLE_ARRAY: usize = BLOCK_IDS / 2;
-    const HEIGHT_MAP: usize = 16 * 16;
-    const BIOME_COLORS: usize = 16 * 16 * 4;
+    const BLOCK_IDS: usize = ChunkShape::BLOCK_COUNT;
+    const NIBBLE_ARRAY: usize = ChunkShape::NIBBLE_BYTES;
+    const HEIGHT_MAP: usize = ChunkShape::COLUMN_COUNT;
+    const BIOME_COLORS: usize = ChunkShape::COLUMN_COUNT * 4;
     const EXTRA_DATA_COUNT: usize = 4;
     const TOTAL: usize =
         BLOCK_IDS + NIBBLE_ARRAY * 3 + HEIGHT_MAP + BIOME_COLORS + EXTRA_DATA_COUNT;

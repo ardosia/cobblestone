@@ -1,0 +1,361 @@
+# Fixed-target MCPE 0.15.10 registered biome identities and default column colors.
+
+[[biome]]
+id = 0
+name = "ocean"
+display = "Ocean"
+color = 0x8eb871
+
+[[biome]]
+id = 1
+name = "plains"
+display = "Plains"
+color = 0x92bc59
+
+[[biome]]
+id = 2
+name = "desert"
+display = "Desert"
+color = 0xbfb655
+
+[[biome]]
+id = 3
+name = "extreme_hills"
+display = "Extreme Hills"
+color = 0x8ab589
+
+[[biome]]
+id = 4
+name = "forest"
+display = "Forest"
+color = 0x7ac05b
+
+[[biome]]
+id = 5
+name = "taiga"
+display = "Taiga"
+color = 0x87b684
+
+[[biome]]
+id = 6
+name = "swampland"
+display = "Swampland"
+color = 0x6a7039
+
+[[biome]]
+id = 7
+name = "river"
+display = "River"
+color = 0x8eb871
+
+[[biome]]
+id = 8
+name = "hell"
+display = "Hell"
+color = 0x000000
+
+[[biome]]
+id = 10
+name = "frozen_ocean"
+display = "Frozen Ocean"
+color = 0x80b497
+
+[[biome]]
+id = 11
+name = "frozen_river"
+display = "Frozen River"
+color = 0x80b497
+
+[[biome]]
+id = 12
+name = "ice_plains"
+display = "Ice Plains"
+color = 0x80b497
+
+[[biome]]
+id = 13
+name = "ice_mountains"
+display = "Ice Mountains"
+color = 0x80b497
+
+[[biome]]
+id = 14
+name = "mushroom_island"
+display = "Mushroom Island"
+color = 0x56cb40
+
+[[biome]]
+id = 15
+name = "mushroom_island_shore"
+display = "Mushroom Island Shore"
+color = 0x56cb40
+
+[[biome]]
+id = 16
+name = "beach"
+display = "Beach"
+color = 0x92bc59
+
+[[biome]]
+id = 17
+name = "desert_hills"
+display = "Desert Hills"
+color = 0xbfb655
+
+[[biome]]
+id = 18
+name = "forest_hills"
+display = "Forest Hills"
+color = 0x7ac05b
+
+[[biome]]
+id = 19
+name = "taiga_hills"
+display = "Taiga Hills"
+color = 0x87b684
+
+[[biome]]
+id = 20
+name = "extreme_hills_edge"
+display = "Extreme Hills Edge"
+color = 0x8ab589
+
+[[biome]]
+id = 21
+name = "jungle"
+display = "Jungle"
+color = 0x59cb3c
+
+[[biome]]
+id = 22
+name = "jungle_hills"
+display = "Jungle Hills"
+color = 0x59cb3c
+
+[[biome]]
+id = 23
+name = "jungle_edge"
+display = "Jungle Edge"
+color = 0x64c940
+
+[[biome]]
+id = 24
+name = "deep_ocean"
+display = "Deep Ocean"
+color = 0x8eb871
+
+[[biome]]
+id = 25
+name = "stone_beach"
+display = "Stone Beach"
+color = 0x8ab589
+
+[[biome]]
+id = 26
+name = "cold_beach"
+display = "Cold Beach"
+color = 0x83b493
+
+[[biome]]
+id = 27
+name = "birch_forest"
+display = "Birch Forest"
+color = 0x89bb67
+
+[[biome]]
+id = 28
+name = "birch_forest_hills"
+display = "Birch Forest Hills"
+color = 0x89bb67
+
+[[biome]]
+id = 29
+name = "roofed_forest"
+display = "Roofed Forest"
+color = 0x517a32
+
+[[biome]]
+id = 30
+name = "cold_taiga"
+display = "Cold Taiga"
+color = 0x80b497
+
+[[biome]]
+id = 31
+name = "cold_taiga_hills"
+display = "Cold Taiga Hills"
+color = 0x80b497
+
+[[biome]]
+id = 32
+name = "mega_taiga"
+display = "Mega Taiga"
+color = 0x87b780
+
+[[biome]]
+id = 33
+name = "mega_taiga_hills"
+display = "Mega Taiga Hills"
+color = 0x87b780
+
+[[biome]]
+id = 34
+name = "extreme_hills_plus"
+display = "Extreme Hills+"
+color = 0x8ab589
+
+[[biome]]
+id = 35
+name = "savanna"
+display = "Savanna"
+color = 0xbfb655
+
+[[biome]]
+id = 36
+name = "savanna_plateau"
+display = "Savanna Plateau"
+color = 0xbfb655
+
+[[biome]]
+id = 37
+name = "mesa"
+display = "Mesa"
+color = 0x90814d
+
+[[biome]]
+id = 38
+name = "mesa_plateau_f"
+display = "Mesa Plateau F"
+color = 0x90814d
+
+[[biome]]
+id = 39
+name = "mesa_plateau"
+display = "Mesa Plateau"
+color = 0x90814d
+
+[[biome]]
+id = 129
+name = "sunflower_plains"
+display = "Sunflower Plains"
+color = 0x92bc59
+
+[[biome]]
+id = 130
+name = "desert_m"
+display = "Desert M"
+color = 0xbfb655
+
+[[biome]]
+id = 131
+name = "extreme_hills_m"
+display = "Extreme Hills M"
+color = 0x8ab589
+
+[[biome]]
+id = 132
+name = "flower_forest"
+display = "Flower Forest"
+color = 0x7ac05b
+
+[[biome]]
+id = 133
+name = "taiga_m"
+display = "Taiga M"
+color = 0x87b684
+
+[[biome]]
+id = 134
+name = "swampland_m"
+display = "Swampland M"
+color = 0x6a7039
+
+[[biome]]
+id = 140
+name = "ice_plains_spikes"
+display = "Ice Plains Spikes"
+color = 0x80b497
+
+[[biome]]
+id = 149
+name = "jungle_m"
+display = "Jungle M"
+color = 0x59cb3c
+
+[[biome]]
+id = 151
+name = "jungle_edge_m"
+display = "Jungle Edge M"
+color = 0x64c940
+
+[[biome]]
+id = 155
+name = "birch_forest_m"
+display = "Birch Forest M"
+color = 0x7ac05b
+
+[[biome]]
+id = 156
+name = "birch_forest_hills_m"
+display = "Birch Forest Hills M"
+color = 0x7ac05b
+
+[[biome]]
+id = 157
+name = "roofed_forest_m"
+display = "Roofed Forest M"
+color = 0x517a32
+
+[[biome]]
+id = 158
+name = "cold_taiga_m"
+display = "Cold Taiga M"
+color = 0x80b497
+
+[[biome]]
+id = 160
+name = "mega_spruce_taiga"
+display = "Mega Spruce Taiga"
+color = 0x87b684
+
+[[biome]]
+id = 161
+name = "redwood_taiga_hills_m"
+display = "Redwood Taiga Hills M"
+color = 0x87b780
+
+[[biome]]
+id = 162
+name = "extreme_hills_plus_m"
+display = "Extreme Hills+ M"
+color = 0x8ab589
+
+[[biome]]
+id = 163
+name = "savanna_m"
+display = "Savanna M"
+color = 0x83c344
+
+[[biome]]
+id = 164
+name = "savanna_plateau_m"
+display = "Savanna Plateau M"
+color = 0x83c344
+
+[[biome]]
+id = 165
+name = "mesa_bryce"
+display = "Mesa (Bryce)"
+color = 0x90814d
+
+[[biome]]
+id = 166
+name = "mesa_plateau_f_m"
+display = "Mesa Plateau F M"
+color = 0x90814d
+
+[[biome]]
+id = 167
+name = "mesa_plateau_m"
+display = "Mesa Plateau M"
+color = 0x90814d

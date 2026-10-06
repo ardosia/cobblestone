@@ -100,6 +100,7 @@ function checkWorkspace(): void
 {
     $toolchain = '+' . WORKSPACE_TOOLCHAIN;
 
+    run(['cargo', $toolchain, 'xtask', 'generate', '--check']);
     run(['cargo', $toolchain, 'fmt', '--all', '--', '--check']);
     run(['cargo', $toolchain, 'check', '--locked', '--workspace', '--all-targets']);
     run(['cargo', $toolchain, 'clippy', '--locked', '--workspace', '--all-targets', '--', '-D', 'warnings']);

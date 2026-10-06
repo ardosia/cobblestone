@@ -1,5 +1,5 @@
 [package]
-name = "cobblestone-storage"
+name = "cobblestone-xtask"
 version = "0.0.1"
 edition.workspace = true
 rust-version.workspace = true
@@ -8,11 +8,8 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-cobblestone-target.workspace = true
-cobblestone-world = { path = "../world" }
-crc32c.workspace = true
-thiserror.workspace = true
-zstd.workspace = true
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
 
 [lints]
 workspace = true

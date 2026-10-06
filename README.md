@@ -134,3 +134,5 @@ Durable engineering design lives under `docs/architecture/`. Start with:
 - `SUBSYSTEMS.md`
 
 Provenance and compatibility notes live under `docs/provenance/`.
+
+Fixed-target data shared across Rust and PHP is authored once under `spec/` and compiled into committed source with `cargo xtask generate`. `cargo xtask generate --check` verifies that generated target APIs are current.

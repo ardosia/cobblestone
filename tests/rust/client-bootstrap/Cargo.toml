@@ -8,6 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+cobblestone-target.workspace = true
 bytes.workspace = true
 cobblestone-protocol84 = { path = "../../../native/protocol84" }
 cobblestone-runtime = { path = "../../../native/runtime" }

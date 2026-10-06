@@ -1,11 +1,13 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, RwLock};
 
-pub const CHUNK_EDGE: usize = 16;
-pub const WORLD_HEIGHT: usize = 128;
-pub const CHUNK_BLOCK_COUNT: usize = CHUNK_EDGE * CHUNK_EDGE * WORLD_HEIGHT;
-pub const CHUNK_NIBBLE_BYTES: usize = CHUNK_BLOCK_COUNT / 2;
-pub const CHUNK_COLUMN_COUNT: usize = CHUNK_EDGE * CHUNK_EDGE;
+use cobblestone_target::ChunkShape;
+
+pub const CHUNK_EDGE: usize = ChunkShape::EDGE;
+pub const WORLD_HEIGHT: usize = ChunkShape::HEIGHT;
+pub const CHUNK_BLOCK_COUNT: usize = ChunkShape::BLOCK_COUNT;
+pub const CHUNK_NIBBLE_BYTES: usize = ChunkShape::NIBBLE_BYTES;
+pub const CHUNK_COLUMN_COUNT: usize = ChunkShape::COLUMN_COUNT;
 pub const REGION_CHUNK_EDGE: i32 = 8;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

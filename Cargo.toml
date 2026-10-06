@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "native/target",
     "native/runtime",
     "native/world",
     "native/protocol84",
@@ -9,6 +10,7 @@ members = [
     "native/storage",
     "tests/rust/client-bootstrap",
     "tests/rust/runtime-probe",
+    "dev/xtask",
 ]
 exclude = [
     "native/extension",
@@ -21,6 +23,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/ardosia/cobblestone"
 
 [workspace.dependencies]
+cobblestone-target = { path = "native/target" }
 bitflags = "2"
 bytes = "1.8"
 crossbeam-channel = "0.5"

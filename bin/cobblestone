@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Cobblestone\Log\LoggerFactory;
+use Cobblestone\Internal\Target;
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerConfig;
 use Cobblestone\Server\WorldFactory;
@@ -127,8 +128,8 @@ $logger->info(
     'Configured Cobblestone',
     [
         'bind' => $bind,
-        'protocol' => 84,
-        'raknet' => 8,
+        'protocol' => Target::GAME_PROTOCOL,
+        'raknet' => Target::RAKNET_PROTOCOL,
         'tick_rate' => $tickRate,
         'world' => $server->world()->name(),
         'world_seed' => $server->world()->seed(),

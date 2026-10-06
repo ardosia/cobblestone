@@ -6,6 +6,7 @@ use cobblestone_protocol84::{
     CodecLimits, Protocol84ChunkSnapshot, RawPacket, UPDATE_BLOCK_FLAG_ALL_PRIORITY,
     encode_bootstrap_packet, encode_protocol84_full_chunk_data, encode_protocol84_update_block,
 };
+use cobblestone_target::ChunkShape;
 
 fn limits() -> CodecLimits {
     CodecLimits::new(
@@ -114,7 +115,7 @@ fn updates(count: usize) -> Vec<RawPacket> {
         .map(|i| {
             let x = (i % 16) as i32;
             let z = ((i / 16) % 16) as i32;
-            let y = ((i / 256) % 128) as u8;
+            let y = ((i / ChunkShape::COLUMN_COUNT) % ChunkShape::HEIGHT) as u8;
             let state = ((((i * 37) % 255) as u16 + 1) << 4) | (i as u16 & 0x0f);
             encode_protocol84_update_block(x, y, z, state, UPDATE_BLOCK_FLAG_ALL_PRIORITY).unwrap()
         })

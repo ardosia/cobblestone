@@ -6,8 +6,8 @@ use std::num::NonZeroUsize;
 
 use raknet_rust::low_level::transport::TransportConfig;
 
-/// RakNet protocol version used by the initial Cobblestone compatibility target.
-pub const RAKNET_PROTOCOL: u8 = 8;
+/// RakNet protocol version used by the Cobblestone compatibility target.
+pub use cobblestone_target::RAKNET_PROTOCOL;
 
 /// Errors produced while translating a NetworkConfig.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

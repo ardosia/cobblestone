@@ -11,7 +11,7 @@ pub use codec::{
 };
 
 /// Fixed MCPE game protocol targeted by Cobblestone.
-pub const PROTOCOL_VERSION: i32 = 84;
+pub use cobblestone_target::GAME_PROTOCOL as PROTOCOL_VERSION;
 
 /// Initial protocol-84 packet ID table.
 pub mod packet_id {

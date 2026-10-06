@@ -1,48 +1,17 @@
-pub const MAX_LEGACY_STATE_ID: u16 = 0x0fff;
+use cobblestone_target::{BlockId, MAX_BLOCK_STATE_ID};
 
-pub const BLOCK_IDS: &[u8] = &[
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-    26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
-    51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
-    75, 76, 77, 78, 79, 80, 81, 82, 83, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
-    100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118,
-    120, 121, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 134, 135, 136, 139, 140, 141, 142,
-    143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 161, 162,
-    163, 164, 165, 167, 170, 171, 172, 173, 174, 175, 178, 179, 180, 181, 182, 183, 184, 185, 186,
-    187, 193, 194, 195, 196, 197, 198, 199, 243, 244, 245, 246, 247, 248, 249, 250, 255,
-];
+pub const MAX_LEGACY_STATE_ID: u16 = MAX_BLOCK_STATE_ID;
 
 pub const fn block_id_is_supported(id: u8) -> bool {
-    matches!(
-        id,
-        0..=35
-            | 37..=83
-            | 85..=118
-            | 120..=121
-            | 123..=129
-            | 131..=136
-            | 139..=159
-            | 161..=165
-            | 167
-            | 170..=175
-            | 178..=187
-            | 193..=199
-            | 243..=250
-            | 255
-    )
+    BlockId::from_raw(id).is_public()
 }
 
 pub const fn block_state_id_is_supported(state: u16) -> bool {
     state <= MAX_LEGACY_STATE_ID && block_id_is_supported((state >> 4) as u8)
 }
 
-/// Fixed-target block IDs that are registered by the executable and can exist in
-/// world state, but are intentionally absent from the shipped public blocks.json
-/// registry used by BlockCatalog.
-pub const INTERNAL_WORLD_BLOCK_IDS: &[u8] = &[119];
-
 pub const fn world_block_id_is_supported(id: u8) -> bool {
-    block_id_is_supported(id) || matches!(id, 119)
+    BlockId::from_raw(id).is_world_supported()
 }
 
 pub const fn world_block_state_id_is_supported(state: u16) -> bool {
@@ -51,19 +20,22 @@ pub const fn world_block_state_id_is_supported(state: u16) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use cobblestone_target::{BlockId, INTERNAL_BLOCK_IDS, PUBLIC_BLOCK_IDS};
+
     use super::{
-        BLOCK_IDS, INTERNAL_WORLD_BLOCK_IDS, MAX_LEGACY_STATE_ID, block_id_is_supported,
-        block_state_id_is_supported, world_block_id_is_supported,
-        world_block_state_id_is_supported,
+        MAX_LEGACY_STATE_ID, block_id_is_supported, block_state_id_is_supported,
+        world_block_id_is_supported, world_block_state_id_is_supported,
     };
 
     #[test]
     fn fixed_target_block_id_catalog_is_exact() {
-        assert_eq!(BLOCK_IDS.len(), 191);
+        assert_eq!(PUBLIC_BLOCK_IDS.len(), 191);
         for id in 0_u8..=u8::MAX {
             assert_eq!(
                 block_id_is_supported(id),
-                BLOCK_IDS.binary_search(&id).is_ok(),
+                PUBLIC_BLOCK_IDS
+                    .binary_search(&BlockId::from_raw(id))
+                    .is_ok(),
                 "block id {id} support mismatch"
             );
         }
@@ -75,11 +47,15 @@ mod tests {
 
     #[test]
     fn hidden_registered_world_blocks_do_not_expand_public_catalog() {
-        assert_eq!(INTERNAL_WORLD_BLOCK_IDS, &[119]);
-        assert!(!block_id_is_supported(119));
-        assert!(!block_state_id_is_supported(119 << 4));
-        assert!(world_block_id_is_supported(119));
-        assert!(world_block_state_id_is_supported(119 << 4));
+        assert_eq!(INTERNAL_BLOCK_IDS, &[BlockId::END_PORTAL]);
+        assert!(!block_id_is_supported(BlockId::END_PORTAL.raw()));
+        assert!(!block_state_id_is_supported(
+            u16::from(BlockId::END_PORTAL.raw()) << 4
+        ));
+        assert!(world_block_id_is_supported(BlockId::END_PORTAL.raw()));
+        assert!(world_block_state_id_is_supported(
+            u16::from(BlockId::END_PORTAL.raw()) << 4
+        ));
         assert!(!world_block_id_is_supported(122));
         assert!(!world_block_state_id_is_supported(122 << 4));
     }

@@ -17,11 +17,11 @@ pub const MAX_WORLD_METADATA_PAYLOAD_BYTES: usize = 1024 * 1024;
 pub const MAX_WORLD_NAME_BYTES: usize = 4096;
 pub const MAX_GENERATOR_SETTINGS_BYTES: usize = 512 * 1024;
 
-pub const TARGET_VERSION_MAJOR: u8 = 0;
-pub const TARGET_VERSION_MINOR: u8 = 15;
-pub const TARGET_VERSION_PATCH: u8 = 10;
-pub const TARGET_GAME_PROTOCOL: u32 = 84;
-pub const TARGET_RAKNET_PROTOCOL: u32 = 8;
+pub const TARGET_VERSION_MAJOR: u8 = cobblestone_target::GAME_VERSION_MAJOR;
+pub const TARGET_VERSION_MINOR: u8 = cobblestone_target::GAME_VERSION_MINOR;
+pub const TARGET_VERSION_PATCH: u8 = cobblestone_target::GAME_VERSION_PATCH;
+pub const TARGET_GAME_PROTOCOL: u32 = cobblestone_target::GAME_PROTOCOL as u32;
+pub const TARGET_RAKNET_PROTOCOL: u32 = cobblestone_target::RAKNET_PROTOCOL as u32;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WorldMetadata {

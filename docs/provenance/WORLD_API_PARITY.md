@@ -64,7 +64,7 @@ Numeric-ID oracle:
 - `KhronosDevs/PocketMine-MP@15272732371b4e7785cc9f45b6274b31198d518e`;
 - `legacy/old-src/block/BlockIds.php`.
 
-The asset list is not numerically ordered, so each backed `BlockType` case carries its explicit legacy ID while internal metadata preserves the exact asset name. The reconciliation is one-to-one across all 191 public identities. Public PHP/native state input rejects legacy holes. Native generated-world validation has a separately named executable-only allowance for End Portal ID 119, which the target registers and Stronghold PortalRoom can emit; this does not create a public `BlockType` case. The compact state representation remains `(id << 4) | data`; `BlockData` models the exact four-bit metadata domain, and `BlockState` combines the two semantic values without introducing a behavior-class hierarchy.
+The reconciled identity table is authored once in `spec/blocks.toml`. `cargo xtask generate` produces the public PHP `BlockType` cases/asset names and the flat Rust `cobblestone-target::BlockId` catalog from that source; generated source is committed and `cargo xtask generate --check` prevents drift. The asset list is not numerically ordered, so each public identity retains its explicit legacy ID. The reconciliation is one-to-one across all 191 public identities. Public PHP/native state input rejects legacy holes. The same spec records executable-only End Portal ID 119 as internal generated-world state without creating a public `BlockType` case. The compact state representation remains `(id << 4) | data`; `BlockData` models the exact four-bit metadata domain, and `BlockState` combines the two semantic values without introducing a behavior-class hierarchy.
 
 ## Fixed-target light mapping
 
@@ -75,6 +75,8 @@ This preserves Cobblestone's protocol-native state token while making state vali
 ## Fixed-target biome-column parity
 
 The Ardosia substrate does not define the legacy MCPE biome-word wire/storage model, so this portion is pinned directly to the fixed target.
+The recovered 60-entry registration table and default column colors are authored once in `spec/biomes.toml`; generation emits both the PHP `BiomeId`/`BiomeCatalog` surface and Rust `cobblestone-target::BiomeId` lookup data.
+
 
 Primary oracle:
 

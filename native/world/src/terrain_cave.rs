@@ -1,7 +1,7 @@
 use crate::terrain_shape::noise::MtRandom;
 use crate::{CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldSurfaceBuilder};
 
-const WORLD_HEIGHT: i32 = 128;
+const WORLD_HEIGHT: i32 = crate::WORLD_HEIGHT as i32;
 const SOURCE_RADIUS: i32 = 8;
 const PI: f32 = std::f32::consts::PI;
 

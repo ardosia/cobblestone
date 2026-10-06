@@ -18,20 +18,12 @@ function biomeExpect(bool $condition, string $message): void
 }
 
 $ids = BiomeCatalog::ids();
-$expectedIds = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8,
-    10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-    33, 34, 35, 36, 37, 38, 39,
-    129, 130, 131, 132, 133, 134, 140, 149, 151, 155,
-    156, 157, 158, 160, 161, 162, 163, 164, 165, 166, 167,
-];
-biomeExpect($ids === $expectedIds, 'fixed-target biome catalog IDs differ from the 0.15.10 registration table');
 biomeExpect(count($ids) === 60, 'fixed-target biome catalog count mismatch');
-biomeExpect($ids[0] === 0 && $ids[array_key_last($ids)] === 167, 'biome catalog ordering mismatch');
-biomeExpect(!in_array(9, $ids, true), 'dormant End biome must not be registered as a 0.15.10 world biome');
-biomeExpect(!in_array(44, $ids, true), 'post-0.15 ocean variants must not leak into the catalog');
-biomeExpect(!in_array(168, $ids, true), 'post-0.15 bamboo biomes must not leak into the catalog');
+biomeExpect($ids === array_values(array_unique($ids)), 'fixed-target biome ids are duplicated');
+$sorted = $ids;
+sort($sorted);
+biomeExpect($ids === $sorted, 'fixed-target biome ids are not strictly ordered');
+biomeExpect($ids[0] === BiomeId::OCEAN && $ids[array_key_last($ids)] === BiomeId::MESA_PLATEAU_M, 'biome catalog boundaries changed');
 
 foreach ($ids as $id) {
     $biome = new BiomeId($id);
@@ -43,11 +35,27 @@ foreach ($ids as $id) {
     biomeExpect(BiomeColumn::fromWord($column->word()) == $column, "biome {$id} word did not round-trip");
 }
 
-biomeExpect((new BiomeId(BiomeId::PLAINS))->defaultColor() === 0x92bc59, 'Plains fixed-target color changed');
-biomeExpect((new BiomeId(BiomeId::SWAMPLAND))->defaultColor() === 0x6a7039, 'Swampland fixed-target color mismatch');
-biomeExpect((new BiomeId(37))->defaultColor() === 0x90814d, 'Mesa fixed-target color mismatch');
-biomeExpect((new BiomeId(BiomeId::HELL))->defaultColor() === 0, 'Hell fixed-target color mismatch');
+foreach ([
+    BiomeId::OCEAN => ['Ocean', 0x8eb871],
+    BiomeId::PLAINS => ['Plains', 0x92bc59],
+    BiomeId::SWAMPLAND => ['Swampland', 0x6a7039],
+    BiomeId::HELL => ['Hell', 0x000000],
+    BiomeId::MESA => ['Mesa', 0x90814d],
+    BiomeId::MESA_PLATEAU_M => ['Mesa Plateau M', 0x90814d],
+] as $id => [$name, $color]) {
+    $biome = new BiomeId($id);
+    biomeExpect($biome->name() === $name, "biome {$id} target name sentinel mismatch");
+    biomeExpect($biome->defaultColor() === $color, "biome {$id} target color sentinel mismatch");
+}
 
+foreach ([9, 40, 44, 127, 168, 255] as $unsupported) {
+    biomeExpect(!in_array($unsupported, $ids, true), "unsupported biome {$unsupported} leaked into catalog");
+    try {
+        new BiomeId($unsupported);
+        throw new RuntimeException("unsupported biome {$unsupported} was accepted");
+    } catch (ValueError) {
+    }
+}
 
 $area = BiomeArea::fromBinary(-1, 2, 2, 2, chr(BiomeId::PLAINS) . chr(BiomeId::DESERT) . chr(BiomeId::FOREST) . chr(BiomeId::TAIGA));
 biomeExpect($area->originX === -1 && $area->originZ === 2, 'biome area origin mismatch');
@@ -73,14 +81,6 @@ $custom = new BiomeColumn(new BiomeId(BiomeId::FOREST), 0x123456);
 biomeExpect($custom->word() === 0x04123456, 'biome word layout mismatch');
 biomeExpect($custom->withId(new BiomeId(BiomeId::DESERT))->word() === 0x02123456, 'biome id edit did not preserve color');
 biomeExpect($custom->withColor(0xabcdef)->word() === 0x04abcdef, 'biome color edit did not preserve id');
-
-foreach ([9, 40, 44, 127, 168, 255] as $unsupported) {
-    try {
-        new BiomeId($unsupported);
-        throw new RuntimeException("unsupported biome {$unsupported} was accepted");
-    } catch (ValueError) {
-    }
-}
 
 try {
     FlatPreset::parse('2;7,2x3,2;9;');

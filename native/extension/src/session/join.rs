@@ -7,6 +7,7 @@ use cobblestone_protocol84::{
 };
 use cobblestone_runtime::{NativeBuffer, RuntimeId};
 use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
+use cobblestone_target::ChunkShape;
 use cobblestone_world::ChunkCoord;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
@@ -143,8 +144,11 @@ pub fn cobblestone_session_protocol84_accept_login_world(
             .and_then(|value| DimensionId::try_from(value).ok())
             .ok_or_else(|| php_error("unsupported MCPE 0.15.10 dimension id"))?;
         let spawn_y = i32_field("spawn y", spawn_y)?;
-        if !(0..=127).contains(&spawn_y) {
-            return Err(php_error("protocol-84 spawn y must be in range 0..127"));
+        if !(0..ChunkShape::HEIGHT as i32).contains(&spawn_y) {
+            return Err(php_error(format!(
+                "protocol-84 spawn y must be in range 0..{}",
+                ChunkShape::HEIGHT - 1
+            )));
         }
 
         let spawn_x = i32_field("spawn x", spawn_x)?;

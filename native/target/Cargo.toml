@@ -1,19 +1,11 @@
 [package]
-name = "cobblestone-world"
+name = "cobblestone-target"
 version = "0.0.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false
-
-[[bench]]
-name = "world"
-harness = false
-
-[dependencies]
-cobblestone-target.workspace = true
-cobblestone-runtime = { path = "../runtime" }
 
 [lints]
 workspace = true

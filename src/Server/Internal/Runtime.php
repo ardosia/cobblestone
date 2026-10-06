@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cobblestone\Server\Internal;
 
+use Cobblestone\Internal\Target;
 use Closure;
 use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Native\Session\Connected;
@@ -189,7 +190,7 @@ final class Runtime
         if ($update->kind === BootstrapUpdate::LOGIN_ACCEPTED) {
             $this->logger->info(
                 'Session login accepted',
-                ['session' => $packet->sessionId, 'protocol' => 84],
+                ['session' => $packet->sessionId, 'protocol' => Target::GAME_PROTOCOL],
             );
             $this->events->dispatch(new SessionLoginAccepted($packet->sessionId));
             return;

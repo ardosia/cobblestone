@@ -12,6 +12,7 @@ name = "cobblestone_core_php"
 crate-type = ["cdylib"]
 
 [dependencies]
+cobblestone-target = { path = "../target" }
 cobblestone-protocol84 = { path = "../protocol84" }
 cobblestone-runtime = { path = "../runtime" }
 cobblestone-world = { path = "../world" }

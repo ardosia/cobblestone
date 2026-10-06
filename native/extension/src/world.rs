@@ -16,6 +16,7 @@ mod storage;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use cobblestone_runtime::{Arena, Handle, RuntimeId};
+use cobblestone_target::ChunkShape;
 use cobblestone_world::{ChunkCoord, WorldStore, block_state_id_is_supported};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
@@ -64,24 +65,33 @@ fn word32(value: i64, field: &'static str) -> PhpResult<u32> {
 
 fn local(value: i64, field: &'static str) -> PhpResult<u8> {
     let value = byte(value, field)?;
-    if value > 15 {
-        return Err(php_error(format!("{field} must be in range 0..15")));
+    if usize::from(value) >= ChunkShape::EDGE {
+        return Err(php_error(format!(
+            "{field} must be in range 0..{}",
+            ChunkShape::EDGE - 1
+        )));
     }
     Ok(value)
 }
 
 fn block_y(value: i64) -> PhpResult<u8> {
     let value = byte(value, "block y")?;
-    if value > 127 {
-        return Err(php_error("block y must be in range 0..127"));
+    if usize::from(value) >= ChunkShape::HEIGHT {
+        return Err(php_error(format!(
+            "block y must be in range 0..{}",
+            ChunkShape::HEIGHT - 1
+        )));
     }
     Ok(value)
 }
 
 fn fill_y(value: i64) -> PhpResult<u8> {
     let value = byte(value, "fill y")?;
-    if value > 128 {
-        return Err(php_error("fill y must be in range 0..128"));
+    if usize::from(value) > ChunkShape::HEIGHT {
+        return Err(php_error(format!(
+            "fill y must be in range 0..{}",
+            ChunkShape::HEIGHT
+        )));
     }
     Ok(value)
 }

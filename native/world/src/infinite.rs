@@ -7,14 +7,14 @@ use crate::population::{
 use crate::population_feature::is_leaves;
 use crate::population_finalizer::material_blocks_motion;
 use crate::{
-    CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED,
-    CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkImport, ChunkSnapshot, MineshaftStructureState,
-    OverworldBiomeDecorator, OverworldBiomeSource, OverworldCaveCarver,
+    CHUNK_EDGE, CHUNK_LIFECYCLE_GENERATED, CHUNK_LIFECYCLE_LIGHT_POPULATED,
+    CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkImport, ChunkSnapshot,
+    MineshaftStructureState, OverworldBiomeDecorator, OverworldBiomeSource, OverworldCaveCarver,
     OverworldFreezeFrostPopulator, OverworldLakePopulator, OverworldMineshaftStructures,
     OverworldMonsterRoomPopulator, OverworldPostDecorationFinalizer, OverworldScatteredStructures,
     OverworldStrongholdStructures, OverworldVillageStructures, ScatteredStructureState,
-    StrongholdStructureState, VillageStructureState, WorldStore, WorldStoreError, biome_id,
-    default_biome_word, linear_index_to_extra_key,
+    StrongholdStructureState, VillageStructureState, WORLD_HEIGHT, WorldStore, WorldStoreError,
+    biome_id, default_biome_word, linear_index_to_extra_key,
 };
 
 const STATE_MAGIC: &[u8; 4] = b"CIG1";
@@ -493,12 +493,12 @@ pub fn resolve_overworld_spawn_from_store(
 
 fn above_top_solid(store: &WorldStore, world_x: i32, world_z: i32) -> Result<u8, WorldStoreError> {
     let snapshot = store.snapshot(ChunkCoord::new(
-        world_x.div_euclid(16),
-        world_z.div_euclid(16),
+        world_x.div_euclid(CHUNK_EDGE as i32),
+        world_z.div_euclid(CHUNK_EDGE as i32),
     ))?;
-    let local_x = world_x.rem_euclid(16) as usize;
-    let local_z = world_z.rem_euclid(16) as usize;
-    for y in (0_usize..128).rev() {
+    let local_x = world_x.rem_euclid(CHUNK_EDGE as i32) as usize;
+    let local_z = world_z.rem_euclid(CHUNK_EDGE as i32) as usize;
+    for y in (0_usize..WORLD_HEIGHT).rev() {
         let id = snapshot.states()[(y << 8) | (local_z << 4) | local_x] >> 4;
         if is_spawn_top_solid(id) {
             return Ok((y + 1) as u8);

@@ -1,0 +1,963 @@
+# Fixed-target Minecraft: Windows 10 Edition Beta / MCPE 0.15.10 block identities.
+# Public entries correspond to the shipped blocks.json registry. End Portal 119 is
+# executable-registered/generated-world-only and intentionally not public PHP API.
+
+[[block]]
+id = 0
+name = "air"
+asset = "air"
+
+[[block]]
+id = 1
+name = "stone"
+asset = "stone"
+
+[[block]]
+id = 2
+name = "grass"
+asset = "grass"
+
+[[block]]
+id = 3
+name = "dirt"
+asset = "dirt"
+
+[[block]]
+id = 4
+name = "cobblestone"
+asset = "cobblestone"
+
+[[block]]
+id = 5
+name = "planks"
+asset = "planks"
+
+[[block]]
+id = 6
+name = "sapling"
+asset = "sapling"
+
+[[block]]
+id = 7
+name = "bedrock"
+asset = "bedrock"
+
+[[block]]
+id = 8
+name = "flowing_water"
+asset = "flowing_water"
+
+[[block]]
+id = 9
+name = "water"
+asset = "water"
+
+[[block]]
+id = 10
+name = "flowing_lava"
+asset = "flowing_lava"
+
+[[block]]
+id = 11
+name = "lava"
+asset = "lava"
+
+[[block]]
+id = 12
+name = "sand"
+asset = "sand"
+
+[[block]]
+id = 13
+name = "gravel"
+asset = "gravel"
+
+[[block]]
+id = 14
+name = "gold_ore"
+asset = "gold_ore"
+
+[[block]]
+id = 15
+name = "iron_ore"
+asset = "iron_ore"
+
+[[block]]
+id = 16
+name = "coal_ore"
+asset = "coal_ore"
+
+[[block]]
+id = 17
+name = "log"
+asset = "log"
+
+[[block]]
+id = 18
+name = "leaves"
+asset = "leaves"
+
+[[block]]
+id = 19
+name = "sponge_dry"
+asset = "sponge.dry"
+
+[[block]]
+id = 20
+name = "glass"
+asset = "glass"
+
+[[block]]
+id = 21
+name = "lapis_ore"
+asset = "lapis_ore"
+
+[[block]]
+id = 22
+name = "lapis_block"
+asset = "lapis_block"
+
+[[block]]
+id = 23
+name = "dispenser"
+asset = "dispenser"
+
+[[block]]
+id = 24
+name = "sandstone"
+asset = "sandstone"
+
+[[block]]
+id = 25
+name = "note_block"
+asset = "noteblock"
+
+[[block]]
+id = 26
+name = "bed"
+asset = "bed"
+
+[[block]]
+id = 27
+name = "golden_rail"
+asset = "golden_rail"
+
+[[block]]
+id = 28
+name = "detector_rail"
+asset = "detector_rail"
+
+[[block]]
+id = 29
+name = "sticky_piston"
+asset = "sticky_piston"
+
+[[block]]
+id = 30
+name = "web"
+asset = "web"
+
+[[block]]
+id = 31
+name = "tall_grass"
+asset = "tallgrass"
+
+[[block]]
+id = 32
+name = "dead_bush"
+asset = "deadbush"
+
+[[block]]
+id = 33
+name = "piston"
+asset = "piston"
+
+[[block]]
+id = 34
+name = "piston_arm_collision"
+asset = "pistonArmCollision"
+
+[[block]]
+id = 35
+name = "wool"
+asset = "wool"
+
+[[block]]
+id = 37
+name = "yellow_flower"
+asset = "yellow_flower"
+
+[[block]]
+id = 38
+name = "red_flower"
+asset = "red_flower"
+
+[[block]]
+id = 39
+name = "brown_mushroom"
+asset = "brown_mushroom"
+
+[[block]]
+id = 40
+name = "red_mushroom"
+asset = "red_mushroom"
+
+[[block]]
+id = 41
+name = "gold_block"
+asset = "gold_block"
+
+[[block]]
+id = 42
+name = "iron_block"
+asset = "iron_block"
+
+[[block]]
+id = 43
+name = "double_stone_slab"
+asset = "double_stone_slab"
+
+[[block]]
+id = 44
+name = "stone_slab"
+asset = "stone_slab"
+
+[[block]]
+id = 45
+name = "brick_block"
+asset = "brick_block"
+
+[[block]]
+id = 46
+name = "tnt"
+asset = "tnt"
+
+[[block]]
+id = 47
+name = "bookshelf"
+asset = "bookshelf"
+
+[[block]]
+id = 48
+name = "mossy_cobblestone"
+asset = "mossy_cobblestone"
+
+[[block]]
+id = 49
+name = "obsidian"
+asset = "obsidian"
+
+[[block]]
+id = 50
+name = "torch"
+asset = "torch"
+
+[[block]]
+id = 51
+name = "fire"
+asset = "fire"
+
+[[block]]
+id = 52
+name = "mob_spawner"
+asset = "mob_spawner"
+
+[[block]]
+id = 53
+name = "oak_stairs"
+asset = "oak_stairs"
+
+[[block]]
+id = 54
+name = "chest"
+asset = "chest"
+
+[[block]]
+id = 55
+name = "redstone_wire"
+asset = "redstone_wire"
+
+[[block]]
+id = 56
+name = "diamond_ore"
+asset = "diamond_ore"
+
+[[block]]
+id = 57
+name = "diamond_block"
+asset = "diamond_block"
+
+[[block]]
+id = 58
+name = "crafting_table"
+asset = "crafting_table"
+
+[[block]]
+id = 59
+name = "wheat"
+asset = "wheat"
+
+[[block]]
+id = 60
+name = "farmland"
+asset = "farmland"
+
+[[block]]
+id = 61
+name = "furnace"
+asset = "furnace"
+
+[[block]]
+id = 62
+name = "lit_furnace"
+asset = "lit_furnace"
+
+[[block]]
+id = 63
+name = "standing_sign"
+asset = "standing_sign"
+
+[[block]]
+id = 64
+name = "wooden_door"
+asset = "wooden_door"
+
+[[block]]
+id = 65
+name = "ladder"
+asset = "ladder"
+
+[[block]]
+id = 66
+name = "rail"
+asset = "rail"
+
+[[block]]
+id = 67
+name = "stone_stairs"
+asset = "stone_stairs"
+
+[[block]]
+id = 68
+name = "wall_sign"
+asset = "wall_sign"
+
+[[block]]
+id = 69
+name = "lever"
+asset = "lever"
+
+[[block]]
+id = 70
+name = "stone_pressure_plate"
+asset = "stone_pressure_plate"
+
+[[block]]
+id = 71
+name = "iron_door"
+asset = "iron_door"
+
+[[block]]
+id = 72
+name = "wooden_pressure_plate"
+asset = "wooden_pressure_plate"
+
+[[block]]
+id = 73
+name = "redstone_ore"
+asset = "redstone_ore"
+
+[[block]]
+id = 74
+name = "lit_redstone_ore"
+asset = "lit_redstone_ore"
+
+[[block]]
+id = 75
+name = "unlit_redstone_torch"
+asset = "unlit_redstone_torch"
+
+[[block]]
+id = 76
+name = "redstone_torch"
+asset = "redstone_torch"
+
+[[block]]
+id = 77
+name = "stone_button"
+asset = "stone_button"
+
+[[block]]
+id = 78
+name = "snow_layer"
+asset = "snow_layer"
+
+[[block]]
+id = 79
+name = "ice"
+asset = "ice"
+
+[[block]]
+id = 80
+name = "snow"
+asset = "snow"
+
+[[block]]
+id = 81
+name = "cactus"
+asset = "cactus"
+
+[[block]]
+id = 82
+name = "clay"
+asset = "clay"
+
+[[block]]
+id = 83
+name = "reeds"
+asset = "reeds"
+
+[[block]]
+id = 85
+name = "fence"
+asset = "fence"
+
+[[block]]
+id = 86
+name = "pumpkin"
+asset = "pumpkin"
+
+[[block]]
+id = 87
+name = "netherrack"
+asset = "netherrack"
+
+[[block]]
+id = 88
+name = "soul_sand"
+asset = "soul_sand"
+
+[[block]]
+id = 89
+name = "glowstone"
+asset = "glowstone"
+
+[[block]]
+id = 90
+name = "portal"
+asset = "portal"
+
+[[block]]
+id = 91
+name = "lit_pumpkin"
+asset = "lit_pumpkin"
+
+[[block]]
+id = 92
+name = "cake"
+asset = "cake"
+
+[[block]]
+id = 93
+name = "unpowered_repeater"
+asset = "unpowered_repeater"
+
+[[block]]
+id = 94
+name = "powered_repeater"
+asset = "powered_repeater"
+
+[[block]]
+id = 95
+name = "invisible_bedrock"
+asset = "invisibleBedrock"
+
+[[block]]
+id = 96
+name = "trapdoor"
+asset = "trapdoor"
+
+[[block]]
+id = 97
+name = "monster_egg"
+asset = "monster_egg"
+
+[[block]]
+id = 98
+name = "stone_brick"
+asset = "stonebrick"
+
+[[block]]
+id = 99
+name = "brown_mushroom_block"
+asset = "brown_mushroom_block"
+
+[[block]]
+id = 100
+name = "red_mushroom_block"
+asset = "red_mushroom_block"
+
+[[block]]
+id = 101
+name = "iron_bars"
+asset = "iron_bars"
+
+[[block]]
+id = 102
+name = "glass_pane"
+asset = "glass_pane"
+
+[[block]]
+id = 103
+name = "melon_block"
+asset = "melon_block"
+
+[[block]]
+id = 104
+name = "pumpkin_stem"
+asset = "pumpkin_stem"
+
+[[block]]
+id = 105
+name = "melon_stem"
+asset = "melon_stem"
+
+[[block]]
+id = 106
+name = "vine"
+asset = "vine"
+
+[[block]]
+id = 107
+name = "fence_gate"
+asset = "fence_gate"
+
+[[block]]
+id = 108
+name = "brick_stairs"
+asset = "brick_stairs"
+
+[[block]]
+id = 109
+name = "stone_brick_stairs"
+asset = "stone_brick_stairs"
+
+[[block]]
+id = 110
+name = "mycelium"
+asset = "mycelium"
+
+[[block]]
+id = 111
+name = "water_lily"
+asset = "waterlily"
+
+[[block]]
+id = 112
+name = "nether_brick"
+asset = "nether_brick"
+
+[[block]]
+id = 113
+name = "nether_brick_fence"
+asset = "nether_brick_fence"
+
+[[block]]
+id = 114
+name = "nether_brick_stairs"
+asset = "nether_brick_stairs"
+
+[[block]]
+id = 115
+name = "nether_wart"
+asset = "nether_wart"
+
+[[block]]
+id = 116
+name = "enchanting_table"
+asset = "enchanting_table"
+
+[[block]]
+id = 117
+name = "brewing_stand"
+asset = "brewing_stand"
+
+[[block]]
+id = 118
+name = "cauldron"
+asset = "cauldron"
+
+[[block]]
+id = 119
+name = "end_portal"
+public = false
+
+[[block]]
+id = 120
+name = "end_portal_frame"
+asset = "end_portal_frame"
+
+[[block]]
+id = 121
+name = "end_stone"
+asset = "end_stone"
+
+[[block]]
+id = 123
+name = "redstone_lamp"
+asset = "redstone_lamp"
+
+[[block]]
+id = 124
+name = "lit_redstone_lamp"
+asset = "lit_redstone_lamp"
+
+[[block]]
+id = 125
+name = "dropper"
+asset = "dropper"
+
+[[block]]
+id = 126
+name = "activator_rail"
+asset = "activator_rail"
+
+[[block]]
+id = 127
+name = "cocoa"
+asset = "cocoa"
+
+[[block]]
+id = 128
+name = "sandstone_stairs"
+asset = "sandstone_stairs"
+
+[[block]]
+id = 129
+name = "emerald_ore"
+asset = "emerald_ore"
+
+[[block]]
+id = 131
+name = "tripwire_hook"
+asset = "tripwire_hook"
+
+[[block]]
+id = 132
+name = "trip_wire"
+asset = "tripWire"
+
+[[block]]
+id = 133
+name = "emerald_block"
+asset = "emerald_block"
+
+[[block]]
+id = 134
+name = "spruce_stairs"
+asset = "spruce_stairs"
+
+[[block]]
+id = 135
+name = "birch_stairs"
+asset = "birch_stairs"
+
+[[block]]
+id = 136
+name = "jungle_stairs"
+asset = "jungle_stairs"
+
+[[block]]
+id = 139
+name = "cobblestone_wall"
+asset = "cobblestone_wall"
+
+[[block]]
+id = 140
+name = "flower_pot"
+asset = "flower_pot"
+
+[[block]]
+id = 141
+name = "carrots"
+asset = "carrots"
+
+[[block]]
+id = 142
+name = "potatoes"
+asset = "potatoes"
+
+[[block]]
+id = 143
+name = "wooden_button"
+asset = "wooden_button"
+
+[[block]]
+id = 144
+name = "skull"
+asset = "skull"
+
+[[block]]
+id = 145
+name = "anvil"
+asset = "anvil"
+
+[[block]]
+id = 146
+name = "trapped_chest"
+asset = "trapped_chest"
+
+[[block]]
+id = 147
+name = "light_weighted_pressure_plate"
+asset = "light_weighted_pressure_plate"
+
+[[block]]
+id = 148
+name = "heavy_weighted_pressure_plate"
+asset = "heavy_weighted_pressure_plate"
+
+[[block]]
+id = 149
+name = "unpowered_comparator"
+asset = "unpowered_comparator"
+
+[[block]]
+id = 150
+name = "powered_comparator"
+asset = "powered_comparator"
+
+[[block]]
+id = 151
+name = "daylight_detector"
+asset = "daylight_detector"
+
+[[block]]
+id = 152
+name = "redstone_block"
+asset = "redstone_block"
+
+[[block]]
+id = 153
+name = "quartz_ore"
+asset = "quartz_ore"
+
+[[block]]
+id = 154
+name = "hopper"
+asset = "hopper"
+
+[[block]]
+id = 155
+name = "quartz_block"
+asset = "quartz_block"
+
+[[block]]
+id = 156
+name = "quartz_stairs"
+asset = "quartz_stairs"
+
+[[block]]
+id = 157
+name = "double_wooden_slab"
+asset = "double_wooden_slab"
+
+[[block]]
+id = 158
+name = "wooden_slab"
+asset = "wooden_slab"
+
+[[block]]
+id = 159
+name = "stained_hardened_clay"
+asset = "stained_hardened_clay"
+
+[[block]]
+id = 161
+name = "leaves2"
+asset = "leaves2"
+
+[[block]]
+id = 162
+name = "log2"
+asset = "log2"
+
+[[block]]
+id = 163
+name = "acacia_stairs"
+asset = "acacia_stairs"
+
+[[block]]
+id = 164
+name = "dark_oak_stairs"
+asset = "dark_oak_stairs"
+
+[[block]]
+id = 165
+name = "slime"
+asset = "slime"
+
+[[block]]
+id = 167
+name = "iron_trapdoor"
+asset = "iron_trapdoor"
+
+[[block]]
+id = 170
+name = "hay_block"
+asset = "hay_block"
+
+[[block]]
+id = 171
+name = "carpet"
+asset = "carpet"
+
+[[block]]
+id = 172
+name = "hardened_clay"
+asset = "hardened_clay"
+
+[[block]]
+id = 173
+name = "coal_block"
+asset = "coal_block"
+
+[[block]]
+id = 174
+name = "packed_ice"
+asset = "packed_ice"
+
+[[block]]
+id = 175
+name = "double_plant"
+asset = "double_plant"
+
+[[block]]
+id = 178
+name = "daylight_detector_inverted"
+asset = "daylight_detector_inverted"
+
+[[block]]
+id = 179
+name = "red_sandstone"
+asset = "red_sandstone"
+
+[[block]]
+id = 180
+name = "red_sandstone_stairs"
+asset = "red_sandstone_stairs"
+
+[[block]]
+id = 181
+name = "double_stone_slab2"
+asset = "double_stone_slab2"
+
+[[block]]
+id = 182
+name = "stone_slab2"
+asset = "stone_slab2"
+
+[[block]]
+id = 183
+name = "spruce_fence_gate"
+asset = "spruce_fence_gate"
+
+[[block]]
+id = 184
+name = "birch_fence_gate"
+asset = "birch_fence_gate"
+
+[[block]]
+id = 185
+name = "jungle_fence_gate"
+asset = "jungle_fence_gate"
+
+[[block]]
+id = 186
+name = "dark_oak_fence_gate"
+asset = "dark_oak_fence_gate"
+
+[[block]]
+id = 187
+name = "acacia_fence_gate"
+asset = "acacia_fence_gate"
+
+[[block]]
+id = 193
+name = "spruce_door"
+asset = "spruce_door"
+
+[[block]]
+id = 194
+name = "birch_door"
+asset = "birch_door"
+
+[[block]]
+id = 195
+name = "jungle_door"
+asset = "jungle_door"
+
+[[block]]
+id = 196
+name = "acacia_door"
+asset = "acacia_door"
+
+[[block]]
+id = 197
+name = "dark_oak_door"
+asset = "dark_oak_door"
+
+[[block]]
+id = 198
+name = "grass_path"
+asset = "grass_path"
+
+[[block]]
+id = 199
+name = "frame"
+asset = "frame"
+
+[[block]]
+id = 243
+name = "podzol"
+asset = "podzol"
+
+[[block]]
+id = 244
+name = "beetroot"
+asset = "beetroot"
+
+[[block]]
+id = 245
+name = "stonecutter"
+asset = "stonecutter"
+
+[[block]]
+id = 246
+name = "glowing_obsidian"
+asset = "glowingobsidian"
+
+[[block]]
+id = 247
+name = "nether_reactor"
+asset = "netherreactor"
+
+[[block]]
+id = 248
+name = "info_update"
+asset = "info_update"
+
+[[block]]
+id = 249
+name = "info_update2"
+asset = "info_update2"
+
+[[block]]
+id = 250
+name = "moving_block"
+asset = "movingBlock"
+
+[[block]]
+id = 255
+name = "reserved6"
+asset = "reserved6"

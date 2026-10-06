@@ -1,4 +1,5 @@
 use cobblestone_runtime::NativeBuffer;
+use cobblestone_target::ChunkShape;
 
 use crate::{CodecError, NbtDocument, NbtLimits, RawPacket};
 
@@ -7,11 +8,11 @@ pub const FULL_CHUNK_DATA_ID: u8 = 0x34;
 /// Fixed-target layered chunk order.
 pub const CHUNK_ORDER_LAYERED: u8 = 1;
 /// Number of block IDs in one 16x16x128 chunk.
-pub const CHUNK_BLOCK_COUNT: usize = 16 * 16 * 128;
+pub const CHUNK_BLOCK_COUNT: usize = ChunkShape::BLOCK_COUNT;
 /// Number of bytes in one packed-nibble chunk plane.
-pub const CHUNK_NIBBLE_BYTES: usize = CHUNK_BLOCK_COUNT / 2;
+pub const CHUNK_NIBBLE_BYTES: usize = ChunkShape::NIBBLE_BYTES;
 /// Number of horizontal columns in one chunk.
-pub const CHUNK_COLUMN_COUNT: usize = 16 * 16;
+pub const CHUNK_COLUMN_COUNT: usize = ChunkShape::COLUMN_COUNT;
 
 /// Borrowed semantic chunk state ready for protocol-84 projection.
 ///

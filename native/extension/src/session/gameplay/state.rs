@@ -4,11 +4,11 @@ use std::sync::{LazyLock, Mutex, MutexGuard};
 use cobblestone_protocol84::MovePlayerPacket;
 use cobblestone_runtime::RuntimeId;
 use cobblestone_session::SessionId;
+use cobblestone_target::ChunkShape;
 use cobblestone_world::ChunkCoord;
 
 use crate::session::view::ChunkViewDelta;
 
-const CHUNK_EDGE: f32 = 16.0;
 pub(super) const MAX_PLAYER_COORDINATE: f32 = 1_000_000.0;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,8 +42,8 @@ fn validate_position(position: [f32; 3]) -> Result<PlayerState, &'static str> {
     Ok(PlayerState {
         position,
         chunk: ChunkCoord::new(
-            (position[0] / CHUNK_EDGE).floor() as i32,
-            (position[2] / CHUNK_EDGE).floor() as i32,
+            (position[0] / ChunkShape::EDGE as f32).floor() as i32,
+            (position[2] / ChunkShape::EDGE as f32).floor() as i32,
         ),
         desired_radius: None,
         view_delta: None,

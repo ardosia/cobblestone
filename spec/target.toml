@@ -1,0 +1,12 @@
+# Cross-language immutable facts for the single Cobblestone compatibility target.
+[target]
+game_version = "0.15.10"
+game_protocol = 84
+raknet_protocol = 8
+
+[chunk]
+edge = 16
+height = 128
+
+[block_state]
+data_bits = 4

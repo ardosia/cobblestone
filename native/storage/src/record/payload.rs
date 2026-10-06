@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use cobblestone_target::ChunkShape;
 use cobblestone_world::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, ChestBlockEntity, ChestItemStack,
     ChunkSnapshot, MAX_LEGACY_STATE_ID, default_biome_word,
@@ -262,7 +263,7 @@ pub(super) fn decode_semantic_payload(
             let x = read_payload_i32(payload, &mut cursor)?;
             let y = read_payload_i32(payload, &mut cursor)?;
             let z = read_payload_i32(payload, &mut cursor)?;
-            if !(0..128).contains(&y) {
+            if !(0..ChunkShape::HEIGHT as i32).contains(&y) {
                 return Err(StorageError::CorruptChunkPayload(
                     "chest block-entity Y is out of range",
                 ));
@@ -341,7 +342,7 @@ pub(super) fn decode_semantic_payload(
 }
 
 fn validate_chest_block_entity(entity: &ChestBlockEntity) -> Result<(), StorageError> {
-    if !(0..128).contains(&entity.y) {
+    if !(0..ChunkShape::HEIGHT as i32).contains(&entity.y) {
         return Err(StorageError::InvalidSnapshot(
             "chest block-entity Y is out of range",
         ));
@@ -370,7 +371,7 @@ fn extra_key_to_linear(key: u16) -> Result<u16, StorageError> {
     let z = (key >> 12) & 0x0f;
     let x = (key >> 8) & 0x0f;
     let y = key & 0x00ff;
-    if y >= 128 {
+    if usize::from(y) >= ChunkShape::HEIGHT {
         return Err(StorageError::InvalidSnapshot(
             "extra-data internal Y is out of range",
         ));
