@@ -24,8 +24,7 @@ final class Session
 
     private function __construct(
         private readonly int $runtimeId,
-    ) {
-    }
+    ) {}
 
     public static function start(string $bind, int $maxConnections, string $serverName): self
     {

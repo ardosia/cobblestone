@@ -31,7 +31,7 @@ final class Dispatcher
         $this->resolved = [];
 
         return new Subscription(
-            fn (): bool => $this->remove($event, $id),
+            fn(): bool => $this->remove($event, $id),
         );
     }
 

@@ -9,6 +9,5 @@ final readonly class SessionDisconnected
     public function __construct(
         public int $sessionId,
         public string $reason,
-    ) {
-    }
+    ) {}
 }

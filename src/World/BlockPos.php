@@ -10,8 +10,7 @@ final readonly class BlockPos
         public int $x,
         public int $y,
         public int $z,
-    ) {
-    }
+    ) {}
 
     public function chunk(): ChunkPos
     {

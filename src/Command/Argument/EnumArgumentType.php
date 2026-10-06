@@ -45,7 +45,7 @@ final readonly class EnumArgumentType implements ArgumentType
 
         return array_values(array_filter(
             $values,
-            static fn (string $value): bool => str_starts_with(strtolower($value), $prefix),
+            static fn(string $value): bool => str_starts_with(strtolower($value), $prefix),
         ));
     }
 

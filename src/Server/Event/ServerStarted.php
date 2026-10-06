@@ -4,6 +4,4 @@ declare(strict_types=1);
 
 namespace Cobblestone\Server\Event;
 
-final readonly class ServerStarted
-{
-}
+final readonly class ServerStarted {}

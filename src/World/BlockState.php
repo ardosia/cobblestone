@@ -15,8 +15,7 @@ final readonly class BlockState
     public function __construct(
         public BlockType $type,
         public BlockData $data = BlockData::Zero,
-    ) {
-    }
+    ) {}
 
     public static function fromId(int $stateId): self
     {

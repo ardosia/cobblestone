@@ -40,7 +40,7 @@ final class Runner
                 function (int $_tick): void {
                     $this->server->tick($this->nativeEventBudget);
                 },
-                fn (): bool => !$this->server->isStopRequested(),
+                fn(): bool => !$this->server->isStopRequested(),
             );
         } catch (Throwable $error) {
             $failure = $error;

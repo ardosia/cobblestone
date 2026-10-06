@@ -72,7 +72,7 @@ if ($count !== 3 || $executed !== 3) {
 
 $warnings = array_values(array_filter(
     $logger->records,
-    static fn (array $record): bool => str_starts_with(
+    static fn(array $record): bool => str_starts_with(
         $record['message'],
         "Can't keep up! Is the server overloaded?",
     ),

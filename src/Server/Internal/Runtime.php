@@ -40,8 +40,7 @@ final class Runtime
         private readonly Scheduler $scheduler,
         private readonly LoggerInterface $logger,
         private readonly ?Closure $packetHandler,
-    ) {
-    }
+    ) {}
 
     /** @param Closure(Packet): void|null $packetHandler */
     public static function start(

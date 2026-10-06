@@ -12,9 +12,7 @@ namespace Cobblestone\World;
  */
 final readonly class ChunkTerrain
 {
-    public function __construct(private Chunk $chunk)
-    {
-    }
+    public function __construct(private Chunk $chunk) {}
 
     public function revision(): ChunkRevision
     {

@@ -13,8 +13,7 @@ final readonly class Command
         private string $input,
         private mixed $source,
         private array $arguments,
-    ) {
-    }
+    ) {}
 
     public function input(): string
     {

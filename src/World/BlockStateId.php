@@ -16,9 +16,7 @@ final class BlockStateId
 {
     public const MAX = 0x0fff;
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function encode(BlockType $type, BlockData $data = BlockData::Zero): int
     {

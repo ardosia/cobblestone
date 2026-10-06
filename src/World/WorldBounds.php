@@ -13,9 +13,7 @@ final class WorldBounds
     public const MIN_Y = 0;
     public const MAX_Y = self::WORLD_HEIGHT - 1;
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function containsY(int $y): bool
     {

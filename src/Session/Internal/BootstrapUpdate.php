@@ -18,8 +18,7 @@ final readonly class BootstrapUpdate
         public int $chunksSent = 0,
         public int $encodedBytes = 0,
         public int $chunkEncodeNanos = 0,
-    ) {
-    }
+    ) {}
 
     public static function loginAccepted(): self
     {

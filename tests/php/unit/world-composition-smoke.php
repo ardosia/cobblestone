@@ -46,7 +46,7 @@ foreach (['Generator', 'Light', 'Mutation'] as $domain) {
 
 $constructor = new ReflectionMethod(World::class, '__construct');
 $types = array_map(
-    static fn (ReflectionParameter $parameter): ?string => $parameter->getType() instanceof ReflectionNamedType
+    static fn(ReflectionParameter $parameter): ?string => $parameter->getType() instanceof ReflectionNamedType
         ? $parameter->getType()->getName()
         : null,
     $constructor->getParameters(),
@@ -63,7 +63,7 @@ compositionExpect(
 
 $mutationConstructor = new ReflectionMethod(MutationCoordinator::class, '__construct');
 $mutationTypes = array_map(
-    static fn (ReflectionParameter $parameter): ?string => $parameter->getType() instanceof ReflectionNamedType
+    static fn(ReflectionParameter $parameter): ?string => $parameter->getType() instanceof ReflectionNamedType
         ? $parameter->getType()->getName()
         : null,
     $mutationConstructor->getParameters(),

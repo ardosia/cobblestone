@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Cobblestone\World;
 
 use Cobblestone\Native\World as NativeWorld;
-
 use Closure;
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\GeneratorType;
@@ -129,7 +128,7 @@ final class World
     {
         BlockStateId::assert($stateId);
         return $this->mutations->run(
-            static fn (WorldEdit $edit): int => $edit->setBlockStateId(
+            static fn(WorldEdit $edit): int => $edit->setBlockStateId(
                 $position,
                 $stateId,
             ),
@@ -169,7 +168,7 @@ final class World
     {
         $chunkPosition = ChunkPos::fromBlock($x, $z);
         return $this->mutations->run(
-            static fn (WorldEdit $edit): BiomeColumn => $edit->setBiomeColumnAt($x, $z, $biome),
+            static fn(WorldEdit $edit): BiomeColumn => $edit->setBiomeColumnAt($x, $z, $biome),
             [$chunkPosition],
         );
     }
@@ -178,7 +177,7 @@ final class World
     {
         $chunkPosition = ChunkPos::fromBlock($x, $z);
         return $this->mutations->run(
-            static fn (WorldEdit $edit): BiomeId => $edit->setBiomeAt($x, $z, $biome),
+            static fn(WorldEdit $edit): BiomeId => $edit->setBiomeAt($x, $z, $biome),
             [$chunkPosition],
         );
     }
@@ -187,7 +186,7 @@ final class World
     {
         $chunkPosition = ChunkPos::fromBlock($x, $z);
         return $this->mutations->run(
-            static fn (WorldEdit $edit): int => $edit->setBiomeColorAt($x, $z, $color),
+            static fn(WorldEdit $edit): int => $edit->setBiomeColorAt($x, $z, $color),
             [$chunkPosition],
         );
     }
@@ -202,7 +201,7 @@ final class World
     public function setSkyLight(BlockPos $position, int $level): int
     {
         return $this->mutations->run(
-            static fn (WorldEdit $edit): int => $edit->setSkyLight($position, $level),
+            static fn(WorldEdit $edit): int => $edit->setSkyLight($position, $level),
             [$position->chunk()],
         );
     }
@@ -217,7 +216,7 @@ final class World
     public function setBlockLight(BlockPos $position, int $level): int
     {
         return $this->mutations->run(
-            static fn (WorldEdit $edit): int => $edit->setBlockLight($position, $level),
+            static fn(WorldEdit $edit): int => $edit->setBlockLight($position, $level),
             [$position->chunk()],
         );
     }
@@ -232,7 +231,7 @@ final class World
     public function setBlockExtraData(BlockPos $position, int $data): int
     {
         return $this->mutations->run(
-            static fn (WorldEdit $edit): int => $edit->setBlockExtraData($position, $data),
+            static fn(WorldEdit $edit): int => $edit->setBlockExtraData($position, $data),
             [$position->chunk()],
         );
     }

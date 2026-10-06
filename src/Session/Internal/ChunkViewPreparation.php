@@ -26,8 +26,7 @@ final class ChunkViewPreparation
         public readonly ChunkPos $toCenter,
         public readonly int $toRadius,
         private readonly array $entering,
-    ) {
-    }
+    ) {}
 
     public function sameTransition(
         ChunkPos $fromCenter,

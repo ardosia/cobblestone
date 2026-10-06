@@ -12,8 +12,7 @@ final readonly class LightPropagationResult
     public function __construct(
         public int $processedUpdates,
         public array $changedChunks,
-    ) {
-    }
+    ) {}
 
     public function changed(): bool
     {

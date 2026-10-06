@@ -9,6 +9,7 @@ use Cobblestone\Command\CommandDefinitionException;
 use Cobblestone\Command\CommandParseException;
 use Cobblestone\Command\Internal\CommandTree;
 use Cobblestone\Command\CommandRequirementFailed;
+
 use function Cobblestone\Command\{boolean, enumArg, greedyString, integer, literal, word};
 
 enum CommandSmokeMode: string
@@ -29,45 +30,45 @@ $binding = $commands->register(
     literal('world', aliases: ['w'])->then(
         literal('time')->then(
             literal('get')->executes(
-                static fn (Command $command): string => $command->input(),
+                static fn(Command $command): string => $command->input(),
             ),
             literal('set')->then(
                 integer('time', min: 0, max: 24_000)->executes(
-                    static fn (int $time): int => $time,
+                    static fn(int $time): int => $time,
                 ),
             ),
         ),
         literal('mode')->then(
             enumArg('mode', CommandSmokeMode::class)->executes(
-                static fn (CommandSmokeMode $mode): string => $mode->value,
+                static fn(CommandSmokeMode $mode): string => $mode->value,
             ),
         ),
         literal('flag')->then(
             boolean('enabled')->executes(
-                static fn (bool $enabled): bool => $enabled,
+                static fn(bool $enabled): bool => $enabled,
             ),
         ),
         literal('say')->then(
             greedyString('message')->executes(
-                static fn (string $message): string => $message,
+                static fn(string $message): string => $message,
             ),
         ),
         literal('optional')
-            ->executes(static fn (): string => 'base')
+            ->executes(static fn(): string => 'base')
             ->then(
                 word('name')->executes(
-                    static fn (string $name): string => $name,
+                    static fn(string $name): string => $name,
                 ),
             ),
         literal('ban')->then(
-            literal('list')->executes(static fn (): string => 'literal'),
+            literal('list')->executes(static fn(): string => 'literal'),
             word('player')->executes(
-                static fn (string $player): string => 'player:' . $player,
+                static fn(string $player): string => 'player:' . $player,
             ),
         ),
         literal('admin')
-            ->requires(static fn (Command $command): bool => $command->source() === 'operator')
-            ->executes(static fn (): string => 'admin'),
+            ->requires(static fn(Command $command): bool => $command->source() === 'operator')
+            ->executes(static fn(): string => 'admin'),
     ),
 );
 
@@ -94,7 +95,7 @@ try {
     $commands->register(
         literal('broken')->then(
             integer('count')->executes(
-                static fn (string $count): string => $count,
+                static fn(string $count): string => $count,
             ),
         ),
     );

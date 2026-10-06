@@ -98,8 +98,8 @@ final class Scheduler
         $this->pendingFibers[$id] = true;
 
         return new TaskHandle(
-            fn (): bool => $this->cancelFiber($id),
-            fn (): bool => isset($this->fibers[$id]),
+            fn(): bool => $this->cancelFiber($id),
+            fn(): bool => isset($this->fibers[$id]),
         );
     }
 
@@ -283,8 +283,8 @@ final class Scheduler
     private function scheduledHandle(int $taskId): TaskHandle
     {
         return new TaskHandle(
-            fn (): bool => $this->cancelScheduledTask($taskId),
-            fn (): bool => isset($this->tasks[$taskId]),
+            fn(): bool => $this->cancelScheduledTask($taskId),
+            fn(): bool => isset($this->tasks[$taskId]),
         );
     }
 

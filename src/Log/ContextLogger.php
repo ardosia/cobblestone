@@ -16,8 +16,7 @@ final class ContextLogger extends AbstractLogger
         private readonly string $name,
         private readonly array $context = [],
         private readonly string $execution = 'main',
-    ) {
-    }
+    ) {}
 
     public function log($level, string|Stringable $message, array $context = []): void
     {

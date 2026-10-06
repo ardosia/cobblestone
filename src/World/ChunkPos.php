@@ -9,8 +9,7 @@ final readonly class ChunkPos
     public function __construct(
         public int $x,
         public int $z,
-    ) {
-    }
+    ) {}
 
     public static function fromBlock(int $x, int $z): self
     {

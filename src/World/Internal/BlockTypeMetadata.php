@@ -10,9 +10,7 @@ use Cobblestone\World\Light\BlockLightProperties;
 /** @internal Exact asset vocabulary and recovered static light metadata for BlockType. */
 final class BlockTypeMetadata
 {
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function assetName(BlockType $type): string
     {

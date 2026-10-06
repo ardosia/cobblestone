@@ -349,14 +349,18 @@ try {
     infiniteAwaitChunk($village, new ChunkPos(1, 3));
     // Real 0.15.10 offline mamaMOOSE oracle: Village source (2,3), Well x34..39, z50..55.
     $well = new ChunkPos(2, 3);
-    infiniteExpect($villageStore->lifecycleFlags($well) === Chunk::LIFECYCLE_GENERATED,
-        'cross-chunk village Well was not left generated-only before requesting its center');
+    infiniteExpect(
+        $villageStore->lifecycleFlags($well) === Chunk::LIFECYCLE_GENERATED,
+        'cross-chunk village Well was not left generated-only before requesting its center',
+    );
     $other = new ChunkPos(0, 3);
     $otherChunk = $village->adoptNativeChunk($other);
     infiniteExpect(!$otherChunk->isPopulated(), 'neighbor fixture was already populated');
     $completed = infiniteAwaitChunk($village, $other);
-    infiniteExpect($completed === $otherChunk && $completed->isPopulated() && $completed->isLightPopulated(),
-        'already-adopted generated-only village neighbor was returned without population');
+    infiniteExpect(
+        $completed === $otherChunk && $completed->isPopulated() && $completed->isLightPopulated(),
+        'already-adopted generated-only village neighbor was returned without population',
+    );
 
     $villageStore->flushStorage();
     $villageStore->destroy();
@@ -382,16 +386,22 @@ try {
         }
         infiniteExpect($prepared, 'persisted generated-only Well did not finish initial view preparation');
         $wellChunk = $reopenedVillage->chunk($well, false);
-        infiniteExpect($wellChunk !== null && $wellChunk->isPopulated() && $wellChunk->isLightPopulated(),
-            'persisted generated-only village Well was sent without population');
+        infiniteExpect(
+            $wellChunk !== null && $wellChunk->isPopulated() && $wellChunk->isLightPopulated(),
+            'persisted generated-only village Well was sent without population',
+        );
         $wellStates = $wellChunk->snapshot()->blockIds;
-        infiniteExpect(str_contains($wellStates, chr(85)),
-            'village Well fence was not placed in its center chunk');
+        infiniteExpect(
+            str_contains($wellStates, chr(85)),
+            'village Well fence was not placed in its center chunk',
+        );
 
         $resident = new ChunkPos(2, 4);
         $residentChunk = infiniteAwaitChunk($reopenedVillage, $resident);
-        infiniteExpect($residentChunk->isPopulated() && $residentChunk->isLightPopulated(),
-            'loaded generated-only neighbor was returned without population');
+        infiniteExpect(
+            $residentChunk->isPopulated() && $residentChunk->isLightPopulated(),
+            'loaded generated-only neighbor was returned without population',
+        );
 
     } finally {
         $reopenedVillage->nativeStore()?->destroy();

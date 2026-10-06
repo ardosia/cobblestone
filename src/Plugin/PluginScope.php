@@ -28,8 +28,7 @@ final class PluginScope
         private readonly CommandTree $commands,
         private readonly Scheduler $scheduler,
         private readonly LoggerInterface $logger,
-    ) {
-    }
+    ) {}
 
     public function logger(): LoggerInterface
     {

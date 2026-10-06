@@ -21,8 +21,7 @@ final readonly class BiomeArea
         public int $width,
         public int $height,
         private string $ids,
-    ) {
-    }
+    ) {}
 
     public static function fromBinary(
         int $originX,

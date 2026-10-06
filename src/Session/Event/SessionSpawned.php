@@ -12,6 +12,5 @@ final readonly class SessionSpawned
         public int $effectiveRadius,
         public int $chunksSent = 0,
         public int $encodedBytes = 0,
-    ) {
-    }
+    ) {}
 }

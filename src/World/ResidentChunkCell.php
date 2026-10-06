@@ -16,9 +16,7 @@ final class ResidentChunkCell
 {
     private int $pins = 0;
 
-    public function __construct(private readonly Chunk $chunk)
-    {
-    }
+    public function __construct(private readonly Chunk $chunk) {}
 
     public function position(): ChunkPos
     {

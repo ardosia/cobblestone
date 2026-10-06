@@ -9,9 +9,7 @@ use RuntimeException;
 /** @internal Coarse fixed-target biome-source bridge. */
 final class BiomeSource
 {
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     /** @return array{x: int, z: int} */
     public static function overworldSpawn(int $seed): array

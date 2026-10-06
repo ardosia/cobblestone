@@ -31,8 +31,7 @@ final class WorldLightAccess
     public function __construct(
         private readonly World $world,
         private readonly BlockLightCatalog $catalog,
-    ) {
-    }
+    ) {}
 
     public function neighborhoodAvailable(BlockPos $position): bool
     {

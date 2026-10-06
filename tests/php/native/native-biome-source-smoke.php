@@ -64,10 +64,10 @@ nativeBiomeSourceExpect(
 
 foreach (
     [
-        static fn () => new OverworldBiomeSource(0x80000000),
-        static fn () => $source->area(0, 0, 0, 1),
-        static fn () => $source->area(0, 0, 65, 1),
-        static fn () => $source->area(0x7fffffff, 0, 2, 1),
+        static fn() => new OverworldBiomeSource(0x80000000),
+        static fn() => $source->area(0, 0, 0, 1),
+        static fn() => $source->area(0, 0, 65, 1),
+        static fn() => $source->area(0x7fffffff, 0, 2, 1),
     ] as $invalid
 ) {
     try {

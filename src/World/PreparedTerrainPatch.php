@@ -17,8 +17,7 @@ final readonly class PreparedTerrainPatch
         public bool $changed,
         private array $blocks,
         private array $biomes,
-    ) {
-    }
+    ) {}
 
     /** @internal */
     public function baseRevision(): int

@@ -11,6 +11,5 @@ final readonly class Packet
         public int $sessionId,
         public int $packetId,
         public string $body,
-    ) {
-    }
+    ) {}
 }

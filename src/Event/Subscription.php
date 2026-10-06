@@ -13,8 +13,7 @@ final class Subscription
     /** @param Closure(): bool $cancel */
     public function __construct(
         private readonly Closure $cancel,
-    ) {
-    }
+    ) {}
 
     public function active(): bool
     {

@@ -78,12 +78,12 @@ final class LightEdit
 
         $sky = array_filter(
             $this->sky,
-            fn (LightLevel $level, int $key): bool => $level->value !== $this->authoritativeSky($key),
+            fn(LightLevel $level, int $key): bool => $level->value !== $this->authoritativeSky($key),
             ARRAY_FILTER_USE_BOTH,
         );
         $block = array_filter(
             $this->block,
-            fn (LightLevel $level, int $key): bool => $level->value !== $this->authoritativeBlock($key),
+            fn(LightLevel $level, int $key): bool => $level->value !== $this->authoritativeBlock($key),
             ARRAY_FILTER_USE_BOTH,
         );
 

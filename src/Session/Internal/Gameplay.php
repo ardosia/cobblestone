@@ -26,8 +26,7 @@ final class Gameplay
         private readonly NativeSession $sessions,
         private readonly World $world,
         private readonly int $maxChunkRadius,
-    ) {
-    }
+    ) {}
 
     public function spawned(int $sessionId): void
     {

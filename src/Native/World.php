@@ -209,7 +209,7 @@ final class World
             );
         }
 
-        $signed = static fn (int $value): int => $value >= 0x80000000
+        $signed = static fn(int $value): int => $value >= 0x80000000
             ? $value - 0x100000000
             : $value;
 

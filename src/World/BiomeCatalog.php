@@ -76,9 +76,7 @@ final class BiomeCatalog
         167 => ['name' => 'Mesa Plateau M', 'color' => 0x90814d],
     ];
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function supports(int $id): bool
     {

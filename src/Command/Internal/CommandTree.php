@@ -46,7 +46,7 @@ final class CommandTree
             $this->roots[$name] = $id;
         }
 
-        return new CommandBinding(fn (): bool => $this->remove($id));
+        return new CommandBinding(fn(): bool => $this->remove($id));
     }
 
     public function execute(string $input, mixed $source = null): mixed

@@ -6,6 +6,4 @@ namespace Cobblestone\World\Mutation;
 
 use RuntimeException;
 
-final class MutationConflict extends RuntimeException
-{
-}
+final class MutationConflict extends RuntimeException {}

@@ -8,6 +8,5 @@ final readonly class SessionLoginAccepted
 {
     public function __construct(
         public int $sessionId,
-    ) {
-    }
+    ) {}
 }

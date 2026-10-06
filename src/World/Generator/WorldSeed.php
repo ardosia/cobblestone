@@ -16,9 +16,7 @@ final class WorldSeed
     private const I32_MAX = 2_147_483_647;
     private const I32_MIN = -2_147_483_648;
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function random(): int
     {

@@ -15,8 +15,7 @@ final class LoggerFactory
 {
     private function __construct(
         private readonly LoggerInterface $root,
-    ) {
-    }
+    ) {}
 
     public static function console(
         ?string $minimumLevel = null,

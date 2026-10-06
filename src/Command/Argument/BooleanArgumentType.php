@@ -35,7 +35,7 @@ final readonly class BooleanArgumentType implements ArgumentType
 
         return array_values(array_filter(
             ['true', 'false'],
-            static fn (string $value): bool => str_starts_with($value, $prefix),
+            static fn(string $value): bool => str_starts_with($value, $prefix),
         ));
     }
 

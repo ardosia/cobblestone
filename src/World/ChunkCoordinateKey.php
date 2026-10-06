@@ -11,9 +11,7 @@ namespace Cobblestone\World;
  */
 final class ChunkCoordinateKey
 {
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function block(int $x, int $y, int $z): int
     {

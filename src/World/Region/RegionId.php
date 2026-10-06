@@ -10,8 +10,7 @@ final readonly class RegionId
     public function __construct(
         public int $x,
         public int $z,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {

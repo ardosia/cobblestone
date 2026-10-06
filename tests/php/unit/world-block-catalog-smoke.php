@@ -214,7 +214,7 @@ $expected = [
 
 blockCatalogExpect(count($expected) === 191, 'fixed-target block fixture must contain 191 identities');
 blockCatalogExpect(
-    array_map(static fn (BlockType $type): int => $type->value, BlockType::cases()) === array_keys($expected),
+    array_map(static fn(BlockType $type): int => $type->value, BlockType::cases()) === array_keys($expected),
     'BlockType legacy id set/order mismatch',
 );
 
@@ -246,7 +246,7 @@ for ($id = 0; $id <= 255; ++$id) {
 }
 
 blockCatalogExpect(
-    array_map(static fn (BlockData $data): int => $data->value, BlockData::cases()) === range(0, 15),
+    array_map(static fn(BlockData $data): int => $data->value, BlockData::cases()) === range(0, 15),
     'BlockData must cover exactly the legacy nibble',
 );
 

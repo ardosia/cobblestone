@@ -6,12 +6,13 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 use Cobblestone\Command\CommandParseException;
 use Cobblestone\Command\Internal\CommandTree;
-use function Cobblestone\Command\literal;
 use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Log\LoggerFactory;
 use Cobblestone\Plugin\Internal\Plugins;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\Tests\FailingSmokePlugin;
+
+use function Cobblestone\Command\literal;
 
 function pluginExpect(bool $condition, string $message): void
 {
@@ -45,7 +46,7 @@ pluginExpect($subscriptionRuns === 1, 'cancelled event subscription ran again');
 
 $binding = $commands->register(
     literal('smoke')->then(
-        literal('binding')->executes(static fn (): string => 'ok'),
+        literal('binding')->executes(static fn(): string => 'ok'),
     ),
 );
 pluginExpect($commands->execute('smoke binding') === 'ok', 'command binding did not execute');

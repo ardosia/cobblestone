@@ -21,8 +21,7 @@ final class StagedWorldMutation implements WorldEdit
 
     public function __construct(
         private readonly MainChunkSource $chunks,
-    ) {
-    }
+    ) {}
 
     public function blockStateId(BlockPos $position): int
     {

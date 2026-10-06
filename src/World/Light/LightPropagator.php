@@ -19,9 +19,7 @@ use Cobblestone\World\WorldBounds;
  */
 final readonly class LightPropagator
 {
-    public function __construct(private BlockLightCatalog $catalog)
-    {
-    }
+    public function __construct(private BlockLightCatalog $catalog) {}
 
     /** @param Closure(LightUpdate): void $submit */
     public function apply(WorldLightAccess $access, LightUpdate $update, Closure $submit): void

@@ -17,8 +17,7 @@ final class TaskHandle
     public function __construct(
         private readonly Closure $cancel,
         private readonly Closure $active,
-    ) {
-    }
+    ) {}
 
     public function active(): bool
     {

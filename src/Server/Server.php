@@ -274,14 +274,14 @@ final class Server
         $failure = null;
         $phases = [];
         if ($previous === ServerState::Running) {
-            $phases['stopping-event'] = fn () => $this->events->dispatch(new ServerStopping());
+            $phases['stopping-event'] = fn() => $this->events->dispatch(new ServerStopping());
         }
         if ($this->runtime !== null) {
-            $phases['gameplay'] = fn () => $this->runtime?->stopGameplay();
-            $phases['sessions'] = fn () => $this->runtime?->stopSessions();
+            $phases['gameplay'] = fn() => $this->runtime?->stopGameplay();
+            $phases['sessions'] = fn() => $this->runtime?->stopSessions();
         }
-        $phases['plugins'] = fn () => $this->plugins->shutdown();
-        $phases['scheduler'] = fn () => $this->scheduler->shutdown();
+        $phases['plugins'] = fn() => $this->plugins->shutdown();
+        $phases['scheduler'] = fn() => $this->scheduler->shutdown();
         $phases['world-storage'] = function (): void {
             $native = $this->world->nativeStore();
             if ($native !== null && $native->hasStorage()) {

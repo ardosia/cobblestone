@@ -17,7 +17,6 @@ use Cobblestone\World\LightRevision;
 use Cobblestone\World\LightSnapshot;
 use Cobblestone\World\WorldBounds;
 
-
 /**
  * PHP-backed chunk state kept behind the public Chunk facade.
  *
@@ -45,8 +44,7 @@ final class FallbackChunkState implements ChunkState
     public function __construct(
         private readonly ChunkPos $position,
         BiomeId $biome,
-    )
-    {
+    ) {
         $this->sections = array_fill(0, WorldBounds::SECTION_COUNT, null);
         for ($index = 0; $index < WorldBounds::SECTION_COUNT; ++$index) {
             $this->sections[$index] = ChunkSection::air();
@@ -394,13 +392,9 @@ final class FallbackChunkState implements ChunkState
         }
     }
 
-    public function pin(): void
-    {
-    }
+    public function pin(): void {}
 
-    public function unpin(): void
-    {
-    }
+    public function unpin(): void {}
 
     public function tryEvict(int $localPinCount): ChunkUnloadStatus
     {

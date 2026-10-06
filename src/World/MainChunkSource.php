@@ -6,7 +6,6 @@ namespace Cobblestone\World;
 
 use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\Native\World\LoadStatus;
-
 use Cobblestone\World\Generator\Generator;
 use Cobblestone\World\Generator\InfiniteGenerator;
 

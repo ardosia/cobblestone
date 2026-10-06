@@ -9,6 +9,5 @@ final readonly class SessionConnected
     public function __construct(
         public int $sessionId,
         public string $peer,
-    ) {
-    }
+    ) {}
 }

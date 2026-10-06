@@ -15,9 +15,7 @@ use ValueError;
 /** @internal */
 final class InitialChunkView
 {
-    public function __construct(private readonly World $world)
-    {
-    }
+    public function __construct(private readonly World $world) {}
 
     /** @return list<ChunkPos> */
     public function positions(int $radius, ChunkPos $center): array

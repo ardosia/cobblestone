@@ -7,6 +7,7 @@ namespace Cobblestone\Tests;
 use Cobblestone\Plugin\Plugin;
 use Cobblestone\Plugin\PluginScope;
 use RuntimeException;
+
 use function Cobblestone\Command\literal;
 
 final class FailingSmokePlugin implements Plugin

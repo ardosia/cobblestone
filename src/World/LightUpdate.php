@@ -11,8 +11,7 @@ final readonly class LightUpdate
         public LightLayer $layer,
         public BlockPos $min,
         public BlockPos $max,
-    ) {
-    }
+    ) {}
 
     public static function point(LightLayer $layer, BlockPos $position): self
     {

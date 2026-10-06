@@ -187,27 +187,27 @@ final class ChunkPatch
 
         $blocks = array_filter(
             $this->blocks,
-            fn (int $stateId, int $key): bool => $stateId !== $this->blockStateIdAtKey($key),
+            fn(int $stateId, int $key): bool => $stateId !== $this->blockStateIdAtKey($key),
             ARRAY_FILTER_USE_BOTH,
         );
         $biomes = array_filter(
             $this->biomes,
-            fn (BiomeColumn $biome, int $key): bool => $biome->word() !== $this->biomeColumnAtKey($key)->word(),
+            fn(BiomeColumn $biome, int $key): bool => $biome->word() !== $this->biomeColumnAtKey($key)->word(),
             ARRAY_FILTER_USE_BOTH,
         );
         $extraData = array_filter(
             $this->extraData,
-            fn (int $data, int $key): bool => $data !== $this->extraDataAtKey($key),
+            fn(int $data, int $key): bool => $data !== $this->extraDataAtKey($key),
             ARRAY_FILTER_USE_BOTH,
         );
         $skyLight = array_filter(
             $this->skyLight,
-            fn (int $level, int $key): bool => $level !== $this->skyLightAtKey($key),
+            fn(int $level, int $key): bool => $level !== $this->skyLightAtKey($key),
             ARRAY_FILTER_USE_BOTH,
         );
         $blockLight = array_filter(
             $this->blockLight,
-            fn (int $level, int $key): bool => $level !== $this->blockLightAtKey($key),
+            fn(int $level, int $key): bool => $level !== $this->blockLightAtKey($key),
             ARRAY_FILTER_USE_BOTH,
         );
 

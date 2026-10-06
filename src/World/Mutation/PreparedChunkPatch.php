@@ -28,8 +28,7 @@ final class PreparedChunkPatch
         private readonly array $extraData,
         private readonly array $skyLight,
         private readonly array $blockLight,
-    ) {
-    }
+    ) {}
 
     public function chunk(): Chunk
     {

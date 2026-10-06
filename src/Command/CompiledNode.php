@@ -18,6 +18,5 @@ final readonly class CompiledNode
         public array $children,
         public ?Closure $invoke,
         public array $requirements,
-    ) {
-    }
+    ) {}
 }
