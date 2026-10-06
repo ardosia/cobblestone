@@ -10,5 +10,5 @@ publish = false
 [dependencies]
 cobblestone-runtime = { path = "../../../native/runtime" }
 
-[lints.rust]
-unsafe_code = "forbid"
+[lints]
+workspace = true

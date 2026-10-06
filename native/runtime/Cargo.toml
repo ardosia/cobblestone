@@ -14,5 +14,5 @@ harness = false
 [dependencies]
 crossbeam-channel.workspace = true
 
-[lints.rust]
-unsafe_code = "forbid"
+[lints]
+workspace = true

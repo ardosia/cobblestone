@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
 //! Production fixed-target session mechanism above Cobblestone's RakNet transport and wire codec.

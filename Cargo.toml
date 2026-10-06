@@ -32,3 +32,12 @@ thiserror = "2.0"
 tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
 tracing = "0.1"
 raknet-rust = { git = "https://github.com/ardosia/ardosia-raknet", rev = "f0dbbfb8ef95cdea52dba16ee10c197e75560964" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+# Ratchet: move lints here from the CI "rust-strict" job once their count reaches zero.
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

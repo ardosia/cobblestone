@@ -10,6 +10,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ext_php_rs::prelude::*;
 
+#[allow(unsafe_code)]
 unsafe extern "C" fn cobblestone_core_shutdown(_type: i32, _module_number: i32) -> i32 {
     match catch_unwind(AssertUnwindSafe(|| {
         diagnostics::shutdown();

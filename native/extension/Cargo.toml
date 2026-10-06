@@ -22,3 +22,12 @@ ext-php-rs = "=0.15.15"
 
 [workspace]
 resolver = "3"
+
+# The extension is intentionally outside the root workspace; mirror the phase-0 safety lints here.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"

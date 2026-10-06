@@ -36,11 +36,19 @@
     "serve": "@php tools/project.php serve",
     "test": "@php tools/project.php test",
     "test:php": "@php tools/project.php test:php",
+    "analyse": "phpstan analyse --no-progress",
+    "format:check": "php-cs-fixer fix --dry-run --diff --using-cache=no",
+    "test:phpunit": "phpunit --configuration phpunit.xml.dist",
     "verify": "@php tools/project.php verify"
   },
   "config": {
     "optimize-autoloader": true,
     "process-timeout": 0,
     "sort-packages": true
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^3.95",
+    "phpstan/phpstan": "^2.2",
+    "phpunit/phpunit": "^13.4"
   }
 }

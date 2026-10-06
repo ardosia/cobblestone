@@ -20,5 +20,5 @@ tracing.workspace = true
 [dev-dependencies]
 raknet-rust.workspace = true
 
-[lints.rust]
-unsafe_code = "forbid"
+[lints]
+workspace = true

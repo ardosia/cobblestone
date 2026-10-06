@@ -14,5 +14,5 @@ harness = false
 [dependencies]
 cobblestone-runtime = { path = "../runtime" }
 
-[lints.rust]
-unsafe_code = "forbid"
+[lints]
+workspace = true

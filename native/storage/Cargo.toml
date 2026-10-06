@@ -13,5 +13,5 @@ crc32c.workspace = true
 thiserror.workspace = true
 zstd.workspace = true
 
-[lints.rust]
-unsafe_code = "forbid"
+[lints]
+workspace = true

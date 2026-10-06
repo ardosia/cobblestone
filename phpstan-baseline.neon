@@ -1,0 +1,967 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Match expression does not handle remaining value\: string$#'
+			identifier: match.unhandled
+			count: 1
+			path: src/Command/Argument/StringArgumentType.php
+
+		-
+			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: src/Command/Internal/CommandTree.php
+
+		-
+			message: '#^Method Cobblestone\\Command\\Literal\:\:normalizeAliases\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Command/Literal.php
+
+		-
+			message: '#^Parameter \#2 \$aliases of static method Cobblestone\\Command\\Literal\:\:normalizeAliases\(\) expects list\<string\>, array\<int\|string, string\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/Literal.php
+
+		-
+			message: '#^Property Cobblestone\\Command\\Literal\:\:\$aliases \(list\<string\>\) does not accept array\.$#'
+			identifier: assign.propertyType
+			count: 2
+			path: src/Command/Literal.php
+
+		-
+			message: '#^Property Cobblestone\\Command\\Node\:\:\$children \(list\<Cobblestone\\Command\\Node\>\) does not accept non\-empty\-array\<int\|string, Cobblestone\\Command\\Node\>\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: src/Command/Node.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 2
+			path: src/Log/ConsoleFormatter.php
+
+		-
+			message: '#^Parameter \#2 \$context of method Cobblestone\\Log\\ConsoleFormatter\:\:interpolate\(\) expects array\<string, mixed\>, array\<mixed, mixed\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Log/ConsoleFormatter.php
+
+		-
+			message: '#^Parameter \#1 \$name of static method Monolog\\Level\:\:fromName\(\) expects ''ALERT''\|''Alert''\|''alert''\|''CRITICAL''\|''Critical''\|''critical''\|''DEBUG''\|''Debug''\|''debug''\|''EMERGENCY''\|''Emergency''\|''emergency''\|''ERROR''\|''Error''\|''error''\|''INFO''\|''Info''\|''info''\|''NOTICE''\|''Notice''\|''notice''\|''WARNING''\|''Warning''\|''warning'', string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Log/LoggerFactory.php
+
+		-
+			message: '#^Function cobblestone_core_runtime_id not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_disconnect not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_poll_event not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_accept_login_world not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_commit_prepared_view not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_flush_world_changes not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_plan_chunk_radius not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_player_spawned not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_request_chunk_radius not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_send_initial_chunks not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_send_native_chunks not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_send_prepared_view_chunks not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_protocol84_track_move_player not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_send not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_start not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_stop not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Session\:\:commitPreparedView\(\) should return bool but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Session\:\:flushWorldChanges\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Session\:\:planChunkRadius\(\) should return string but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Session\:\:requestedChunkRadius\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Session\:\:sendInitialChunks\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Session\:\:sendInitialWorldChunks\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Session\:\:trackPlayerMovement\(\) should return string but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$event of method Cobblestone\\Native\\Session\:\:connectedEvent\(\) expects array\<int, mixed\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$event of method Cobblestone\\Native\\Session\:\:disconnectedEvent\(\) expects array\<int, mixed\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$event of method Cobblestone\\Native\\Session\:\:packetEvent\(\) expects array\<int, mixed\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$runtimeId of class Cobblestone\\Native\\Session constructor expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$sessionId of class Cobblestone\\Native\\Session\\Connected constructor expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$sessionId of class Cobblestone\\Native\\Session\\Disconnected constructor expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$sessionId of class Cobblestone\\Native\\Session\\Packet constructor expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method Cobblestone\\Native\\Session\\ViewSendResult\:\:tryFrom\(\) expects int\|string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Part \$abi \(mixed\) of encapsed string cannot be cast to string\.$#'
+			identifier: encapsedStringPart.nonString
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_core_async_ready not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Tasks.php
+
+		-
+			message: '#^Function cobblestone_core_async_take not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Tasks.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Tasks\:\:ready\(\) should return bool but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Tasks.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\Tasks\:\:take\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/Tasks.php
+
+		-
+			message: '#^Function cobblestone_world_apply_patch not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_biome not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_biome_word not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_block_extra_data not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_block_light not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_block_state not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_chunk_dirty not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_chunk_pin_count not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_commit_light_revision not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_commit_terrain_revision not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_create not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_destroy not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_ensure_chunk not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_fill_layers not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_fill_sky_light_from not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_height_map not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_lifecycle_flags not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_light_revision not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_mark_persisted not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_pin_chunk not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_recalculate_height_map not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_set_biome not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_set_biome_word not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_set_block_extra_data not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_set_block_light not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_set_block_state not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_set_lifecycle_flags not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_set_sky_light not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_sky_light not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_snapshot not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_storage_attach not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_storage_flush not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_storage_prepare_loads not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_storage_request_load not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_storage_stats not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_storage_tick not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_terrain_revision not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_try_evict_chunk not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Function cobblestone_world_unpin_chunk not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:biome\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:biomeWord\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:blockExtraData\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:blockLight\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:blockStateId\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:chunkDirty\(\) should return bool but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:chunkPinCount\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:ensureChunk\(\) should return bool but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:heightMap\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:lifecycleFlags\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:lightRevision\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:pinChunk\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:prepareStorageLoadBatch\(\) should return string but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:setBiome\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:setBiomeWord\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:setBlockExtraData\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:setBlockLight\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:setBlockStateId\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:setSkyLight\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:skyLight\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:snapshotProjection\(\) should return string but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:terrainRevision\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:tryEvictChunk\(\) should return 0\|1\|2\|3 but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\:\:unpinChunk\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#1 \$handle of class Cobblestone\\Native\\World constructor expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#1 \$string of function strlen expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#1 \$value of closure expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 3
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method Cobblestone\\Native\\World\\LoadStatus\:\:from\(\) expects int\|string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#1 \$values of static method Cobblestone\\Native\\World\\Metadata\:\:fromNative\(\) expects array\<int, mixed\>, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#1 \$values of static method Cobblestone\\Native\\World\\StorageProjection\:\:decodeStats\(\) expects array\<int, mixed\>, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#1 \$values of static method Cobblestone\\Native\\World\\StorageProjection\:\:decodeTick\(\) expects array\<int, mixed\>, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Parameter \#2 \$string of function unpack expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/World.php
+
+		-
+			message: '#^Method Cobblestone\\Native\\World\\BiomeSource\:\:overworld\(\) should return string but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Native/World/BiomeSource.php
+
+		-
+			message: '#^Parameter \#1 \$string of function strlen expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Native/World/BiomeSource.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method Cobblestone\\Native\\World\\BiomeSource\:\:signed32\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 5
+			path: src/Native/World/BiomeSource.php
+
+		-
+			message: '#^Parameter \#2 \$string of function unpack expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Native/World/BiomeSource.php
+
+		-
+			message: '#^Cannot cast mixed to int\.$#'
+			identifier: cast.int
+			count: 9
+			path: src/Native/World/Metadata.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 3
+			path: src/Native/World/Metadata.php
+
+		-
+			message: '#^Binary operation "\-" between int\<0, max\> and mixed results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: src/Native/World/SnapshotDecoder.php
+
+		-
+			message: '#^Parameter \#2 \$offset of closure expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 9
+			path: src/Native/World/SnapshotDecoder.php
+
+		-
+			message: '#^Parameter \#9 \$extraData of class Cobblestone\\World\\ChunkSnapshot constructor expects array\<int, int\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Native/World/SnapshotDecoder.php
+
+		-
+			message: '#^Possibly invalid array key type mixed\.$#'
+			identifier: offsetAccess.invalidOffset
+			count: 1
+			path: src/Native/World/SnapshotDecoder.php
+
+		-
+			message: '#^Cannot cast mixed to int\.$#'
+			identifier: cast.int
+			count: 22
+			path: src/Native/World/StorageProjection.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 1
+			path: src/Native/World/StorageProjection.php
+
+		-
+			message: '#^Instanceof between Cobblestone\\Native\\Session\\Packet and Cobblestone\\Native\\Session\\Packet will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Server/Internal/Runtime.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Cobblestone\\Server\\Internal\\Runtime\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: src/Server/Server.php
+
+		-
+			message: '#^Binary operation "\*" between mixed and 8 results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: src/Session/Internal/Gameplay.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method Cobblestone\\Session\\Internal\\Gameplay\:\:signedInt32\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 8
+			path: src/Session/Internal/Gameplay.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 1
+			path: src/Tick/TickLoop.php
+
+		-
+			message: '#^Parameter \#1 \$word of static method Cobblestone\\World\\BiomeColumn\:\:fromWord\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/ChunkDataSnapshot.php
+
+		-
+			message: '#^Parameter \#1 \$codepoint of function chr expects int\<0, 255\>, int given\.$#'
+			identifier: argument.type
+			count: 6
+			path: src/World/ChunkSection.php
+
+		-
+			message: '#^Parameter \#1 \$codepoint of function chr expects int\<0, 255\>, int\<\-1, 15\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/ChunkSection.php
+
+		-
+			message: '#^Method Cobblestone\\World\\ChunkSnapshot\:\:biomeWord\(\) should return int\|null but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/ChunkSnapshot.php
+
+		-
+			message: '#^Parameter \#5 \$blocks of method Cobblestone\\World\\Chunk\:\:applyPatch\(\) expects array\<int, int\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/ChunkTerrain.php
+
+		-
+			message: '#^Parameter \#6 \$biomes of method Cobblestone\\World\\Chunk\:\:applyPatch\(\) expects array\<int, Cobblestone\\World\\BiomeColumn\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/ChunkTerrain.php
+
+		-
+			message: '#^Offset 1 on array\{0\: non\-empty\-string, 1\: ''''\|numeric\-string, 2\: numeric\-string, 3\?\: numeric\-string\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: src/World/Generator/FlatPreset.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between numeric\-string and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/World/Generator/FlatPreset.php
+
+		-
+			message: '#^Instantiated class Cobblestone\\World\\Internal\\LogicException not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/World/Internal/FallbackChunkState.php
+
+		-
+			message: '#^Parameter \#1 \$codepoint of function chr expects int\<0, 255\>, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/Internal/FallbackChunkState.php
+
+		-
+			message: '#^Property Cobblestone\\World\\Internal\\FallbackChunkState\:\:\$sections \(array\<int, Cobblestone\\World\\ChunkSection\>\) does not accept array\<int, null\>\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: src/World/Internal/FallbackChunkState.php
+
+		-
+			message: '#^Throwing object of an unknown class Cobblestone\\World\\Internal\\LogicException\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/World/Internal/FallbackChunkState.php
+
+		-
+			message: '#^Method Cobblestone\\World\\PreparedTerrainPatch\:\:biomes\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/World/PreparedTerrainPatch.php
+
+		-
+			message: '#^Method Cobblestone\\World\\PreparedTerrainPatch\:\:blocks\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/World/PreparedTerrainPatch.php
+
+		-
+			message: '#^Method Cobblestone\\World\\TerrainPatch\:\:decodeBlockKey\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/World/TerrainPatch.php
+
+		-
+			message: '#^Method Cobblestone\\World\\TerrainPatch\:\:decodeColumnKey\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/World/TerrainPatch.php
+
+		-
+			message: '#^Parameter \#1 \$x of method Cobblestone\\World\\Chunk\:\:biomeColumn\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/TerrainPatch.php
+
+		-
+			message: '#^Parameter \#1 \$x of method Cobblestone\\World\\Chunk\:\:blockStateId\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/TerrainPatch.php
+
+		-
+			message: '#^Parameter \#2 \$y of method Cobblestone\\World\\Chunk\:\:blockStateId\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/TerrainPatch.php
+
+		-
+			message: '#^Parameter \#2 \$z of method Cobblestone\\World\\Chunk\:\:biomeColumn\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/TerrainPatch.php
+
+		-
+			message: '#^Parameter \#3 \$z of method Cobblestone\\World\\Chunk\:\:blockStateId\(\) expects int, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/World/TerrainPatch.php
+
+		-
+			message: '#^Method Cobblestone\\World\\World\:\:setBiomeAt\(\) should return Cobblestone\\World\\BiomeId but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/World.php
+
+		-
+			message: '#^Method Cobblestone\\World\\World\:\:setBiomeColorAt\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/World.php
+
+		-
+			message: '#^Method Cobblestone\\World\\World\:\:setBiomeColumnAt\(\) should return Cobblestone\\World\\BiomeColumn but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/World.php
+
+		-
+			message: '#^Method Cobblestone\\World\\World\:\:setBlockExtraData\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/World.php
+
+		-
+			message: '#^Method Cobblestone\\World\\World\:\:setBlockLight\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/World.php
+
+		-
+			message: '#^Method Cobblestone\\World\\World\:\:setBlockStateId\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/World.php
+
+		-
+			message: '#^Method Cobblestone\\World\\World\:\:setSkyLight\(\) should return int but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/World/World.php

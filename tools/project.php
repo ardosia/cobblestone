@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 const ROOT = __DIR__ . '/..';
 const NATIVE_EXTENSION = ROOT . '/native/extension';
+const WORKSPACE_TOOLCHAIN = '1.98.0';
 
 function fail(string $message, int $code = 1): never
 {
@@ -51,7 +52,7 @@ function extensionPath(): string
 
 function setupComposer(): void
 {
-    run(['composer', 'update', '--no-interaction']);
+    run(['composer', 'install', '--no-interaction', '--prefer-dist']);
 }
 
 function ensureAutoload(): void
@@ -82,6 +83,31 @@ function checkNative(): void
     run(['cargo', $toolchain, 'clippy', '--', '-D', 'warnings'], NATIVE_EXTENSION);
 }
 
+function checkWorkspace(): void
+{
+    $toolchain = '+' . WORKSPACE_TOOLCHAIN;
+
+    run(['cargo', $toolchain, 'fmt', '--all', '--', '--check']);
+    run(['cargo', $toolchain, 'check', '--workspace', '--all-targets']);
+    run(['cargo', $toolchain, 'clippy', '--workspace', '--all-targets', '--', '-D', 'warnings']);
+}
+
+function testWorkspace(): void
+{
+    run(['cargo', '+' . WORKSPACE_TOOLCHAIN, 'test', '--workspace', '--lib', '--tests']);
+}
+
+function checkPhpStatic(): void
+{
+    run([ROOT . '/vendor/bin/phpstan', 'analyse', '--no-progress']);
+    run([ROOT . '/vendor/bin/php-cs-fixer', 'fix', '--dry-run', '--diff', '--using-cache=no']);
+}
+
+function testPhpunit(): void
+{
+    run([ROOT . '/vendor/bin/phpunit', '--configuration', ROOT . '/phpunit.xml.dist']);
+}
+
 function lintPhp(): void
 {
     $roots = [
@@ -89,7 +115,10 @@ function lintPhp(): void
         ROOT . '/tests/php',
         ROOT . '/tools',
     ];
-    $files = [ROOT . '/bin/cobblestone'];
+    $files = [
+        ROOT . '/.php-cs-fixer.dist.php',
+        ROOT . '/bin/cobblestone',
+    ];
 
     foreach ($roots as $root) {
         if (!is_dir($root)) {
@@ -232,8 +261,9 @@ switch ($command) {
     case 'check':
         validateComposer();
         lintPhp();
-        run(['python', 'tools/ci.py', 'all']);
+        checkWorkspace();
         checkNative();
+        checkPhpStatic();
         break;
 
     case 'test:php':
@@ -243,7 +273,9 @@ switch ($command) {
 
     case 'test':
         ensureAutoload();
+        testWorkspace();
         buildNative();
+        testPhpunit();
         testPhp();
         break;
 

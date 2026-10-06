@@ -15,5 +15,5 @@ cobblestone-transport = { path = "../../../native/transport" }
 raknet-rust.workspace = true
 tokio.workspace = true
 
-[lints.rust]
-unsafe_code = "forbid"
+[lints]
+workspace = true

@@ -3,3 +3,8 @@ vendor/
 worlds/
 .DS_Store
 Thumbs.db
+
+# PHPStan
+/.phpstan-cache/
+/.php-cs-fixer.cache
+/.phpunit.cache/

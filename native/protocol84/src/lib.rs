@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 //! Fixed-target MCPE 0.15.10 / protocol-84 binary wire mechanisms.
 //!
 //! This crate owns packet framing and binary representation only. RakNet transport and gameplay
