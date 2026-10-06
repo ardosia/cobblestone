@@ -86,6 +86,7 @@ fn snapshot_at(
                 biomes,
                 height_map,
                 extra_data: BTreeMap::new(),
+                chest_block_entities: Vec::new(),
             },
         )
         .unwrap();

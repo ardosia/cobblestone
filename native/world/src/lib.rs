@@ -48,8 +48,8 @@ pub use change_log::{
 pub use chunk::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_EDGE, CHUNK_LIFECYCLE_GENERATED,
     CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_MASK, CHUNK_LIFECYCLE_POPULATED,
-    CHUNK_NIBBLE_BYTES, ChunkCoord, ChunkEviction, ChunkImport, ChunkPatch, ChunkSnapshot,
-    REGION_CHUNK_EDGE, WORLD_HEIGHT,
+    CHUNK_NIBBLE_BYTES, ChestBlockEntity, ChestItemStack, ChunkCoord, ChunkEviction, ChunkImport,
+    ChunkPatch, ChunkSnapshot, REGION_CHUNK_EDGE, WORLD_HEIGHT,
 };
 use chunk::{ChunkData, ChunkRecord, RegionShard};
 pub use dimension::DimensionId;
@@ -536,6 +536,7 @@ mod tests {
             biomes: vec![1; CHUNK_COLUMN_COUNT],
             height_map: vec![0; CHUNK_COLUMN_COUNT],
             extra_data: BTreeMap::new(),
+            chest_block_entities: Vec::new(),
         };
 
         assert!(store.import_chunk_if_absent(pos, import.clone()).unwrap());

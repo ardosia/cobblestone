@@ -1,7 +1,8 @@
-use crate::ChunkCoord;
 use crate::population::{PopulationNeighborhood, state};
+use crate::population_feature::{block_solid_flag, material_is_solid};
 use crate::population_finalizer::material_blocks_motion;
 use crate::terrain_shape::noise::MtRandom;
+use crate::{ChestItemStack, ChunkCoord};
 
 use super::village_plan::{
     VillagePieceExtra, VillagePieceKind, VillagePiecePlan, VillagePlan, VillageStyle,
@@ -16,11 +17,13 @@ const PLANKS: u16 = 5;
 const WATER: u16 = 9;
 const SANDSTONE: u16 = 24;
 const WEB: u16 = 30;
+const WOOL: u16 = 35;
 const DOUBLE_STONE_SLAB: u16 = 43;
 const STONE_SLAB: u16 = 44;
 const BOOKSHELF: u16 = 47;
 const MOSSY_COBBLESTONE: u16 = 48;
 const TORCH: u16 = 50;
+const CHEST: u16 = 54;
 const OAK_STAIRS: u16 = 53;
 const CRAFTING_TABLE: u16 = 58;
 const WHEAT: u16 = 59;
@@ -478,6 +481,87 @@ impl VillagePieceWriter<'_> {
         }
     }
 
+    fn door_data(&self) -> u8 {
+        match self.orientation {
+            StructureOrientation::South => 1,
+            StructureOrientation::West => 2,
+            StructureOrientation::North => 1,
+            StructureOrientation::East => 0,
+        }
+    }
+
+    fn chest_data(&self) -> u8 {
+        match self.orientation {
+            StructureOrientation::South | StructureOrientation::North => 4,
+            StructureOrientation::West | StructureOrientation::East => 2,
+        }
+    }
+
+    fn place_door(&mut self, x: i32, y: i32, z: i32) {
+        let world_x = self.world_x(x, z);
+        let world_y = self.world_y(y);
+        let world_z = self.world_z(x, z);
+        if !self.chunk_box.contains(world_x, world_y, world_z) {
+            return;
+        }
+
+        let (door, _) = biome_block(self.style, WOODEN_DOOR, 0);
+        let direction = self.door_data();
+        let (step_x, step_z) = match direction {
+            0 => (0, 1),
+            1 => (-1, 0),
+            2 => (0, -1),
+            3 => (1, 0),
+            _ => unreachable!("target door orientation is two bits"),
+        };
+        let left_x = world_x - step_x;
+        let left_z = world_z - step_z;
+        let right_x = world_x + step_x;
+        let right_z = world_z + step_z;
+        let solid = |id| block_solid_flag(id) && material_is_solid(id);
+        let left_solids = u8::from(solid(self.neighborhood.block_id(left_x, world_y, left_z)))
+            + u8::from(solid(self.neighborhood.block_id(
+                left_x,
+                world_y + 1,
+                left_z,
+            )));
+        let right_solids = u8::from(solid(self.neighborhood.block_id(right_x, world_y, right_z)))
+            + u8::from(solid(self.neighborhood.block_id(
+                right_x,
+                world_y + 1,
+                right_z,
+            )));
+        let left_door = self.neighborhood.block_id(left_x, world_y, left_z) == door
+            || self.neighborhood.block_id(left_x, world_y + 1, left_z) == door;
+        let right_door = self.neighborhood.block_id(right_x, world_y, right_z) == door
+            || self.neighborhood.block_id(right_x, world_y + 1, right_z) == door;
+        let hinge_right = (left_door && !right_door) || right_solids > left_solids;
+
+        self.neighborhood
+            .set_state(world_x, world_y, world_z, state(door, direction));
+        self.neighborhood.set_state(
+            world_x,
+            world_y + 1,
+            world_z,
+            state(door, 8 | u8::from(hinge_right)),
+        );
+    }
+
+    fn create_smithy_chest(&mut self, random: &mut MtRandom, x: i32, y: i32, z: i32) {
+        let world_x = self.world_x(x, z);
+        let world_y = self.world_y(y);
+        let world_z = self.world_z(x, z);
+        let rolls = 3 + random.next_u32() % 6;
+        if self.neighborhood.block_id(world_x, world_y, world_z) == CHEST {
+            return;
+        }
+        self.neighborhood
+            .set_state(world_x, world_y, world_z, state(CHEST, self.chest_data()));
+        let items = smithy_chest_items(random, rolls);
+        self.neighborhood
+            .put_chest_block_entity(world_x, world_y, world_z, items);
+    }
+
     fn well(&mut self, random: &mut MtRandom) {
         let cobble = if self.abandoned && random.next_float() > 0.4 {
             MOSSY_COBBLESTONE
@@ -639,6 +723,9 @@ impl VillagePieceWriter<'_> {
 
         self.place(AIR, 0, 2, 1, 0);
         self.place(AIR, 0, 2, 2, 0);
+        if !self.abandoned {
+            self.place_door(2, 1, 0);
+        }
         if self.get(2, 0, -1) == AIR && self.get(2, -1, -1) != AIR {
             self.place(STONE_STAIRS, self.stair_data(3), 2, 0, -1);
         }
@@ -729,6 +816,9 @@ impl VillagePieceWriter<'_> {
 
         self.place(AIR, 0, 1, 1, 0);
         self.place(AIR, 0, 1, 2, 0);
+        if !self.abandoned {
+            self.place_door(1, 1, 0);
+        }
         if self.get(1, 0, -1) == AIR && self.get(1, -1, -1) != AIR {
             self.place(STONE_STAIRS, self.stair_data(3), 1, 0, -1);
         }
@@ -785,6 +875,9 @@ impl VillagePieceWriter<'_> {
         }
         self.place(AIR, 0, 1, 1, 0);
         self.place(AIR, 0, 1, 2, 0);
+        if !self.abandoned {
+            self.place_door(1, 1, 0);
+        }
         if self.get(1, 0, -1) == AIR && self.get(1, -1, -1) != AIR {
             self.place(STONE_STAIRS, self.stair_data(3), 1, 0, -1);
         }
@@ -861,6 +954,7 @@ impl VillagePieceWriter<'_> {
         self.place(AIR, 0, 2, 1, 0);
         self.place(AIR, 0, 2, 2, 0);
         if !self.abandoned {
+            self.place_door(2, 1, 0);
             self.place(TORCH, self.torch_data(StructureOrientation::South), 2, 3, 1);
         }
         if self.get(2, 0, -1) == AIR && self.get(2, -1, -1) != AIR {
@@ -869,6 +963,7 @@ impl VillagePieceWriter<'_> {
         self.place(AIR, 0, 6, 1, 5);
         self.place(AIR, 0, 6, 2, 5);
         if !self.abandoned {
+            self.place_door(6, 1, 5);
             self.place(TORCH, self.torch_data(StructureOrientation::North), 6, 3, 4);
         }
         for z in 0..5 {
@@ -951,7 +1046,7 @@ impl VillagePieceWriter<'_> {
         }
     }
 
-    fn smithy(&mut self, piece: &mut VillagePiecePlan, _random: &mut MtRandom) {
+    fn smithy(&mut self, piece: &mut VillagePiecePlan, random: &mut MtRandom) {
         self.air_box(0, 1, 0, 9, 4, 6);
         let mut cobble_random = MtRandom::new(self.post_seed);
         self.cobble_box(&mut cobble_random, 0, 0, 0, 9, 0, 6);
@@ -988,8 +1083,8 @@ impl VillagePieceWriter<'_> {
         self.place(OAK_STAIRS, self.stair_data(3), 2, 1, 5);
         self.place(OAK_STAIRS, self.stair_data(1), 1, 1, 4);
         if !piece.placed_chest && self.local_inside_chunk(5, 1, 5) {
-            // Target createChest body is commented out, but this state flag is still persisted.
             piece.placed_chest = true;
+            self.create_smithy_chest(random, 5, 1, 5);
         }
         for x in 6..=8 {
             if self.get(x, 0, -1) == AIR && self.get(x, -1, -1) != AIR {
@@ -1004,7 +1099,7 @@ impl VillagePieceWriter<'_> {
         }
     }
 
-    fn two_room_house(&mut self, piece: &mut VillagePiecePlan, _random: &mut MtRandom) {
+    fn two_room_house(&mut self, _piece: &mut VillagePiecePlan, _random: &mut MtRandom) {
         let mut cobble_random = MtRandom::new(self.post_seed);
         self.air_box(1, 1, 1, 7, 4, 4);
         self.air_box(2, 1, 6, 8, 4, 10);
@@ -1123,6 +1218,7 @@ impl VillagePieceWriter<'_> {
         self.place(AIR, 0, 2, 1, 0);
         self.place(AIR, 0, 2, 2, 0);
         if !self.abandoned {
+            self.place_door(2, 1, 0);
             self.place(TORCH, self.torch_data(StructureOrientation::South), 2, 3, 1);
         }
         self.air_box(1, 0, -1, 3, 2, -1);
@@ -1141,12 +1237,6 @@ impl VillagePieceWriter<'_> {
                 self.fill_column_down(COBBLESTONE, 0, x, -1, z);
             }
         }
-        if is_snow_covered(self.current_chunk_biome())
-            && !piece.placed_chest
-            && self.local_inside_chunk(5, 1, 9)
-        {
-            piece.placed_chest = true;
-        }
     }
 
     fn light_post(&mut self) {
@@ -1154,6 +1244,7 @@ impl VillagePieceWriter<'_> {
         for y in 0..=2 {
             self.place(FENCE, 0, 1, y, 0);
         }
+        self.place(WOOL, 15, 1, 3, 0);
         if !self.abandoned {
             self.place(TORCH, self.torch_data(StructureOrientation::East), 0, 3, 0);
             self.place(TORCH, self.torch_data(StructureOrientation::South), 1, 3, 1);
@@ -1225,6 +1316,158 @@ fn chunk_bounds(target: ChunkCoord) -> StructureBounds {
 
 const STONE_STAIRS: u16 = 67;
 
+#[derive(Debug, Clone, Copy)]
+struct SmithyLootEntry {
+    item_id: i16,
+    weight: u32,
+    min_count: u8,
+    max_count: u8,
+}
+
+const SMITHY_LOOT: [SmithyLootEntry; 18] = [
+    SmithyLootEntry {
+        item_id: 388,
+        weight: 3,
+        min_count: 1,
+        max_count: 3,
+    },
+    SmithyLootEntry {
+        item_id: 265,
+        weight: 10,
+        min_count: 1,
+        max_count: 5,
+    },
+    SmithyLootEntry {
+        item_id: 266,
+        weight: 5,
+        min_count: 1,
+        max_count: 3,
+    },
+    SmithyLootEntry {
+        item_id: 297,
+        weight: 15,
+        min_count: 1,
+        max_count: 3,
+    },
+    SmithyLootEntry {
+        item_id: 260,
+        weight: 15,
+        min_count: 1,
+        max_count: 3,
+    },
+    SmithyLootEntry {
+        item_id: 257,
+        weight: 5,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 267,
+        weight: 5,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 307,
+        weight: 5,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 306,
+        weight: 5,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 308,
+        weight: 5,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 309,
+        weight: 5,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 49,
+        weight: 5,
+        min_count: 3,
+        max_count: 7,
+    },
+    SmithyLootEntry {
+        item_id: 6,
+        weight: 5,
+        min_count: 3,
+        max_count: 7,
+    },
+    SmithyLootEntry {
+        item_id: 351,
+        weight: 15,
+        min_count: 3,
+        max_count: 14,
+    },
+    SmithyLootEntry {
+        item_id: 329,
+        weight: 3,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 417,
+        weight: 1,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 418,
+        weight: 1,
+        min_count: 1,
+        max_count: 1,
+    },
+    SmithyLootEntry {
+        item_id: 419,
+        weight: 1,
+        min_count: 1,
+        max_count: 1,
+    },
+];
+
+fn smithy_chest_items(random: &mut MtRandom, rolls: u32) -> Vec<ChestItemStack> {
+    const TOTAL_WEIGHT: u32 = 109;
+    let mut slots: [Option<ChestItemStack>; 27] = std::array::from_fn(|_| None);
+    for _ in 0..rolls {
+        let mut pick = random.next_u32() % TOTAL_WEIGHT;
+        let entry = SMITHY_LOOT
+            .iter()
+            .find(|entry| {
+                if pick < entry.weight {
+                    true
+                } else {
+                    pick -= entry.weight;
+                    false
+                }
+            })
+            .expect("target smithy loot weights sum to TOTAL_WEIGHT");
+        let count = if entry.max_count > entry.min_count {
+            entry.min_count
+                + (random.next_u32() % u32::from(entry.max_count - entry.min_count + 1)) as u8
+        } else {
+            entry.min_count
+        };
+        let slot = (random.next_u32() % 27) as u8;
+        slots[usize::from(slot)] = Some(ChestItemStack {
+            slot,
+            item_id: entry.item_id,
+            damage: 0,
+            count,
+        });
+    }
+    slots.into_iter().flatten().collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1292,6 +1535,257 @@ mod tests {
         assert_eq!(neighborhood.state(16, 63, 4), Some(state(GRASS_PATH, 0)));
         assert_eq!(neighborhood.state(17, 63, 4), Some(state(PLANKS, 0)));
         assert_eq!(road.height_position, -1);
+    }
+
+    #[test]
+    fn target_01510_door_halves_orientation_and_biome_substitution() {
+        // x86 VillagePiece::createDoor 0x10124e0 transforms WoodenDoor data=1
+        // through getOrientationData, then delegates both halves to DoorItem::place.
+        for (orientation, lower_data) in [
+            (StructureOrientation::South, 1),
+            (StructureOrientation::West, 2),
+            (StructureOrientation::North, 1),
+            (StructureOrientation::East, 0),
+        ] {
+            let mut neighborhood =
+                PopulationNeighborhood::filled(ChunkCoord::new(0, 0), state(AIR, 0), 1);
+            let mut writer = VillagePieceWriter {
+                neighborhood: &mut neighborhood,
+                chunk_box: StructureBounds::new(-16, 0, -16, 31, 127, 31),
+                bounds: StructureBounds::new(10, 20, 10, 18, 40, 18),
+                orientation,
+                style: VillageStyle::Plains,
+                abandoned: false,
+                post_seed: 0,
+            };
+            let world_x = writer.world_x(2, 0);
+            let world_y = writer.world_y(1);
+            let world_z = writer.world_z(2, 0);
+            let (step_x, step_z) = match lower_data {
+                0 => (0, 1),
+                1 => (-1, 0),
+                2 => (0, -1),
+                3 => (1, 0),
+                _ => unreachable!(),
+            };
+
+            // Force the positive side solid so the exact target hinge rule sets the upper hinge bit.
+            writer.neighborhood.set_state(
+                world_x + step_x,
+                world_y,
+                world_z + step_z,
+                state(COBBLESTONE, 0),
+            );
+            writer.neighborhood.set_state(
+                world_x + step_x,
+                world_y + 1,
+                world_z + step_z,
+                state(COBBLESTONE, 0),
+            );
+            writer.place_door(2, 1, 0);
+
+            assert_eq!(
+                writer.neighborhood.state(world_x, world_y, world_z),
+                Some(state(WOODEN_DOOR, lower_data))
+            );
+            assert_eq!(
+                writer.neighborhood.state(world_x, world_y + 1, world_z),
+                Some(state(WOODEN_DOOR, 9))
+            );
+        }
+
+        assert_eq!(
+            biome_block(VillageStyle::Savanna, WOODEN_DOOR, 1),
+            (ACACIA_DOOR, 1)
+        );
+        assert_eq!(
+            biome_block(VillageStyle::Taiga, WOODEN_DOOR, 1),
+            (SPRUCE_DOOR, 1)
+        );
+    }
+
+    #[test]
+    fn target_01510_abandoned_village_skips_house_doors() {
+        // SmallTemple::postProcess checks the VillagePiece abandoned byte before
+        // its createDoor call (x86 0x10191f7..0x1019257).
+        let mut neighborhood =
+            PopulationNeighborhood::filled(ChunkCoord::new(0, 0), state(AIR, 0), 1);
+        let mut writer = VillagePieceWriter {
+            neighborhood: &mut neighborhood,
+            chunk_box: StructureBounds::new(-16, 0, -16, 31, 127, 31),
+            bounds: StructureBounds::new(0, 20, 0, 4, 31, 8),
+            orientation: StructureOrientation::South,
+            style: VillageStyle::Plains,
+            abandoned: true,
+            post_seed: 0,
+        };
+        let mut random = MtRandom::new(0);
+        writer.small_temple(&mut random);
+
+        assert_eq!(writer.neighborhood.state(2, 21, 0), Some(state(AIR, 0)));
+        assert_eq!(writer.neighborhood.state(2, 22, 0), Some(state(AIR, 0)));
+    }
+
+    #[test]
+    fn target_01510_light_post_uses_black_wool_cap_even_when_abandoned() {
+        // x86 LightPost::postProcess 0x102a0d0 places mWool data 15 at (1,3,0);
+        // only the surrounding torches are gated by the abandoned flag.
+        let mut neighborhood =
+            PopulationNeighborhood::filled(ChunkCoord::new(0, 0), state(AIR, 0), 1);
+        let mut writer = VillagePieceWriter {
+            neighborhood: &mut neighborhood,
+            chunk_box: StructureBounds::new(-16, 0, -16, 31, 127, 31),
+            bounds: StructureBounds::new(0, 20, 0, 2, 23, 1),
+            orientation: StructureOrientation::South,
+            style: VillageStyle::Plains,
+            abandoned: true,
+            post_seed: 0,
+        };
+        writer.light_post();
+
+        assert_eq!(writer.neighborhood.state(1, 23, 0), Some(state(WOOL, 15)));
+        assert_eq!(writer.neighborhood.state(0, 23, 0), Some(state(AIR, 0)));
+    }
+
+    #[test]
+    fn target_01510_smithy_places_oriented_chest_with_deterministic_loot() {
+        // Smithy::postProcess 0x1023400 gates local (5,1,5), persists Chest=true,
+        // builds the 18-entry target table and calls StructurePiece::createChest
+        // 0x100d3e0 with 3 + MT%6 rolls.
+        let mut neighborhood =
+            PopulationNeighborhood::filled(ChunkCoord::new(0, 0), state(AIR, 0), 1);
+        let mut piece = VillagePiecePlan {
+            kind: VillagePieceKind::Smithy,
+            bounds: StructureBounds::new(0, 20, 0, 9, 25, 6),
+            orientation: StructureOrientation::South,
+            gen_depth: 0,
+            extra: VillagePieceExtra::None,
+            height_position: 20,
+            placed_chest: false,
+        };
+        let mut writer = VillagePieceWriter {
+            neighborhood: &mut neighborhood,
+            chunk_box: StructureBounds::new(-16, 0, -16, 31, 127, 31),
+            bounds: piece.bounds,
+            orientation: piece.orientation,
+            style: VillageStyle::Plains,
+            abandoned: false,
+            post_seed: 0,
+        };
+        let mut random = MtRandom::new(0x1234_5678);
+        writer.smithy(&mut piece, &mut random);
+
+        assert!(piece.placed_chest);
+        assert_eq!(writer.neighborhood.state(5, 21, 5), Some(state(CHEST, 4)));
+        let chest = writer
+            .neighborhood
+            .chest_block_entity(5, 21, 5)
+            .expect("smithy chest block entity");
+        assert_eq!(
+            chest.items,
+            vec![
+                ChestItemStack {
+                    slot: 0,
+                    item_id: 351,
+                    damage: 0,
+                    count: 7
+                },
+                ChestItemStack {
+                    slot: 1,
+                    item_id: 297,
+                    damage: 0,
+                    count: 1
+                },
+                ChestItemStack {
+                    slot: 8,
+                    item_id: 267,
+                    damage: 0,
+                    count: 1
+                },
+                ChestItemStack {
+                    slot: 11,
+                    item_id: 265,
+                    damage: 0,
+                    count: 2
+                },
+                ChestItemStack {
+                    slot: 14,
+                    item_id: 266,
+                    damage: 0,
+                    count: 3
+                },
+                ChestItemStack {
+                    slot: 18,
+                    item_id: 260,
+                    damage: 0,
+                    count: 3
+                },
+                ChestItemStack {
+                    slot: 20,
+                    item_id: 417,
+                    damage: 0,
+                    count: 1
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn target_01510_chest_orientation_data_matches_direction_table() {
+        // StructurePiece::getOrientationData(mChest, 1) maps target structure
+        // orientation to chest facing metadata as S=4, W=2, N=4, E=2.
+        for (orientation, expected) in [
+            (StructureOrientation::South, 4),
+            (StructureOrientation::West, 2),
+            (StructureOrientation::North, 4),
+            (StructureOrientation::East, 2),
+        ] {
+            let mut neighborhood =
+                PopulationNeighborhood::filled(ChunkCoord::new(0, 0), state(AIR, 0), 1);
+            let writer = VillagePieceWriter {
+                neighborhood: &mut neighborhood,
+                chunk_box: StructureBounds::new(-16, 0, -16, 31, 127, 31),
+                bounds: StructureBounds::new(0, 20, 0, 9, 25, 6),
+                orientation,
+                style: VillageStyle::Plains,
+                abandoned: false,
+                post_seed: 0,
+            };
+            assert_eq!(writer.chest_data(), expected);
+        }
+    }
+
+    #[test]
+    fn target_01510_two_room_house_has_no_snow_chest_path() {
+        // The real x86 TwoRoomHouse::postProcess 0x1026fc0 has no createChest
+        // call and its save/load overrides persist no chest flag, unlike the
+        // later restored-source fragment.
+        let mut neighborhood =
+            PopulationNeighborhood::filled(ChunkCoord::new(0, 0), state(AIR, 0), 12);
+        let mut piece = VillagePiecePlan {
+            kind: VillagePieceKind::TwoRoomHouse,
+            bounds: StructureBounds::new(0, 20, 0, 8, 26, 11),
+            orientation: StructureOrientation::South,
+            gen_depth: 0,
+            extra: VillagePieceExtra::None,
+            height_position: 20,
+            placed_chest: false,
+        };
+        let mut writer = VillagePieceWriter {
+            neighborhood: &mut neighborhood,
+            chunk_box: StructureBounds::new(-16, 0, -16, 31, 127, 31),
+            bounds: piece.bounds,
+            orientation: piece.orientation,
+            style: VillageStyle::Plains,
+            abandoned: false,
+            post_seed: 0,
+        };
+        let mut random = MtRandom::new(0);
+        writer.two_room_house(&mut piece, &mut random);
+
+        assert!(!piece.placed_chest);
+        assert_ne!(writer.neighborhood.block_id(5, 21, 9), CHEST);
+        assert!(writer.neighborhood.chest_block_entity(5, 21, 9).is_none());
     }
 
     #[test]

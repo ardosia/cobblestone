@@ -71,6 +71,7 @@ impl WorldStore {
             biomes: import.biomes,
             height_map: import.height_map,
             extra_data: import.extra_data,
+            chest_block_entities: import.chest_block_entities,
         });
 
         let region = self.region_or_create(position);

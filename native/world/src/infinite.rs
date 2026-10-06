@@ -224,6 +224,7 @@ impl OverworldInfiniteGenerator {
                 biomes,
                 height_map,
                 extra_data: BTreeMap::new(),
+                chest_block_entities: Vec::new(),
             },
         )
     }
@@ -360,6 +361,7 @@ impl OverworldInfiniteGenerator {
                 biomes: preserved.biome_words,
                 height_map,
                 extra_data: population_extra_to_store(planes.extra_data),
+                chest_block_entities: planes.chest_block_entities,
             };
             if store.install_generated_chunk(position, import)? {
                 changed_chunks += 1;
@@ -426,6 +428,7 @@ fn planes_from_snapshot(snapshot: &ChunkSnapshot) -> PopulationChunkPlanes {
             .collect(),
         generation_height_map: snapshot.height_map().to_vec(),
         extra_data: store_extra_to_population(snapshot.extra_data()),
+        chest_block_entities: snapshot.chest_block_entities().to_vec(),
     }
 }
 
@@ -744,6 +747,7 @@ mod tests {
                     states,
                     biome_ids,
                     extra_data: BTreeMap::new(),
+                    chest_block_entities: Vec::new(),
                 }
             });
             let mut neighborhood = PopulationNeighborhood::from_planes(target, chunks);

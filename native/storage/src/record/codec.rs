@@ -8,8 +8,8 @@ use super::{
     payload::{decode_semantic_payload, encode_semantic_payload},
 };
 use crate::{
-    CHUNK_RECORD_VERSION, LEGACY_SEMANTIC_PAYLOAD_VERSION, MAX_CHUNK_PAYLOAD_BYTES,
-    MAX_CHUNK_RECORD_BYTES, SEMANTIC_PAYLOAD_VERSION, StorageError,
+    BIOME_WORD_SEMANTIC_PAYLOAD_VERSION, CHUNK_RECORD_VERSION, LEGACY_SEMANTIC_PAYLOAD_VERSION,
+    MAX_CHUNK_PAYLOAD_BYTES, MAX_CHUNK_RECORD_BYTES, SEMANTIC_PAYLOAD_VERSION, StorageError,
 };
 
 const RECORD_MAGIC: &[u8; 4] = b"CBCH";
@@ -134,6 +134,7 @@ pub fn decode_chunk_record(record: &[u8]) -> Result<StoredChunk, StorageError> {
     }
     let semantic_version = read_u16(header, 34);
     if semantic_version != LEGACY_SEMANTIC_PAYLOAD_VERSION
+        && semantic_version != BIOME_WORD_SEMANTIC_PAYLOAD_VERSION
         && semantic_version != SEMANTIC_PAYLOAD_VERSION
     {
         return Err(StorageError::CorruptChunkRecord(
@@ -194,8 +195,16 @@ pub fn decode_chunk_record(record: &[u8]) -> Result<StoredChunk, StorageError> {
     }
 
     let position = ChunkCoord::new(read_i32(header, 8), read_i32(header, 12));
-    let (states, sky_light, block_light, biomes, height_map, extra_data, extensions) =
-        decode_semantic_payload(&payload, semantic_version)?;
+    let (
+        states,
+        sky_light,
+        block_light,
+        biomes,
+        height_map,
+        extra_data,
+        chest_block_entities,
+        extensions,
+    ) = decode_semantic_payload(&payload, semantic_version)?;
 
     Ok(StoredChunk {
         position,
@@ -210,6 +219,7 @@ pub fn decode_chunk_record(record: &[u8]) -> Result<StoredChunk, StorageError> {
             biomes,
             height_map,
             extra_data,
+            chest_block_entities,
         },
         extensions,
     })

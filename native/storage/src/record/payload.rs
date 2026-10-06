@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
 use cobblestone_world::{
-    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, ChunkSnapshot, MAX_LEGACY_STATE_ID,
-    default_biome_word,
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, ChestBlockEntity, ChestItemStack,
+    ChunkSnapshot, MAX_LEGACY_STATE_ID, default_biome_word,
 };
 
 use super::ExtensionSection;
 use crate::{
-    LEGACY_SEMANTIC_PAYLOAD_VERSION, MAX_CHUNK_PAYLOAD_BYTES, SEMANTIC_PAYLOAD_VERSION,
-    StorageError,
+    BIOME_WORD_SEMANTIC_PAYLOAD_VERSION, LEGACY_SEMANTIC_PAYLOAD_VERSION, MAX_CHUNK_PAYLOAD_BYTES,
+    SEMANTIC_PAYLOAD_VERSION, StorageError,
 };
 
 const SEMANTIC_PREFIX_BYTES: usize = CHUNK_BLOCK_COUNT + CHUNK_NIBBLE_BYTES * 3;
@@ -48,8 +48,23 @@ pub(super) fn encode_semantic_payload(
                 size: usize::MAX,
                 limit: MAX_CHUNK_PAYLOAD_BYTES,
             })?;
+    let chest_bytes =
+        snapshot
+            .chest_block_entities()
+            .iter()
+            .try_fold(4_usize, |total, entity| {
+                validate_chest_block_entity(entity)?;
+                total
+                    .checked_add(13)
+                    .and_then(|value| value.checked_add(entity.items.len().checked_mul(6)?))
+                    .ok_or(StorageError::PayloadTooLarge {
+                        size: usize::MAX,
+                        limit: MAX_CHUNK_PAYLOAD_BYTES,
+                    })
+            })?;
     let capacity = SEMANTIC_BASE_BYTES
         .checked_add(extra_bytes)
+        .and_then(|value| value.checked_add(chest_bytes))
         .and_then(|value| value.checked_add(extension_bytes))
         .ok_or(StorageError::PayloadTooLarge {
             size: usize::MAX,
@@ -96,6 +111,22 @@ pub(super) fn encode_semantic_payload(
         payload.extend_from_slice(&value.to_le_bytes());
     }
 
+    let chest_count = u32::try_from(snapshot.chest_block_entities().len())
+        .map_err(|_| StorageError::InvalidSnapshot("chest block-entity count exceeds u32"))?;
+    payload.extend_from_slice(&chest_count.to_le_bytes());
+    for entity in snapshot.chest_block_entities() {
+        payload.extend_from_slice(&entity.x.to_le_bytes());
+        payload.extend_from_slice(&entity.y.to_le_bytes());
+        payload.extend_from_slice(&entity.z.to_le_bytes());
+        payload.push(entity.items.len() as u8);
+        for item in &entity.items {
+            payload.push(item.slot);
+            payload.extend_from_slice(&item.item_id.to_le_bytes());
+            payload.extend_from_slice(&item.damage.to_le_bytes());
+            payload.push(item.count);
+        }
+    }
+
     for section in extensions {
         let len =
             u32::try_from(section.payload.len()).map_err(|_| StorageError::PayloadTooLarge {
@@ -122,13 +153,14 @@ pub(super) fn decode_semantic_payload(
         Vec<u32>,
         Vec<u8>,
         BTreeMap<u16, u16>,
+        Vec<ChestBlockEntity>,
         Vec<ExtensionSection>,
     ),
     StorageError,
 > {
     let biome_bytes = match semantic_version {
         LEGACY_SEMANTIC_PAYLOAD_VERSION => LEGACY_BIOME_BYTES,
-        SEMANTIC_PAYLOAD_VERSION => BIOME_WORD_BYTES,
+        BIOME_WORD_SEMANTIC_PAYLOAD_VERSION | SEMANTIC_PAYLOAD_VERSION => BIOME_WORD_BYTES,
         _ => {
             return Err(StorageError::CorruptChunkPayload(
                 "unsupported semantic payload version",
@@ -170,7 +202,8 @@ pub(super) fn decode_semantic_payload(
                 ))
             })
             .collect::<Result<Vec<_>, _>>()?,
-        SEMANTIC_PAYLOAD_VERSION => payload[block_end..biome_end]
+        BIOME_WORD_SEMANTIC_PAYLOAD_VERSION | SEMANTIC_PAYLOAD_VERSION => payload
+            [block_end..biome_end]
             .as_chunks::<4>()
             .0
             .iter()
@@ -216,6 +249,57 @@ pub(super) fn decode_semantic_payload(
         }
     }
 
+    let mut chest_block_entities = Vec::new();
+    if semantic_version == SEMANTIC_PAYLOAD_VERSION {
+        let chest_count = read_payload_u32(payload, &mut cursor)? as usize;
+        if chest_count > CHUNK_BLOCK_COUNT {
+            return Err(StorageError::CorruptChunkPayload(
+                "chest block-entity count exceeds block count",
+            ));
+        }
+        chest_block_entities.reserve(chest_count);
+        for _ in 0..chest_count {
+            let x = read_payload_i32(payload, &mut cursor)?;
+            let y = read_payload_i32(payload, &mut cursor)?;
+            let z = read_payload_i32(payload, &mut cursor)?;
+            if !(0..128).contains(&y) {
+                return Err(StorageError::CorruptChunkPayload(
+                    "chest block-entity Y is out of range",
+                ));
+            }
+            let item_count = usize::from(read_payload_u8(payload, &mut cursor)?);
+            if item_count > 27 {
+                return Err(StorageError::CorruptChunkPayload(
+                    "chest item count exceeds slot count",
+                ));
+            }
+            let mut seen_slots = [false; 27];
+            let mut items = Vec::with_capacity(item_count);
+            for _ in 0..item_count {
+                let slot = read_payload_u8(payload, &mut cursor)?;
+                if slot >= 27 || seen_slots[usize::from(slot)] {
+                    return Err(StorageError::CorruptChunkPayload(
+                        "invalid or duplicate chest slot",
+                    ));
+                }
+                seen_slots[usize::from(slot)] = true;
+                let item_id = read_payload_i16(payload, &mut cursor)?;
+                let damage = read_payload_i16(payload, &mut cursor)?;
+                let count = read_payload_u8(payload, &mut cursor)?;
+                if count == 0 {
+                    return Err(StorageError::CorruptChunkPayload("zero-count chest item"));
+                }
+                items.push(ChestItemStack {
+                    slot,
+                    item_id,
+                    damage,
+                    count,
+                });
+            }
+            chest_block_entities.push(ChestBlockEntity { x, y, z, items });
+        }
+    }
+
     let mut extensions = Vec::new();
     while cursor < payload.len() {
         if payload.len() - cursor < 8 {
@@ -251,8 +335,35 @@ pub(super) fn decode_semantic_payload(
         biomes,
         height_map,
         extra_data,
+        chest_block_entities,
         extensions,
     ))
+}
+
+fn validate_chest_block_entity(entity: &ChestBlockEntity) -> Result<(), StorageError> {
+    if !(0..128).contains(&entity.y) {
+        return Err(StorageError::InvalidSnapshot(
+            "chest block-entity Y is out of range",
+        ));
+    }
+    if entity.items.len() > 27 {
+        return Err(StorageError::InvalidSnapshot(
+            "chest item count exceeds slot count",
+        ));
+    }
+    let mut seen_slots = [false; 27];
+    for item in &entity.items {
+        if item.slot >= 27 || seen_slots[usize::from(item.slot)] {
+            return Err(StorageError::InvalidSnapshot(
+                "invalid or duplicate chest slot",
+            ));
+        }
+        seen_slots[usize::from(item.slot)] = true;
+        if item.count == 0 {
+            return Err(StorageError::InvalidSnapshot("zero-count chest item"));
+        }
+    }
+    Ok(())
 }
 
 fn extra_key_to_linear(key: u16) -> Result<u16, StorageError> {
@@ -272,6 +383,22 @@ fn linear_to_extra_key(index: u16) -> u16 {
     let z = (index >> 4) & 0x0f;
     let y = (index >> 8) & 0x7f;
     (z << 12) | (x << 8) | y
+}
+
+fn read_payload_u8(payload: &[u8], cursor: &mut usize) -> Result<u8, StorageError> {
+    let value = *payload
+        .get(*cursor)
+        .ok_or(StorageError::CorruptChunkPayload("truncated u8"))?;
+    *cursor += 1;
+    Ok(value)
+}
+
+fn read_payload_i16(payload: &[u8], cursor: &mut usize) -> Result<i16, StorageError> {
+    Ok(read_payload_u16(payload, cursor)? as i16)
+}
+
+fn read_payload_i32(payload: &[u8], cursor: &mut usize) -> Result<i32, StorageError> {
+    Ok(read_payload_u32(payload, cursor)? as i32)
 }
 
 fn read_payload_u16(payload: &[u8], cursor: &mut usize) -> Result<u16, StorageError> {
@@ -311,11 +438,30 @@ mod tests {
     #[test]
     fn legacy_v1_biome_ids_migrate_to_explicit_default_words() {
         let payload = legacy_payload(1);
-        let (_, _, _, biomes, _, extra, extensions) =
+        let (_, _, _, biomes, _, extra, chest_entities, extensions) =
             decode_semantic_payload(&payload, LEGACY_SEMANTIC_PAYLOAD_VERSION).unwrap();
 
         assert_eq!(biomes, vec![0x0192_bc59; CHUNK_COLUMN_COUNT]);
         assert!(extra.is_empty());
+        assert!(chest_entities.is_empty());
+        assert!(extensions.is_empty());
+    }
+
+    #[test]
+    fn biome_word_v2_decodes_without_chest_block_entities() {
+        let mut payload = vec![0_u8; SEMANTIC_PREFIX_BYTES];
+        for _ in 0..CHUNK_COLUMN_COUNT {
+            payload.extend_from_slice(&0x0192_bc59_u32.to_be_bytes());
+        }
+        payload.extend(std::iter::repeat_n(0_u8, CHUNK_COLUMN_COUNT));
+        payload.extend_from_slice(&0_u32.to_le_bytes());
+
+        let (_, _, _, biomes, _, extra, chest_entities, extensions) =
+            decode_semantic_payload(&payload, BIOME_WORD_SEMANTIC_PAYLOAD_VERSION).unwrap();
+
+        assert_eq!(biomes, vec![0x0192_bc59; CHUNK_COLUMN_COUNT]);
+        assert!(extra.is_empty());
+        assert!(chest_entities.is_empty());
         assert!(extensions.is_empty());
     }
 

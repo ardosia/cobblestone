@@ -14,6 +14,22 @@ pub struct ChunkCoord {
     pub(super) z: i32,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ChestItemStack {
+    pub slot: u8,
+    pub item_id: i16,
+    pub damage: i16,
+    pub count: u8,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ChestBlockEntity {
+    pub x: i32,
+    pub y: i32,
+    pub z: i32,
+    pub items: Vec<ChestItemStack>,
+}
+
 impl ChunkCoord {
     pub const fn new(x: i32, z: i32) -> Self {
         Self { x, z }
@@ -36,6 +52,7 @@ pub(super) struct ChunkData {
     pub(super) biomes: Vec<u32>,
     pub(super) height_map: Vec<u8>,
     pub(super) extra_data: BTreeMap<u16, u16>,
+    pub(super) chest_block_entities: Vec<ChestBlockEntity>,
 }
 
 impl ChunkData {
@@ -47,6 +64,7 @@ impl ChunkData {
             biomes: vec![biome_word; CHUNK_COLUMN_COUNT],
             height_map: vec![0; CHUNK_COLUMN_COUNT],
             extra_data: BTreeMap::new(),
+            chest_block_entities: Vec::new(),
         }
     }
 }
@@ -93,6 +111,7 @@ impl ChunkRecord {
                 biomes: import.biomes,
                 height_map: import.height_map,
                 extra_data: import.extra_data,
+                chest_block_entities: import.chest_block_entities,
             }),
         }
     }
@@ -158,6 +177,10 @@ impl ChunkSnapshot {
     pub fn extra_data(&self) -> &BTreeMap<u16, u16> {
         &self.data.extra_data
     }
+
+    pub fn chest_block_entities(&self) -> &[ChestBlockEntity] {
+        &self.data.chest_block_entities
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -171,6 +194,7 @@ pub struct ChunkImport {
     pub biomes: Vec<u32>,
     pub height_map: Vec<u8>,
     pub extra_data: BTreeMap<u16, u16>,
+    pub chest_block_entities: Vec<ChestBlockEntity>,
 }
 
 #[derive(Debug, Clone, Default)]

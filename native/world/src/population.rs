@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 
 use crate::population_tick::GenerationTickQueue;
 use crate::terrain_shape::noise::MtRandom;
-use crate::{CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChunkCoord, OverworldCaveCarver, WORLD_HEIGHT};
+use crate::{
+    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, ChestBlockEntity, ChestItemStack, ChunkCoord,
+    OverworldCaveCarver, WORLD_HEIGHT,
+};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct PopulationChunkPlanes {
@@ -11,6 +14,7 @@ pub(crate) struct PopulationChunkPlanes {
     pub(crate) biome_ids: Vec<u8>,
     pub(crate) generation_height_map: Vec<u8>,
     pub(crate) extra_data: BTreeMap<u16, u16>,
+    pub(crate) chest_block_entities: Vec<ChestBlockEntity>,
 }
 
 #[derive(Debug, Clone)]
@@ -47,6 +51,7 @@ impl PopulationNeighborhood {
                 biome_ids,
                 generation_height_map,
                 extra_data: BTreeMap::new(),
+                chest_block_entities: Vec::new(),
             }
         });
 
@@ -142,8 +147,60 @@ impl PopulationNeighborhood {
         let Some((chunk_index, local_x, local_z)) = self.resolve(world_x, world_z) else {
             return false;
         };
-        self.chunks[chunk_index].states[block_index(local_x, y as usize, local_z)] = value;
+        let index = block_index(local_x, y as usize, local_z);
+        let previous_id = self.chunks[chunk_index].states[index] >> 4;
+        self.chunks[chunk_index].states[index] = value;
+        if previous_id == 54 && value >> 4 != 54 {
+            self.chunks[chunk_index]
+                .chest_block_entities
+                .retain(|entity| !(entity.x == world_x && entity.y == y && entity.z == world_z));
+        }
         true
+    }
+
+    pub(crate) fn put_chest_block_entity(
+        &mut self,
+        world_x: i32,
+        y: i32,
+        world_z: i32,
+        items: Vec<ChestItemStack>,
+    ) -> bool {
+        if !(0..WORLD_HEIGHT as i32).contains(&y) {
+            return false;
+        }
+        let Some((chunk_index, _, _)) = self.resolve(world_x, world_z) else {
+            return false;
+        };
+        let entities = &mut self.chunks[chunk_index].chest_block_entities;
+        let entity = ChestBlockEntity {
+            x: world_x,
+            y,
+            z: world_z,
+            items,
+        };
+        if let Some(existing) = entities
+            .iter_mut()
+            .find(|existing| existing.x == world_x && existing.y == y && existing.z == world_z)
+        {
+            *existing = entity;
+        } else {
+            entities.push(entity);
+        }
+        true
+    }
+
+    #[cfg(test)]
+    pub(crate) fn chest_block_entity(
+        &self,
+        world_x: i32,
+        y: i32,
+        world_z: i32,
+    ) -> Option<&ChestBlockEntity> {
+        let (chunk_index, _, _) = self.resolve(world_x, world_z)?;
+        self.chunks[chunk_index]
+            .chest_block_entities
+            .iter()
+            .find(|entity| entity.x == world_x && entity.y == y && entity.z == world_z)
     }
 
     #[cfg(test)]
@@ -262,6 +319,7 @@ impl PopulationNeighborhood {
                     CHUNK_COLUMN_COUNT
                 ],
                 extra_data: BTreeMap::new(),
+                chest_block_entities: Vec::new(),
             }),
             generation_ticks: Some(GenerationTickQueue::with_seed(0)),
         }

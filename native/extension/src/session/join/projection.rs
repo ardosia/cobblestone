@@ -125,6 +125,7 @@ pub(super) fn decode_initial_chunk_projection(
             biome_words: &biome_words,
             height_map,
             extra_data: &extra_data,
+            block_entities: &[],
         };
         packets.push(
             encode_protocol84_full_chunk_data(snapshot)

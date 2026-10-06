@@ -124,7 +124,7 @@ Every appended record has a checksummed fixed 64-byte header. The v1 layout is f
 - 24..31: light revision `u64`;
 - 32: lifecycle flags `u8` (generated, populated, light-populated);
 - 33: stored compression method `u8` (`0 = none`, `1 = zstd`);
-- 34..35: semantic payload version (`u16`; new writes use `2`, readers accept `1` and `2`);
+- 34..35: semantic payload version (`u16`; new writes use `3`, readers accept `1`, `2`, and `3`);
 - 36..39: uncompressed payload length `u32`;
 - 40..43: stored payload length `u32`;
 - 44..47: CRC32C of the uncompressed semantic payload;
@@ -137,7 +137,7 @@ The index entry additionally stores CRC32C over the complete header + stored pay
 
 The core payload is deliberately not a FullChunkData packet. It uses the fixed-target semantic planes directly.
 
-Payload **v2** is the canonical write format:
+Payload **v3** is the canonical write format:
 
 - 32,768 block-ID bytes in Y/Z/X order;
 - 16,384 packed block-data nibble bytes;
@@ -145,11 +145,12 @@ Payload **v2** is the canonical write format:
 - 16,384 packed block-light nibble bytes;
 - 256 biome words (`u32` big-endian) in Z/X order, preserving high-byte biome ID plus independent 24-bit RGB;
 - 256 height-map bytes;
-- little-endian u32 sparse extra-data count;
-- sorted entries of `u16 linear_block_index + u16 value`; and
+- little-endian `u32` sparse extra-data count;
+- sorted entries of `u16 linear_block_index + u16 value`;
+- little-endian `u32` generated chest block-entity count, followed by each chest's world `x/y/z` as `i32`, `u8` non-empty item count, and item records `slot:u8 + item_id:i16 + damage:i16 + count:u8`; and
 - zero or more versioned extension sections.
 
-Payload **v1** used 256 biome-ID bytes instead of the 1,024-byte biome-word plane. Readers retain explicit v1 compatibility: every supported legacy ID is migrated to that biome's fixed-target default word during decode. Unsupported legacy IDs fail as corruption instead of guessing a color. Once saved again, the chunk is written as v2. The record-header format remains version 1; the semantic payload version in header bytes 34..35 distinguishes these layouts.
+Payload **v2** introduced the 1,024-byte biome-word plane and has no chest block-entity section; readers keep v2 compatibility and decode its chest list as empty. Payload **v1** used 256 biome-ID bytes instead. Readers retain explicit v1 compatibility: every supported legacy ID is migrated to that biome's fixed-target default word during decode, while unsupported legacy IDs fail as corruption instead of guessing a color. Once an older chunk is saved again, it is written as v3. The record-header format remains version 1; the semantic payload version in header bytes 34..35 distinguishes these layouts.
 
 An extension section is `tag:u16, version:u16, length:u32, payload`. Unknown optional tags can be skipped. Mandatory future schema changes require a new record/payload version.
 

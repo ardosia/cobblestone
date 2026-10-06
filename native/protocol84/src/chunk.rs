@@ -1,6 +1,6 @@
 use cobblestone_runtime::NativeBuffer;
 
-use crate::{CodecError, RawPacket};
+use crate::{CodecError, NbtDocument, NbtLimits, RawPacket};
 
 /// Fixed-target FullChunkData packet ID.
 pub const FULL_CHUNK_DATA_ID: u8 = 0x34;
@@ -37,6 +37,8 @@ pub struct Protocol84ChunkSnapshot<'a> {
     pub height_map: &'a [u8],
     /// Sparse fixed-target block-extra-data entries keyed by (z << 12) | (x << 8) | y.
     pub extra_data: &'a [(u32, u16)],
+    /// Sequential little-endian NBT block-entity documents appended after extra data.
+    pub block_entities: &'a [NbtDocument],
 }
 
 /// Encodes the protocol-84 client-side chunk-unload action.
@@ -83,13 +85,36 @@ pub fn encode_protocol84_full_chunk_data(
                 value: snapshot.extra_data.len(),
                 max: usize::MAX / 6,
             })?;
+    let nbt_limits = NbtLimits::new(64 * 1024, 16, 256, 1024);
+    let encoded_block_entities = snapshot
+        .block_entities
+        .iter()
+        .map(|document| {
+            document
+                .encode_le(nbt_limits)
+                .map(|buffer| buffer.as_slice().to_vec())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let block_entity_bytes = encoded_block_entities
+        .iter()
+        .try_fold(0_usize, |total, bytes| {
+            total
+                .checked_add(bytes.len())
+                .ok_or(CodecError::LengthOutOfRange {
+                    field: "chunk block entities",
+                    value: usize::MAX,
+                    max: u32::MAX as usize,
+                })
+        })?;
+
     let mut payload = Vec::with_capacity(
         CHUNK_BLOCK_COUNT
             + CHUNK_NIBBLE_BYTES * 3
             + CHUNK_COLUMN_COUNT
             + CHUNK_COLUMN_COUNT * 4
             + 4
-            + extra_bytes,
+            + extra_bytes
+            + block_entity_bytes,
     );
     payload.extend_from_slice(snapshot.block_ids);
     payload.extend_from_slice(snapshot.block_data);
@@ -112,6 +137,9 @@ pub fn encode_protocol84_full_chunk_data(
         validate_extra_data_key(key)?;
         payload.extend_from_slice(&key.to_le_bytes());
         payload.extend_from_slice(&value.to_le_bytes());
+    }
+    for block_entity in encoded_block_entities {
+        payload.extend_from_slice(&block_entity);
     }
 
     let payload_len = u32::try_from(payload.len()).map_err(|_| CodecError::LengthOutOfRange {

@@ -1,7 +1,7 @@
 use cobblestone_protocol84::{
     CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, CHUNK_ORDER_LAYERED, CodecError,
-    FULL_CHUNK_DATA_ID, Protocol84ChunkSnapshot, encode_protocol84_chunk_unload,
-    encode_protocol84_full_chunk_data,
+    FULL_CHUNK_DATA_ID, NamedNbt, NbtDocument, NbtLimits, NbtTag, NbtValue,
+    Protocol84ChunkSnapshot, encode_protocol84_chunk_unload, encode_protocol84_full_chunk_data,
 };
 
 struct FlatChunkFixture {
@@ -57,6 +57,7 @@ impl FlatChunkFixture {
             biome_words: &self.biome_words,
             height_map: &self.height_map,
             extra_data,
+            block_entities: &[],
         }
     }
 }
@@ -164,6 +165,42 @@ fn sparse_extra_data_uses_historical_little_endian_entries() {
 }
 
 #[test]
+fn block_entity_nbt_is_appended_after_extra_data() {
+    let fixture = FlatChunkFixture::default_world();
+    let chest = NbtDocument::new(NamedNbt::new(
+        "",
+        NbtValue::Compound(vec![
+            NamedNbt::new("id", NbtValue::String("Chest".to_owned())),
+            NamedNbt::new("x", NbtValue::Int(5)),
+            NamedNbt::new("y", NbtValue::Int(64)),
+            NamedNbt::new("z", NbtValue::Int(-3)),
+            NamedNbt::new(
+                "Items",
+                NbtValue::List {
+                    element_type: NbtTag::Compound,
+                    values: vec![NbtValue::Compound(vec![
+                        NamedNbt::new("id", NbtValue::Short(265)),
+                        NamedNbt::new("Count", NbtValue::Byte(3)),
+                        NamedNbt::new("Damage", NbtValue::Short(0)),
+                        NamedNbt::new("Slot", NbtValue::Byte(7)),
+                    ])],
+                },
+            ),
+        ]),
+    ));
+    let expected = chest.encode_le(NbtLimits::new(4096, 16, 64, 256)).unwrap();
+    let entities = [chest];
+    let mut snapshot = fixture.snapshot(0, 0, &[]);
+    snapshot.block_entities = &entities;
+    let packet = encode_protocol84_full_chunk_data(snapshot).unwrap();
+    let payload = &packet.body().as_slice()[13..];
+    let extra_offset =
+        CHUNK_BLOCK_COUNT + CHUNK_NIBBLE_BYTES * 3 + CHUNK_COLUMN_COUNT + CHUNK_COLUMN_COUNT * 4;
+    let nbt_offset = extra_offset + 4;
+    assert_eq!(&payload[nbt_offset..], expected.as_slice());
+}
+
+#[test]
 fn malformed_planes_fail_explicitly() {
     let fixture = FlatChunkFixture::default_world();
     let short_blocks = vec![0_u8; CHUNK_BLOCK_COUNT - 1];
@@ -179,6 +216,7 @@ fn malformed_planes_fail_explicitly() {
             biome_words: &fixture.biome_words,
             height_map: &fixture.height_map,
             extra_data: &[],
+            block_entities: &[],
         }),
         Err(CodecError::InvalidChunkPlaneLength {
             field: "chunk block ids",

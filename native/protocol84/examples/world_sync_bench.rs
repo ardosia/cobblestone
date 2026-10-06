@@ -65,6 +65,7 @@ fn flat_chunk() -> RawPacket {
         biome_words: &biome_words,
         height_map: &heights,
         extra_data: &[],
+        block_entities: &[],
     })
     .unwrap()
 }
@@ -103,6 +104,7 @@ fn noisy_chunk() -> RawPacket {
         biome_words: &biome_words,
         height_map: &heights,
         extra_data: &[],
+        block_entities: &[],
     })
     .unwrap()
 }

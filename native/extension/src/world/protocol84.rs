@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use cobblestone_protocol84::{
-    Protocol84ChunkSnapshot, RawPacket, encode_protocol84_full_chunk_data,
+    NamedNbt, NbtDocument, NbtTag, NbtValue, Protocol84ChunkSnapshot, RawPacket,
+    encode_protocol84_full_chunk_data,
 };
-use cobblestone_world::{CHUNK_NIBBLE_BYTES, ChunkCoord};
+use cobblestone_world::{CHUNK_NIBBLE_BYTES, ChestBlockEntity, ChunkCoord};
 use ext_php_rs::exception::PhpResult;
 
 use crate::boundary::php_error;
@@ -27,6 +28,37 @@ impl Protocol84Cache {
     pub(super) fn remove(&mut self, position: &ChunkCoord) {
         self.entries.remove(position);
     }
+}
+
+fn protocol84_chest_nbt(chest: &ChestBlockEntity) -> NbtDocument {
+    let items = chest
+        .items
+        .iter()
+        .map(|item| {
+            NbtValue::Compound(vec![
+                NamedNbt::new("id", NbtValue::Short(item.item_id)),
+                NamedNbt::new("Count", NbtValue::Byte(item.count as i8)),
+                NamedNbt::new("Damage", NbtValue::Short(item.damage)),
+                NamedNbt::new("Slot", NbtValue::Byte(item.slot as i8)),
+            ])
+        })
+        .collect();
+    NbtDocument::new(NamedNbt::new(
+        "",
+        NbtValue::Compound(vec![
+            NamedNbt::new("id", NbtValue::String("Chest".to_owned())),
+            NamedNbt::new("x", NbtValue::Int(chest.x)),
+            NamedNbt::new("y", NbtValue::Int(chest.y)),
+            NamedNbt::new("z", NbtValue::Int(chest.z)),
+            NamedNbt::new(
+                "Items",
+                NbtValue::List {
+                    element_type: NbtTag::Compound,
+                    values: items,
+                },
+            ),
+        ]),
+    ))
 }
 
 pub(crate) fn protocol84_chunk(handle_value: i64, position: ChunkCoord) -> PhpResult<RawPacket> {
@@ -67,6 +99,11 @@ pub(crate) fn protocol84_chunk(handle_value: i64, position: ChunkCoord) -> PhpRe
         .iter()
         .map(|(&key, &value)| (u32::from(key), value))
         .collect::<Vec<_>>();
+    let block_entities = snapshot
+        .chest_block_entities()
+        .iter()
+        .map(protocol84_chest_nbt)
+        .collect::<Vec<_>>();
     let packet = encode_protocol84_full_chunk_data(Protocol84ChunkSnapshot {
         chunk_x: position.x(),
         chunk_z: position.z(),
@@ -77,6 +114,7 @@ pub(crate) fn protocol84_chunk(handle_value: i64, position: ChunkCoord) -> PhpRe
         biome_words: snapshot.biomes(),
         height_map: snapshot.height_map(),
         extra_data: &extra_data,
+        block_entities: &block_entities,
     })
     .map_err(|error| php_error(error.to_string()))?;
 
@@ -110,4 +148,53 @@ pub(crate) fn protocol84_chunk(handle_value: i64, position: ChunkCoord) -> PhpRe
     }
 
     Ok(packet)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cobblestone_world::ChestItemStack;
+
+    #[test]
+    fn target_01510_smithy_chest_nbt_matches_saved_block_entity_shape() {
+        // ChestBlockEntity::save (x86 0xf48b90) writes base id/x/y/z, then an
+        // Items list; ItemInstance::save writes id/Count/Damage and the chest
+        // adds Slot to each non-empty inventory entry.
+        let chest = ChestBlockEntity {
+            x: 5,
+            y: 67,
+            z: 9,
+            items: vec![ChestItemStack {
+                slot: 7,
+                item_id: 265,
+                damage: 0,
+                count: 3,
+            }],
+        };
+
+        assert_eq!(
+            protocol84_chest_nbt(&chest),
+            NbtDocument::new(NamedNbt::new(
+                "",
+                NbtValue::Compound(vec![
+                    NamedNbt::new("id", NbtValue::String("Chest".to_owned())),
+                    NamedNbt::new("x", NbtValue::Int(5)),
+                    NamedNbt::new("y", NbtValue::Int(67)),
+                    NamedNbt::new("z", NbtValue::Int(9)),
+                    NamedNbt::new(
+                        "Items",
+                        NbtValue::List {
+                            element_type: NbtTag::Compound,
+                            values: vec![NbtValue::Compound(vec![
+                                NamedNbt::new("id", NbtValue::Short(265)),
+                                NamedNbt::new("Count", NbtValue::Byte(3)),
+                                NamedNbt::new("Damage", NbtValue::Short(0)),
+                                NamedNbt::new("Slot", NbtValue::Byte(7)),
+                            ])],
+                        },
+                    ),
+                ]),
+            ))
+        );
+    }
 }

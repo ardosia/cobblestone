@@ -11,8 +11,8 @@ use cobblestone_storage::{
 };
 use cobblestone_world::{
     BLOCK_IDS, CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_LIFECYCLE_GENERATED,
-    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES, ChunkCoord,
-    ChunkImport, ChunkPatch, WorldStore,
+    CHUNK_LIFECYCLE_LIGHT_POPULATED, CHUNK_LIFECYCLE_POPULATED, CHUNK_NIBBLE_BYTES,
+    ChestBlockEntity, ChestItemStack, ChunkCoord, ChunkImport, ChunkPatch, WorldStore,
 };
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(1);
@@ -124,6 +124,7 @@ fn noisy_snapshot() -> cobblestone_world::ChunkSnapshot {
                     .map(|_| (next() & 0x7f) as u8)
                     .collect(),
                 extra_data: BTreeMap::new(),
+                chest_block_entities: Vec::new(),
             },
         )
         .unwrap();
@@ -183,6 +184,54 @@ fn chunk_record_round_trips_semantics_and_extensions() {
         assert_eq!(decoded.import.extra_data, *snapshot.extra_data());
         assert_eq!(decoded.extensions, extensions);
     }
+}
+
+#[test]
+fn chunk_record_round_trips_smithy_chest_block_entity() {
+    let store = WorldStore::new();
+    let position = ChunkCoord::new(2, 3);
+    let chest = ChestBlockEntity {
+        x: 37,
+        y: 67,
+        z: 53,
+        items: vec![
+            ChestItemStack {
+                slot: 0,
+                item_id: 351,
+                damage: 0,
+                count: 7,
+            },
+            ChestItemStack {
+                slot: 20,
+                item_id: 417,
+                damage: 0,
+                count: 1,
+            },
+        ],
+    };
+    store
+        .import_chunk(
+            position,
+            ChunkImport {
+                terrain_revision: 1,
+                light_revision: 0,
+                lifecycle_flags: CHUNK_LIFECYCLE_GENERATED | CHUNK_LIFECYCLE_POPULATED,
+                states: vec![0; CHUNK_BLOCK_COUNT],
+                sky_light: vec![0; CHUNK_NIBBLE_BYTES],
+                block_light: vec![0; CHUNK_NIBBLE_BYTES],
+                biomes: vec![0x0192_bc59; CHUNK_COLUMN_COUNT],
+                height_map: vec![0; CHUNK_COLUMN_COUNT],
+                extra_data: BTreeMap::new(),
+                chest_block_entities: vec![chest.clone()],
+            },
+        )
+        .unwrap();
+
+    let snapshot = store.snapshot(position).unwrap();
+    let encoded = encode_chunk_record(&snapshot, Compression::None, &[]).unwrap();
+    let decoded = decode_chunk_record(&encoded).unwrap();
+
+    assert_eq!(decoded.import.chest_block_entities, vec![chest]);
 }
 
 #[test]
