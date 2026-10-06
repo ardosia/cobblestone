@@ -1,10 +1,17 @@
-name: CI (manual)
+name: CI
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -40,6 +47,8 @@ jobs:
           fail-fast: true
       - name: Verify PHP ZTS runtime
         run: php tests/php/zts-probe.php
+      - name: Lint PHP sources
+        run: php tools/project.php lint
       - name: Prepare Composer package
         shell: bash
         run: |
@@ -57,13 +66,13 @@ jobs:
         run: rustup toolchain install 1.98.0 --profile minimal --component clippy --component rustfmt
       - name: Run multi-runtime message torture
         shell: bash
-        run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin runtime-torture
+        run: cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin runtime-torture
       - name: Run ownership and handle torture
         shell: bash
-        run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin ownership-torture
+        run: cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin ownership-torture
       - name: Run completion GC lifecycle torture
         shell: bash
-        run: cargo +1.98.0 run --release -p cobblestone-runtime-probe --bin completion-gc-torture
+        run: cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin completion-gc-torture
       - name: Install pinned nightly Rust for Windows adapter
         if: runner.os == 'Windows'
         shell: bash
@@ -80,9 +89,9 @@ jobs:
         shell: bash
         run: |
           cargo +1.98.0 fmt --check
-          cargo +1.98.0 check
-          cargo +1.98.0 clippy -- -D warnings
-          cargo +1.98.0 build --release
+          cargo +1.98.0 check --locked
+          cargo +1.98.0 clippy --locked -- -D warnings
+          cargo +1.98.0 build --locked --release
       - name: Build Windows PHP adapter
         if: runner.os == 'Windows'
         working-directory: native/extension
@@ -91,10 +100,9 @@ jobs:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
         run: |
           cargo +nightly-2026-09-20 fmt --check
-          cargo +nightly-2026-09-20 check
-          cargo +nightly-2026-09-20 clippy -- -D warnings
-          cargo +nightly-2026-09-20 build --release
+          cargo +nightly-2026-09-20 check --locked
+          cargo +nightly-2026-09-20 clippy --locked -- -D warnings
+          cargo +nightly-2026-09-20 build --locked --release
       - name: Validate PHP adapter
         shell: bash
         run: composer test:php
-

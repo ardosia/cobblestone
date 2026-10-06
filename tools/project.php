@@ -49,9 +49,22 @@ function extensionPath(): string
     };
 }
 
+/** @return list<string> */
+function composerCommand(): array
+{
+    // Composer exports its PHP entry point to scripts it runs. On Windows the
+    // composer launcher is a batch file, which array-form proc_open cannot start.
+    $binary = getenv('COMPOSER_BINARY');
+    if ($binary !== false && is_file($binary)) {
+        return [PHP_BINARY, $binary];
+    }
+
+    return ['composer'];
+}
+
 function setupComposer(): void
 {
-    run(['composer', 'update', '--no-interaction']);
+    run([...composerCommand(), 'install', '--no-interaction', '--prefer-dist']);
 }
 
 function ensureAutoload(): void
@@ -60,17 +73,17 @@ function ensureAutoload(): void
         fail('Composer packages are not installed; run composer setup');
     }
 
-    run(['composer', 'dump-autoload', '--no-interaction', '--classmap-authoritative']);
+    run([...composerCommand(), 'dump-autoload', '--no-interaction', '--classmap-authoritative']);
 }
 
 function validateComposer(): void
 {
-    run(['composer', 'validate', '--strict', '--no-check-publish', ROOT . '/composer.json']);
+    run([...composerCommand(), 'validate', '--strict', '--no-check-publish', ROOT . '/composer.json']);
 }
 
 function buildNative(): void
 {
-    run(['cargo', '+' . nativeToolchain(), 'build', '--release'], NATIVE_EXTENSION);
+    run(['cargo', '+' . nativeToolchain(), 'build', '--locked', '--release'], NATIVE_EXTENSION);
 }
 
 function checkNative(): void
@@ -78,8 +91,8 @@ function checkNative(): void
     $toolchain = '+' . nativeToolchain();
 
     run(['cargo', $toolchain, 'fmt', '--check'], NATIVE_EXTENSION);
-    run(['cargo', $toolchain, 'check'], NATIVE_EXTENSION);
-    run(['cargo', $toolchain, 'clippy', '--', '-D', 'warnings'], NATIVE_EXTENSION);
+    run(['cargo', $toolchain, 'check', '--locked'], NATIVE_EXTENSION);
+    run(['cargo', $toolchain, 'clippy', '--locked', '--', '-D', 'warnings'], NATIVE_EXTENSION);
 }
 
 function lintPhp(): void
@@ -212,6 +225,10 @@ function listModules(): void
 $command = $argv[1] ?? null;
 
 switch ($command) {
+    case 'lint':
+        lintPhp();
+        break;
+
     case 'setup':
         setupComposer();
         break;
@@ -264,7 +281,7 @@ switch ($command) {
 
     default:
         fail(
-            'usage: composer {setup|build|check|modules|native:build|native:check|serve|test|test:php|verify}',
+            'usage: php tools/project.php {lint|setup|build|check|modules|native:build|native:check|serve|test|test:php|verify}',
             64,
         );
 }
