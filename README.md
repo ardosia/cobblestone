@@ -69,7 +69,7 @@ The PHP/native boundary stays coarse. Native snapshots and atomic patches avoid 
 
 ## Persistence
 
-The production CLI uses the exact fixed-target Infinite Overworld generator with the custom persistent world store at `worlds/world` by default.
+The production CLI uses the MCPE 0.15.10-targeted Infinite Overworld generator with the custom persistent world store at `worlds/world` by default. Compatibility-sensitive generation is driven by executable/offline-world evidence rather than modern Minecraft behavior; unresolved parity gaps stay in GitHub Issues instead of being hidden in documentation.
 
 Useful environment variables:
 
@@ -82,7 +82,7 @@ Useful environment variables:
 - `COBBLESTONE_COMPACTION_MIN_DEAD_BYTES`
 - `COBBLESTONE_COMPACTION_MIN_DEAD_PERCENT`
 
-Stored `world.cwm` metadata wins over creation defaults when reopening a world. Save/load worker counts must be 1..32. Region compaction is gated by configured reclaimable-dead-byte and dead-percent thresholds.
+Stored `world.cwm` metadata wins over creation defaults when reopening a world. Chunk persistence retains fixed-target block/data/light/biome planes, sparse extra data, and generated chest block-entity state. Save/load worker counts must be 1..32. Region compaction is gated by configured reclaimable-dead-byte and dead-percent thresholds.
 
 See `docs/architecture/WORLD_STORAGE.md` for the storage model and `docs/architecture/WORLD_SYNC.md` for chunk/view synchronization behavior.
 
@@ -125,7 +125,10 @@ Durable engineering design lives under `docs/architecture/`. Start with:
 - `API_STYLE.md`
 - `RUNTIME_API.md`
 - `COMMANDS.md`
+- `GAMEPLAY_API.md`
 - `WORLD_API.md`
+- `WORLD_STORAGE.md`
+- `WORLD_SYNC.md`
 - `TRANSPORT_API.md`
 - `DATA_API.md`
 - `SUBSYSTEMS.md`

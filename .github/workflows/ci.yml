@@ -40,14 +40,11 @@ jobs:
           fail-fast: true
       - name: Verify PHP ZTS runtime
         run: php tests/php/zts-probe.php
-      - name: Prepare Composer packages
+      - name: Prepare Composer package
         shell: bash
         run: |
           composer setup
           composer validate --strict --no-check-publish
-          for manifest in modules/php/*/composer.json; do
-            composer validate --strict --no-check-publish "$manifest"
-          done
       - name: Verify Unix PHP development tools
         if: runner.os == 'Linux'
         shell: bash

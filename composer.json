@@ -1,6 +1,6 @@
 {
   "name": "ardosia/cobblestone",
-  "description": "Fixed-target Minecraft Windows 10 Edition Beta / MCPE 0.15.10 server foundation.",
+  "description": "Fixed-target Minecraft Windows 10 Edition Beta / MCPE 0.15.10 server.",
   "type": "project",
   "license": "MIT OR Apache-2.0",
   "require": {
