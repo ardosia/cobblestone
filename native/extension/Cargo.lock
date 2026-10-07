@@ -233,7 +233,9 @@ version = "0.0.1"
 dependencies = [
  "bytes",
  "cobblestone-raknet",
+ "cobblestone-target",
  "cobblestone-wire",
+ "cobblestone-world",
  "crossbeam-channel",
  "thiserror",
  "tokio",

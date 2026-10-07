@@ -23,8 +23,6 @@ use Cobblestone\World\ChunkPos;
  */
 final class World
 {
-    private const ABI_VERSION = 2;
-
     private ?int $handle;
     private bool $storageAttached = false;
 
@@ -36,8 +34,8 @@ final class World
     public static function available(): bool
     {
         return \extension_loaded('cobblestone_core_php')
-            && \function_exists('cobblestone_core_abi')
-            && cobblestone_core_abi() === self::ABI_VERSION;
+            && \function_exists('cobblestone_world_create')
+            && \function_exists('cobblestone_world_destroy');
     }
 
     public static function create(): self

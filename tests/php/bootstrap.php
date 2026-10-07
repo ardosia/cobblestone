@@ -22,19 +22,6 @@ function testServerRuntime(Cobblestone\Server\Server $server): Cobblestone\Serve
     return $runtime;
 }
 
-/** @internal Test-only access for white-box session gameplay integration tests. */
-function testServerGameplay(Cobblestone\Server\Server $server): Cobblestone\Session\Internal\Gameplay
-{
-    $runtime = testServerRuntime($server);
-    $property = new ReflectionProperty(Cobblestone\Server\Internal\Runtime::class, 'gameplay');
-    $gameplay = $property->getValue($runtime);
-    if (!$gameplay instanceof Cobblestone\Session\Internal\Gameplay) {
-        throw new RuntimeException('server gameplay runtime is unavailable');
-    }
-
-    return $gameplay;
-}
-
 /** @internal Test-only access for deterministic native disconnect integration tests. */
 function testNativeSessions(Cobblestone\Server\Server $server): Cobblestone\Native\Session
 {

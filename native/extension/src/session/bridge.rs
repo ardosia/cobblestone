@@ -21,6 +21,7 @@ use crate::runtime::current_runtime_id;
 
 const EVENT_QUEUE_CAPACITY: usize = 4096;
 const SESSION_COMMAND_CAPACITY: usize = 256;
+const MAX_CHUNK_RADIUS: i64 = 3;
 
 pub(crate) enum QueueResult {
     Sent,
@@ -111,7 +112,7 @@ pub(crate) fn try_queue(
     }
 }
 
-fn zval<T: IntoZval>(value: T) -> PhpResult<Zval> {
+pub(crate) fn zval<T: IntoZval>(value: T) -> PhpResult<Zval> {
     value
         .into_zval(false)
         .map_err(|error| php_error(error.to_string()))
@@ -123,6 +124,10 @@ fn event_values(event: SessionHostEvent) -> PhpResult<Vec<Zval>> {
             zval("connected".to_owned())?,
             zval(session_id.get())?,
             zval(peer)?,
+        ]),
+        SessionHostEvent::LoginRequested { session_id } => Ok(vec![
+            zval("login-requested".to_owned())?,
+            zval(session_id.get())?,
         ]),
         SessionHostEvent::Packet { session_id, packet } => Ok(vec![
             zval("packet".to_owned())?,
@@ -139,13 +144,12 @@ fn event_values(event: SessionHostEvent) -> PhpResult<Vec<Zval>> {
 }
 
 /// Starts the fixed-target native session mechanism for the current owning PHP runtime.
-///
-/// This is an internal kernel bridge, not a plugin API.
 #[php_function]
 pub fn cobblestone_session_start(
     bind: String,
     max_connections: i64,
     server_name: String,
+    max_chunk_radius: i64,
 ) -> PhpResult<()> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
@@ -157,6 +161,9 @@ pub fn cobblestone_session_start(
             return Err(php_error(
                 "server name must be 1..64 bytes and contain no semicolon or backslash",
             ));
+        }
+        if !(1..=MAX_CHUNK_RADIUS).contains(&max_chunk_radius) {
+            return Err(php_error("max chunk radius must be in range 1..3"));
         }
 
         let bind_addr = bind
@@ -189,6 +196,7 @@ pub fn cobblestone_session_start(
             codec_limits(),
             event_capacity,
             command_capacity,
+            max_chunk_radius as i32,
         ))
         .map_err(|error| php_error(error.to_string()))?;
 
@@ -197,7 +205,6 @@ pub fn cobblestone_session_start(
     })
 }
 
-/// Returns whether the current PHP runtime owns the active session host.
 #[php_function]
 pub fn cobblestone_session_running() -> PhpResult<bool> {
     php_boundary(|| {
@@ -214,25 +221,15 @@ pub fn cobblestone_session_running() -> PhpResult<bool> {
 }
 
 /// Polls one bounded native session event on the owning PHP runtime.
-///
-/// Arrays are an internal bridge format:
-/// connected => ["connected", sessionId, peer]
-/// packet => ["packet", sessionId, packetId, binaryBody]
-/// disconnected => ["disconnected", sessionId, reason]
 #[php_function]
 pub fn cobblestone_session_poll_event() -> PhpResult<Option<Vec<Zval>>> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
         let event = with_runtime(owner, SessionHost::try_recv_event)?;
-        if let Some(SessionHostEvent::Disconnected { session_id, .. }) = &event {
-            crate::session::gameplay::forget_session(owner, *session_id);
-            crate::session::view::forget_session(owner, *session_id);
-        }
         event.map(event_values).transpose()
     })
 }
 
-/// Queues one fixed-target packet for a live session without blocking on RakNet I/O.
 #[php_function]
 pub fn cobblestone_session_send(
     session_id: i64,
@@ -252,20 +249,15 @@ pub fn cobblestone_session_send(
     })
 }
 
-/// Queues a disconnect for a live session.
 #[php_function]
 pub fn cobblestone_session_disconnect(session_id: i64) -> PhpResult<()> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
         let session_id = owner_session_id(session_id)?;
-        with_runtime(owner, |host| host.try_disconnect(session_id))?;
-        crate::session::gameplay::forget_session(owner, session_id);
-        crate::session::view::forget_session(owner, session_id);
-        Ok(())
+        with_runtime(owner, |host| host.try_disconnect(session_id))
     })
 }
 
-/// Stops the current PHP runtime's native session mechanism and joins its host thread.
 #[php_function]
 pub fn cobblestone_session_stop() -> PhpResult<()> {
     php_boundary(|| {
@@ -285,8 +277,6 @@ pub fn cobblestone_session_stop() -> PhpResult<()> {
                 .ok_or_else(|| php_error("Cobblestone session runtime disappeared"))?
         };
 
-        crate::session::gameplay::forget_runtime(owner);
-        crate::session::view::forget_runtime(owner);
         runtime
             .host
             .shutdown()
@@ -307,8 +297,6 @@ pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
 pub(crate) fn shutdown() {
     let runtime = session_runtime().take();
     if let Some(runtime) = runtime {
-        crate::session::gameplay::forget_runtime(runtime.owner);
-        crate::session::view::forget_runtime(runtime.owner);
         let _ = runtime.host.shutdown();
     }
 }

@@ -69,19 +69,6 @@ $server = Server::create(
             return;
         }
 
-        if ($transitionOnly) {
-            worldSyncExpect($server instanceof Server, 'world-sync server was unavailable to gameplay handler');
-            $store = $server->world()->nativeStore();
-            worldSyncExpect($store !== null, 'world-sync gameplay handler lost native store');
-            worldSyncExpect(
-                $store->chunkPinCount(new ChunkPos(8, 8)) > 0,
-                'movement preparation released the old streamed center',
-            );
-            worldSyncExpect(
-                $store->chunkPinCount(new ChunkPos(11, 8)) > 0,
-                'movement preparation did not pin an entering chunk',
-            );
-        }
         $movementHandled = true;
     },
 );

@@ -12,6 +12,8 @@ mod id;
 mod packet;
 mod server;
 mod session;
+mod state;
+mod view;
 mod wire;
 
 pub use delivery::SessionDelivery;
@@ -21,3 +23,7 @@ pub use id::SessionId;
 pub use packet::SessionPacket;
 pub use server::SessionServer;
 pub use session::Session;
+pub use state::{
+    ChunkWork, ChunkWorkCompletion, ChunkWorkKind, InitialViewResult, SessionWorldBootstrap,
+    WorldViewSnapshot,
+};

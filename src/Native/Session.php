@@ -4,49 +4,66 @@ declare(strict_types=1);
 
 namespace Cobblestone\Native;
 
+use Cobblestone\Native\Session\ChunkWork;
+use Cobblestone\Native\Session\ChunkWorkKind;
+use Cobblestone\Native\Session\ChunkWorkResult;
+use Cobblestone\Native\Session\ChunkWorkStatus;
 use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
+use Cobblestone\Native\Session\LoginRequested;
 use Cobblestone\Native\Session\Packet;
-use Cobblestone\Native\Session\ViewSendResult;
+use Cobblestone\World\ChunkPos;
 use Cobblestone\World\Dimension;
 
 final class Session
 {
-    private const ABI_VERSION = 2;
-
     public const DELIVERY_UNRELIABLE = 0;
     public const DELIVERY_UNRELIABLE_SEQUENCED = 1;
     public const DELIVERY_RELIABLE = 2;
     public const DELIVERY_RELIABLE_ORDERED = 3;
     public const DELIVERY_RELIABLE_SEQUENCED = 4;
 
+    private const REQUIRED_ENTRYPOINTS = [
+        'cobblestone_core_runtime_id',
+        'cobblestone_session_start',
+        'cobblestone_session_running',
+        'cobblestone_session_poll_event',
+        'cobblestone_session_send',
+        'cobblestone_session_disconnect',
+        'cobblestone_session_stop',
+        'cobblestone_session_accept_login',
+        'cobblestone_session_next_chunk_work',
+        'cobblestone_session_mark_chunk_prepared',
+        'cobblestone_session_complete_chunk_work',
+        'cobblestone_session_flush_world_changes',
+    ];
+
     private bool $running = false;
 
-    private function __construct(
-        private readonly int $runtimeId,
-    ) {}
+    private function __construct(private readonly int $runtimeId) {}
 
-    public static function start(string $bind, int $maxConnections, string $serverName): self
-    {
+    public static function start(
+        string $bind,
+        int $maxConnections,
+        string $serverName,
+        int $maxChunkRadius,
+    ): self {
         if (!extension_loaded('cobblestone_core_php')) {
             throw new \RuntimeException('cobblestone_core_php extension is not loaded');
         }
-
-        if (!\function_exists('cobblestone_core_abi')) {
-            throw new \RuntimeException(
-                'cobblestone_core_php is stale or incompatible: missing ABI identity; rebuild the extension',
-            );
-        }
-
-        $abi = cobblestone_core_abi();
-        if ($abi !== self::ABI_VERSION) {
-            throw new \RuntimeException(
-                "cobblestone_core_php ABI mismatch: expected " . self::ABI_VERSION . ", got {$abi}",
-            );
+        foreach (self::REQUIRED_ENTRYPOINTS as $entrypoint) {
+            if (!\function_exists($entrypoint)) {
+                throw new \RuntimeException(
+                    "cobblestone_core_php is stale or incompatible: missing {$entrypoint}; rebuild the extension",
+                );
+            }
         }
 
         $runtimeId = cobblestone_core_runtime_id();
-        cobblestone_session_start($bind, $maxConnections, $serverName);
+        if (!is_int($runtimeId) || $runtimeId <= 0) {
+            throw new \LogicException('invalid native runtime identity');
+        }
+        cobblestone_session_start($bind, $maxConnections, $serverName, $maxChunkRadius);
 
         $runtime = new self($runtimeId);
         $runtime->running = true;
@@ -63,7 +80,7 @@ final class Session
         return $this->running;
     }
 
-    public function poll(): Connected|Packet|Disconnected|null
+    public function poll(): Connected|LoginRequested|Packet|Disconnected|null
     {
         $this->assertRunning();
         $event = cobblestone_session_poll_event();
@@ -73,9 +90,11 @@ final class Session
         if (!is_array($event) || !isset($event[0], $event[1]) || !is_string($event[0]) || !is_int($event[1])) {
             throw new \LogicException('invalid native session event envelope');
         }
+        /** @var array<int, mixed> $event */
 
         return match ($event[0]) {
             'connected' => $this->connectedEvent($event),
+            'login-requested' => $this->loginRequestedEvent($event),
             'packet' => $this->packetEvent($event),
             'disconnected' => $this->disconnectedEvent($event),
             default => throw new \LogicException('unknown native session event kind'),
@@ -95,7 +114,6 @@ final class Session
     /** @internal */
     public function acceptLogin(
         int $sessionId,
-        string $body,
         int $seed,
         int $generator,
         Dimension $dimension,
@@ -107,126 +125,90 @@ final class Session
         string $levelId,
     ): void {
         $this->assertRunning();
-        cobblestone_session_accept_login_world(
+        cobblestone_session_accept_login(
             $sessionId,
-            $body,
-            $seed,
-            $generator,
-            $dimension->value,
-            $spawnX,
-            $spawnY,
-            $spawnZ,
-            $time,
-            $timeStarted,
-            $levelId,
+            [
+                $seed,
+                $generator,
+                $dimension->value,
+                $spawnX,
+                $spawnY,
+                $spawnZ,
+                $time,
+                $timeStarted,
+                $levelId,
+            ],
         );
     }
 
     /** @internal */
-    public function requestedChunkRadius(string $body): int
+    public function nextChunkWork(int $afterSessionId = 0): ?ChunkWork
     {
         $this->assertRunning();
-        return cobblestone_session_request_chunk_radius($body);
-    }
+        $work = cobblestone_session_next_chunk_work($afterSessionId);
+        if ($work === null) {
+            return null;
+        }
+        if (!is_array($work)
+            || !isset($work[0], $work[1], $work[2])
+            || !is_int($work[0])
+            || !is_int($work[1])
+            || !is_array($work[2])
+            || count($work[2]) % 2 !== 0
+        ) {
+            throw new \LogicException('invalid native chunk-work envelope');
+        }
 
-    /** @internal */
-    public function initializePlayerPosition(int $sessionId, int $spawnX, int $spawnY, int $spawnZ): void
-    {
-        $this->assertRunning();
-        cobblestone_session_player_spawned($sessionId, $spawnX, $spawnY, $spawnZ);
-    }
+        $positions = [];
+        for ($index = 0, $count = count($work[2]); $index < $count; $index += 2) {
+            if (!is_int($work[2][$index]) || !is_int($work[2][$index + 1])) {
+                throw new \LogicException('invalid native chunk-work coordinate');
+            }
+            $positions[] = new ChunkPos($work[2][$index], $work[2][$index + 1]);
+        }
 
-    /** @internal */
-    public function trackPlayerMovement(int $sessionId, string $body): string
-    {
-        $this->assertRunning();
-        return cobblestone_session_track_move_player($sessionId, $body);
-    }
-
-    /** @internal */
-    public function planChunkRadius(int $sessionId, int $effectiveRadius): string
-    {
-        $this->assertRunning();
-
-        return cobblestone_session_plan_chunk_radius($sessionId, $effectiveRadius);
-    }
-
-    /** @internal */
-    public function sendPreparedViewChunks(
-        int $sessionId,
-        int $fromChunkX,
-        int $fromChunkZ,
-        int $fromRadius,
-        int $toChunkX,
-        int $toChunkZ,
-        int $toRadius,
-    ): ViewSendResult {
-        $this->assertRunning();
-
-        $result = cobblestone_session_send_prepared_view_chunks(
-            $sessionId,
-            $fromChunkX,
-            $fromChunkZ,
-            $fromRadius,
-            $toChunkX,
-            $toChunkZ,
-            $toRadius,
-        );
-
-        return ViewSendResult::tryFrom($result)
-            ?? throw new \LogicException('invalid native prepared-view send result');
-    }
-
-    /** @internal */
-    public function commitPreparedView(
-        int $sessionId,
-        int $fromChunkX,
-        int $fromChunkZ,
-        int $fromRadius,
-        int $toChunkX,
-        int $toChunkZ,
-        int $toRadius,
-    ): bool {
-        $this->assertRunning();
-
-        return cobblestone_session_commit_prepared_view(
-            $sessionId,
-            $fromChunkX,
-            $fromChunkZ,
-            $fromRadius,
-            $toChunkX,
-            $toChunkZ,
-            $toRadius,
+        return new ChunkWork(
+            $work[0],
+            ChunkWorkKind::tryFrom($work[1])
+                ?? throw new \LogicException('invalid native chunk-work kind'),
+            $positions,
         );
     }
 
     /** @internal */
-    public function sendInitialChunks(int $sessionId, int $effectiveRadius, string $projection): int
+    public function markChunkPrepared(int $sessionId, int $worldHandle, ChunkPos $position): void
     {
         $this->assertRunning();
-        return cobblestone_session_send_initial_chunks(
+        cobblestone_session_mark_chunk_prepared(
             $sessionId,
-            $effectiveRadius,
-            $projection,
-        );
-    }
-
-
-    /** @internal */
-    public function sendInitialWorldChunks(
-        int $sessionId,
-        int $effectiveRadius,
-        int $worldHandle,
-        int $centerChunkX,
-        int $centerChunkZ,
-    ): int {
-        $this->assertRunning();
-        return cobblestone_session_send_native_chunks(
-            $sessionId,
-            $effectiveRadius,
             $worldHandle,
-            $centerChunkX,
-            $centerChunkZ,
+            $position->x,
+            $position->z,
+        );
+    }
+
+    /** @internal */
+    public function completeChunkWork(int $sessionId, int $worldHandle): ChunkWorkResult
+    {
+        $this->assertRunning();
+        $result = cobblestone_session_complete_chunk_work($sessionId, $worldHandle);
+        if (!is_array($result) || count($result) !== 6) {
+            throw new \LogicException('invalid native chunk-work completion envelope');
+        }
+        foreach ($result as $value) {
+            if (!is_int($value)) {
+                throw new \LogicException('invalid native chunk-work completion value');
+            }
+        }
+
+        return new ChunkWorkResult(
+            ChunkWorkStatus::tryFrom($result[0])
+                ?? throw new \LogicException('invalid native chunk-work completion status'),
+            $result[1],
+            $result[2],
+            $result[3],
+            $result[4],
+            $result[5],
         );
     }
 
@@ -234,8 +216,11 @@ final class Session
     public function flushWorldChanges(int $worldHandle): int
     {
         $this->assertRunning();
-
-        return cobblestone_session_flush_world_changes($worldHandle);
+        $queued = cobblestone_session_flush_world_changes($worldHandle);
+        if (!is_int($queued)) {
+            throw new \LogicException('invalid native world-change flush result');
+        }
+        return $queued;
     }
 
     public function disconnect(int $sessionId): void
@@ -249,7 +234,6 @@ final class Session
         if (!$this->running) {
             return;
         }
-
         cobblestone_session_stop();
         $this->running = false;
     }
@@ -257,16 +241,25 @@ final class Session
     /** @param array<int, mixed> $event */
     private function connectedEvent(array $event): Connected
     {
-        if (!isset($event[2]) || !is_string($event[2])) {
+        if (!isset($event[1], $event[2]) || !is_int($event[1]) || !is_string($event[2])) {
             throw new \LogicException('invalid native connected event');
         }
         return new Connected($event[1], $event[2]);
     }
 
     /** @param array<int, mixed> $event */
+    private function loginRequestedEvent(array $event): LoginRequested
+    {
+        if (!isset($event[1]) || !is_int($event[1])) {
+            throw new \LogicException('invalid native login-requested event');
+        }
+        return new LoginRequested($event[1]);
+    }
+
+    /** @param array<int, mixed> $event */
     private function packetEvent(array $event): Packet
     {
-        if (!isset($event[2], $event[3]) || !is_int($event[2]) || !is_string($event[3])) {
+        if (!isset($event[1], $event[2], $event[3]) || !is_int($event[1]) || !is_int($event[2]) || !is_string($event[3])) {
             throw new \LogicException('invalid native packet event');
         }
         return new Packet($event[1], $event[2], $event[3]);
@@ -275,7 +268,7 @@ final class Session
     /** @param array<int, mixed> $event */
     private function disconnectedEvent(array $event): Disconnected
     {
-        if (!isset($event[2]) || !is_string($event[2])) {
+        if (!isset($event[1], $event[2]) || !is_int($event[1]) || !is_string($event[2])) {
             throw new \LogicException('invalid native disconnected event');
         }
         return new Disconnected($event[1], $event[2]);

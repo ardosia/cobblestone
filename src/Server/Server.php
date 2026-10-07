@@ -278,7 +278,6 @@ final class Server
             $phases['stopping-event'] = fn() => $this->events->dispatch(new ServerStopping());
         }
         if ($this->runtime !== null) {
-            $phases['gameplay'] = fn() => $this->runtime?->stopGameplay();
             $phases['sessions'] = fn() => $this->runtime?->stopSessions();
         }
         $phases['plugins'] = fn() => $this->plugins->shutdown();

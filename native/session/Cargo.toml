@@ -11,6 +11,8 @@ publish = false
 bytes.workspace = true
 cobblestone-wire = { path = "../wire" }
 cobblestone-raknet = { path = "../raknet" }
+cobblestone-target.workspace = true
+cobblestone-world = { path = "../world" }
 crossbeam-channel.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

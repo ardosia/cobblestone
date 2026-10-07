@@ -10,10 +10,8 @@ use Cobblestone\Server\Server;
 use Cobblestone\Config\ServerConfig;
 use Cobblestone\Server\ServerState;
 use Cobblestone\Server\WorldFactory;
-use Cobblestone\Session\Internal\ChunkViewPreparation;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\Internal\Gameplay;
 use Cobblestone\World\BiomeId;
 use Cobblestone\World\ChunkLease;
 use Cobblestone\World\ChunkPos;
@@ -95,84 +93,24 @@ $server = null;
 $pendingObserved = false;
 $cleanupTriggered = false;
 $spawned = false;
+$spawnedSessionId = null;
 $disconnected = false;
 
 $server = Server::create(
     new ServerConfig($bind, 2, 'Cobblestone Pending Disconnect Test'),
     world: $world,
-    packetHandler: static function (Packet $packet) use (
-        &$server,
-        $store,
-        $center,
-        $partialPositions,
-        &$baselineHandles,
-        &$pendingObserved,
-        &$cleanupTriggered,
-    ): void {
-        if ($packet->packetId !== 0x10 || $cleanupTriggered) {
-            return;
+    packetHandler: static function (Packet $packet) use (&$pendingObserved): void {
+        if ($packet->packetId === 0x10) {
+            $pendingObserved = true;
         }
-
-        pendingDisconnectExpect($server instanceof Server, 'pending-disconnect server unavailable');
-
-        $gameplay = testServerGameplay($server);
-
-        $preparationsProperty = new ReflectionProperty(Gameplay::class, 'preparations');
-        $preparations = $preparationsProperty->getValue($gameplay);
-        $preparation = $preparations[$packet->sessionId] ?? null;
-        pendingDisconnectExpect(
-            $preparation instanceof ChunkViewPreparation,
-            'MovePlayer did not create a chunk view preparation',
-        );
-        pendingDisconnectExpect(
-            !$preparation->prepared(),
-            'transition unexpectedly completed before pending-disconnect assertion',
-        );
-
-        foreach ($partialPositions as $position) {
-            pendingDisconnectExpect(
-                $store->chunkPinCount($position) === 2,
-                "pre-resident entering chunk {$position->key()} did not hold baseline + preparation pins",
-            );
-        }
-        pendingDisconnectExpect(
-            $store->chunkPinCount($center) > 0,
-            'pending transition released the old active center',
-        );
-        $pendingObserved = true;
-
-        foreach ($baselineHandles as $handle) {
-            $handle->release();
-        }
-        $baselineHandles = [];
-        foreach ($partialPositions as $position) {
-            pendingDisconnectExpect(
-                $store->chunkPinCount($position) === 1,
-                "preparation pin disappeared before disconnect cleanup for {$position->key()}",
-            );
-        }
-
-        $gameplay->disconnected($packet->sessionId);
-        foreach ($partialPositions as $position) {
-            pendingDisconnectExpect(
-                pendingDisconnectPinCountOrZero($store, $position) === 0,
-                "disconnect cleanup leaked temporary entering pin for {$position->key()}",
-            );
-        }
-        pendingDisconnectExpect(
-            $store->chunkPinCount($center) > 0,
-            'PHP pending cleanup released the native active view too early',
-        );
-
-        testNativeSessions($server)->disconnect($packet->sessionId);
-        $cleanupTriggered = true;
     },
 );
 
 $server->on(
     SessionSpawned::class,
-    static function () use (&$spawned): void {
+    static function (SessionSpawned $event) use (&$spawned, &$spawnedSessionId): void {
         $spawned = true;
+        $spawnedSessionId = $event->sessionId;
     },
 );
 $server->on(
@@ -217,6 +155,36 @@ try {
         $server->tick(256);
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
+
+        if ($pendingObserved && !$cleanupTriggered) {
+            $prepared = true;
+            foreach ($partialPositions as $position) {
+                if ($store->chunkPinCount($position) !== 2) {
+                    $prepared = false;
+                    break;
+                }
+            }
+            if ($prepared) {
+                pendingDisconnectExpect(
+                    $store->chunkPinCount($center) > 0,
+                    'pending transition released the old active center',
+                );
+                foreach ($baselineHandles as $handle) {
+                    $handle->release();
+                }
+                $baselineHandles = [];
+                foreach ($partialPositions as $position) {
+                    pendingDisconnectExpect(
+                        $store->chunkPinCount($position) === 1,
+                        "native pending pin disappeared before disconnect for {$position->key()}",
+                    );
+                }
+                pendingDisconnectExpect($server instanceof Server, 'pending-disconnect server unavailable');
+                pendingDisconnectExpect(is_int($spawnedSessionId), 'pending-disconnect session id is unavailable');
+                testNativeSessions($server)->disconnect($spawnedSessionId);
+                $cleanupTriggered = true;
+            }
+        }
 
         $status = proc_get_status($process);
         if (!$status['running'] && $exitCode === null) {

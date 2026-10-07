@@ -9,16 +9,16 @@ use Closure;
 use Cobblestone\Event\Internal\Dispatcher;
 use Cobblestone\Native\Session\Connected;
 use Cobblestone\Native\Session\Disconnected;
+use Cobblestone\Native\Session\LoginRequested;
 use Cobblestone\Native\Session\Packet;
 use Cobblestone\Native\Session as NativeSessions;
 use Cobblestone\Config\ServerConfig;
-use Cobblestone\Session\Internal\BootstrapUpdate;
 use Cobblestone\Session\Event\SessionConnected;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionLoginAccepted;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\Internal\Bootstrap;
-use Cobblestone\Session\Internal\Gameplay;
+use Cobblestone\Session\Internal\Coordinator;
+use Cobblestone\Session\Internal\SpawnCompletion;
 use Cobblestone\Task\Scheduler;
 use Cobblestone\World\World;
 use LogicException;
@@ -34,8 +34,7 @@ final class Runtime
 
     private function __construct(
         private readonly NativeSessions $sessions,
-        private readonly Bootstrap $bootstrap,
-        private readonly Gameplay $gameplay,
+        private readonly Coordinator $coordinator,
         private readonly World $world,
         private readonly Dispatcher $events,
         private readonly Scheduler $scheduler,
@@ -56,13 +55,13 @@ final class Runtime
             $config->bind,
             $config->maxConnections,
             $config->name,
+            $config->initialChunkRadius,
         );
 
         try {
             return new self(
                 $sessions,
-                new Bootstrap($sessions, $world, $config->initialChunkRadius),
-                new Gameplay($sessions, $world, $config->initialChunkRadius),
+                new Coordinator($sessions, $world),
                 $world,
                 $events,
                 $scheduler,
@@ -94,17 +93,11 @@ final class Runtime
         $this->pollSessions($nativeEventBudget);
         $this->tickStorage();
 
-        foreach ($this->bootstrap->tick() as $completion) {
-            $this->dispatchSpawned($completion['sessionId'], $completion['update']);
+        foreach ($this->coordinator->tick() as $completion) {
+            $this->dispatchSpawned($completion);
         }
 
-        $this->gameplay->tick();
         $this->flushWorldChanges();
-    }
-
-    public function stopGameplay(): void
-    {
-        $this->gameplay->stop();
     }
 
     public function stopSessions(): void
@@ -140,6 +133,10 @@ final class Runtime
                 $this->disconnected($event);
                 continue;
             }
+            if ($event instanceof LoginRequested) {
+                $this->loginRequested($event);
+                continue;
+            }
             if ($event instanceof Packet) {
                 $this->packet($event);
             }
@@ -148,7 +145,6 @@ final class Runtime
 
     private function connected(Connected $event): void
     {
-        $this->bootstrap->connected($event->sessionId);
         $this->logger->info(
             'Session connected',
             ['session' => $event->sessionId, 'peer' => $event->peer],
@@ -158,8 +154,6 @@ final class Runtime
 
     private function disconnected(Disconnected $event): void
     {
-        $this->bootstrap->disconnected($event->sessionId);
-        $this->gameplay->disconnected($event->sessionId);
         $this->logger->info(
             'Session disconnected',
             ['session' => $event->sessionId, 'reason' => $event->reason],
@@ -167,60 +161,31 @@ final class Runtime
         $this->events->dispatch(new SessionDisconnected($event->sessionId, $event->reason));
     }
 
-    private function packet(Packet $packet): void
+    private function loginRequested(LoginRequested $event): void
     {
         try {
-            $update = $this->bootstrap->handle($packet);
+            $this->coordinator->acceptLogin($event->sessionId);
         } catch (Throwable $error) {
             $this->logger->error(
-                'Session bootstrap failed',
-                [
-                    'session' => $packet->sessionId,
-                    'packet' => $packet->packetId,
-                    'exception' => $error,
-                ],
+                'Session login acceptance failed',
+                ['session' => $event->sessionId, 'exception' => $error],
             );
             $this->disconnectAfterFailure(
-                $packet->sessionId,
-                'Session disconnect after bootstrap failure failed',
+                $event->sessionId,
+                'Session disconnect after login failure failed',
             );
             return;
         }
 
-        if ($update->kind === BootstrapUpdate::LOGIN_ACCEPTED) {
-            $this->logger->info(
-                'Session login accepted',
-                ['session' => $packet->sessionId, 'protocol' => Target::GAME_PROTOCOL],
-            );
-            $this->events->dispatch(new SessionLoginAccepted($packet->sessionId));
-            return;
-        }
-        if ($update->kind === BootstrapUpdate::CHUNKS_LOADING) {
-            return;
-        }
-        if ($update->kind === BootstrapUpdate::SPAWNED) {
-            $this->dispatchSpawned($packet->sessionId, $update);
-            return;
-        }
+        $this->logger->info(
+            'Session login accepted',
+            ['session' => $event->sessionId, 'protocol' => Target::GAME_PROTOCOL],
+        );
+        $this->events->dispatch(new SessionLoginAccepted($event->sessionId));
+    }
 
-        try {
-            $this->gameplay->handle($packet);
-        } catch (Throwable $error) {
-            $this->logger->error(
-                'Session gameplay packet failed',
-                [
-                    'session' => $packet->sessionId,
-                    'packet' => $packet->packetId,
-                    'exception' => $error,
-                ],
-            );
-            $this->disconnectAfterFailure(
-                $packet->sessionId,
-                'Session disconnect after gameplay failure failed',
-            );
-            return;
-        }
-
+    private function packet(Packet $packet): void
+    {
         if ($this->packetHandler !== null) {
             ($this->packetHandler)($packet);
         }
@@ -241,28 +206,26 @@ final class Runtime
         }
     }
 
-    private function dispatchSpawned(int $sessionId, BootstrapUpdate $update): void
+    private function dispatchSpawned(SpawnCompletion $completion): void
     {
-        $this->gameplay->spawned($sessionId);
-        $effectiveRadius = $update->effectiveRadius ?? 0;
         $this->logger->info(
             'Session spawned',
             [
-                'session' => $sessionId,
-                'requested_radius' => $update->requestedRadius ?? 0,
-                'initial_radius' => $effectiveRadius,
-                'chunks_sent' => $update->chunksSent,
-                'encoded_bytes' => $update->encodedBytes,
-                'chunk_encode_ms' => round($update->chunkEncodeNanos / 1_000_000, 3),
+                'session' => $completion->sessionId,
+                'requested_radius' => $completion->requestedRadius,
+                'initial_radius' => $completion->effectiveRadius,
+                'chunks_sent' => $completion->chunksSent,
+                'encoded_bytes' => $completion->encodedBytes,
+                'chunk_encode_ms' => round($completion->chunkEncodeNanos / 1_000_000, 3),
             ],
         );
         $this->events->dispatch(
             new SessionSpawned(
-                $sessionId,
-                $update->requestedRadius ?? 0,
-                $effectiveRadius,
-                $update->chunksSent,
-                $update->encodedBytes,
+                $completion->sessionId,
+                $completion->requestedRadius,
+                $completion->effectiveRadius,
+                $completion->chunksSent,
+                $completion->encodedBytes,
             ),
         );
     }

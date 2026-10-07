@@ -11,7 +11,7 @@ It covers:
 - world/player/entity/plugin persistence boundaries;
 - logging;
 - metrics/diagnostics;
-- native ABI/capability reporting;
+- native extension compatibility/capability reporting;
 - administrative state inspection.
 
 World region/chunk durability details remain in WORLD_STORAGE.md.
@@ -405,21 +405,11 @@ Administrative mutation should still call semantic operations such as stop(), ki
 
 Do not create a generic setProperty(name, mixed) control plane.
 
-## Native ABI
+## Native extension compatibility
 
-The PHP extension exposes one stable ABI version through `cobblestone_core_abi()` rather than requiring PHP to manually check a growing list of function names.
+Cobblestone's PHP package and native extension are one release unit. There is no public multi-version native SDK and no hand-maintained numeric ABI epoch. The session adapter declares the concrete extension entrypoints it requires and fails startup with a rebuild message when that surface is stale or incomplete; the World adapter similarly checks its concrete creation/destruction boundary before native composition. Repository export tests lock the intended native surface and explicitly reject removed compatibility names.
 
-The session Runtime adapter validates that ABI once at startup. ABI version 2 is the current contract; version 2 removes the former diagnostic/probe and generic native-async exports.
-
-Capability bits/metadata may be added later if optional native features need staged rollout; they are not required while the extension is one fixed feature set.
-
-## ABI compatibility
-
-ABI identity should include enough information to reject incompatible PHP/native module combinations clearly.
-
-Do not treat presence of one function as proof that every required export has compatible behavior.
-
-Capabilities may support staged rollouts where optional native features are present on some builds.
+A matching symbol name is not a promise of cross-release binary compatibility. Cobblestone is built, tested, and shipped as one coherent PHP/native revision. Capability metadata should be introduced only if genuinely optional native features later require staged rollout; otherwise the source/lock/build identity remains the compatibility boundary.
 
 ## Native result mapping
 
@@ -435,7 +425,7 @@ if ($result === 2) {
 
 through gameplay packages.
 
-The extension adapter is responsible for translating wire/FFI codes into stable semantic categories. Prepared-view send results already cross into PHP as `ViewSendResult` rather than raw 0/1/2 status integers.
+The extension adapter is responsible for translating wire/FFI codes into stable semantic categories. Session chunk-work completion crosses into PHP as `ChunkWorkStatus` / `ChunkWorkResult`; server orchestration does not compare raw native status integers.
 
 ## Clock
 
@@ -532,4 +522,4 @@ Data-oriented tests should cover:
 
 The data layer should converge on:
 
-> Parse configuration once. Treat fixed game data as typed catalogs. Snapshot live gameplay state before background persistence. Keep file formats owned by their subsystem. Use structured logging and cheap diagnostics. Validate the native ABI once instead of probing dozens of symbols. Do not turn storage or observability into gameplay managers.
+> Parse configuration once. Treat fixed game data as typed catalogs. Snapshot live gameplay state before background persistence. Keep file formats owned by their subsystem. Use structured logging and cheap diagnostics. Treat PHP/native code as one release unit and validate the concrete native surface at adapter boundaries. Do not turn storage or observability into gameplay managers.

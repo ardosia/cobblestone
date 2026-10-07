@@ -7,7 +7,6 @@ require dirname(__DIR__) . '/bootstrap.php';
 use Cobblestone\Config\StorageConfig;
 use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\Server\WorldFactory;
-use Cobblestone\Session\Internal\InitialChunkView;
 use Cobblestone\World\BlockPos;
 use Cobblestone\World\Chunk;
 use Cobblestone\World\ChunkLoadPending;
@@ -368,15 +367,28 @@ try {
         storage: new StorageConfig(saveWorkers: 1, loadWorkers: 1),
     );
     try {
-        $initialView = new InitialChunkView($reopenedVillage);
         $projection = NativeWorld::encodeStorageLoadBatch([$well]);
         $prepared = false;
         for ($attempt = 0; $attempt < 1000; ++$attempt) {
-            if ($initialView->preparePersistent([$well], $projection)) {
-                $prepared = true;
+            $store = $reopenedVillage->nativeStore()
+                ?? throw new RuntimeException('reopened village lost native storage');
+            $statuses = $store->prepareStorageLoadBatch($projection);
+            if (strlen($statuses) === 1) {
+                $status = Cobblestone\Native\World\LoadStatus::from(ord($statuses[0]));
+                if ($status === Cobblestone\Native\World\LoadStatus::Resident
+                    || $status === Cobblestone\Native\World\LoadStatus::Missing
+                ) {
+                    try {
+                        $prepared = $reopenedVillage->chunk($well, true) !== null;
+                    } catch (Cobblestone\World\ChunkLoadPending) {
+                        $prepared = false;
+                    }
+                }
+            }
+            if ($prepared) {
                 break;
             }
-            $reopenedVillage->nativeStore()?->storageTick(64);
+            $store->storageTick(64);
             usleep(1_000);
         }
         infiniteExpect($prepared, 'persisted generated-only Well did not finish initial view preparation');

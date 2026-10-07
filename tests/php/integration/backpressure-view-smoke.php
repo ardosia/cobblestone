@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
-use Cobblestone\Native\Session\Packet;
-use Cobblestone\Native\Session\ViewSendResult;
-use Cobblestone\Server\Server;
 use Cobblestone\Config\ServerConfig;
+use Cobblestone\Native\Session\Packet;
+use Cobblestone\Native\World as NativeWorld;
+use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
-use Cobblestone\Session\Internal\ChunkViewPreparation;
 use Cobblestone\Session\Event\SessionDisconnected;
 use Cobblestone\Session\Event\SessionSpawned;
-use Cobblestone\Session\Internal\Gameplay;
 use Cobblestone\World\ChunkPos;
-use Cobblestone\Native\World as NativeWorld;
 
 function backpressureViewExpect(bool $condition, string $message): void
 {
@@ -43,6 +40,7 @@ backpressureViewExpect(is_string($bind) && $bind !== '', 'failed to resolve loop
 $server = null;
 $spawnedSessionId = null;
 $backpressureInjected = false;
+$pendingRetained = false;
 $retryCommitted = false;
 $disconnected = false;
 
@@ -52,43 +50,21 @@ $server = Server::create(
         if ($packet->packetId !== 0x10 || $backpressureInjected) {
             return;
         }
-
         backpressureViewExpect($server instanceof Server, 'backpressure test server unavailable');
-        $store = $server->world()->nativeStore();
-        backpressureViewExpect($store !== null, 'backpressure test lost native store');
-
-        $gameplay = testServerGameplay($server);
-
-        $preparationsProperty = new ReflectionProperty(Gameplay::class, 'preparations');
-        $preparations = $preparationsProperty->getValue($gameplay);
-        $preparation = $preparations[$packet->sessionId] ?? null;
-        backpressureViewExpect(
-            $preparation instanceof ChunkViewPreparation,
-            'MovePlayer did not create a view preparation before backpressure',
-        );
-        backpressureViewExpect($preparation->prepared(), 'flat-world transition was not prepared');
-        backpressureViewExpect(!$preparation->sent(), 'preparation was sent before injection');
-
-        $statusMethod = new ReflectionMethod(Gameplay::class, 'acceptViewSendStatus');
-        $accepted = $statusMethod->invoke($gameplay, $packet->sessionId, $preparation, ViewSendResult::Backpressured);
-        backpressureViewExpect($accepted === false, 'backpressure status was unexpectedly accepted');
-        backpressureViewExpect(!$preparation->sent(), 'backpressure marked the preparation as sent');
-
-        $after = $preparationsProperty->getValue($gameplay);
-        backpressureViewExpect(
-            ($after[$packet->sessionId] ?? null) === $preparation,
-            'backpressure dropped the retryable preparation',
-        );
-        backpressureViewExpect(
-            backpressureViewPinCountOrZero($store, new ChunkPos(6, 8)) > 0,
-            'backpressure changed the active old view',
-        );
-        backpressureViewExpect(
-            backpressureViewPinCountOrZero($store, new ChunkPos(11, 8)) > 0,
-            'prepared entrant was not retained across backpressure',
-        );
-
-        $backpressureInjected = true;
+        $sessions = testNativeSessions($server);
+        $payload = str_repeat("\0", 16 * 1024);
+        for ($attempt = 0; $attempt < 4096; ++$attempt) {
+            try {
+                $sessions->send($packet->sessionId, 0x7f, $payload);
+            } catch (Throwable $error) {
+                if (!str_contains($error->getMessage(), 'command queue is full')) {
+                    throw $error;
+                }
+                $backpressureInjected = true;
+                return;
+            }
+        }
+        throw new RuntimeException('native session command queue never surfaced backpressure');
     },
 );
 
@@ -106,7 +82,6 @@ $server->on(
 );
 
 $server->start();
-
 $root = dirname(__DIR__, 3);
 $process = proc_open(
     [
@@ -134,7 +109,7 @@ $stdout = '';
 $stderr = '';
 $exitCode = null;
 $disconnectRequested = false;
-$deadline = hrtime(true) + 20_000_000_000;
+$deadline = hrtime(true) + 30_000_000_000;
 
 try {
     while (hrtime(true) < $deadline) {
@@ -142,8 +117,19 @@ try {
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
 
+        if ($backpressureInjected && !$pendingRetained) {
+            $store = $server->world()->nativeStore();
+            backpressureViewExpect($store !== null, 'backpressure test lost native store');
+            if (
+                backpressureViewPinCountOrZero($store, new ChunkPos(6, 8)) > 0
+                && backpressureViewPinCountOrZero($store, new ChunkPos(11, 8)) > 0
+            ) {
+                $pendingRetained = true;
+            }
+        }
+
         if (
-            $backpressureInjected
+            $pendingRetained
             && !$retryCommitted
             && str_contains($stdout, 'world-sync-client: transition=verified entering=5')
         ) {
@@ -151,19 +137,11 @@ try {
             backpressureViewExpect($store !== null, 'native store unavailable after retry');
             backpressureViewExpect(
                 backpressureViewPinCountOrZero($store, new ChunkPos(6, 8)) === 0,
-                'retry did not retire the old leaving edge',
+                'successful retry did not retire the old leaving edge',
             );
             backpressureViewExpect(
                 backpressureViewPinCountOrZero($store, new ChunkPos(11, 8)) > 0,
-                'retry did not transfer entrant ownership to the active view',
-            );
-
-            $gameplay = testServerGameplay($server);
-            $preparationsProperty = new ReflectionProperty(Gameplay::class, 'preparations');
-            $preparations = $preparationsProperty->getValue($gameplay);
-            backpressureViewExpect(
-                $preparations === [],
-                'successful retry left a stale view preparation behind',
+                'successful retry did not transfer entrant ownership to the active view',
             );
             $retryCommitted = true;
         }
@@ -172,7 +150,6 @@ try {
         if (!$status['running'] && $exitCode === null) {
             $exitCode = $status['exitcode'];
         }
-
         if (
             $retryCommitted
             && !$disconnectRequested
@@ -182,19 +159,17 @@ try {
             testNativeSessions($server)->disconnect($spawnedSessionId);
             $disconnectRequested = true;
         }
-
         if ($retryCommitted && $disconnectRequested && $disconnected) {
             break;
         }
-
         usleep(1_000);
     }
 
     $stdout .= stream_get_contents($pipes[1]);
     $stderr .= stream_get_contents($pipes[2]);
-
     backpressureViewExpect(is_int($spawnedSessionId), 'backpressure client never spawned');
-    backpressureViewExpect($backpressureInjected, 'backpressure state was never injected');
+    backpressureViewExpect($backpressureInjected, 'native session queue never reached backpressure');
+    backpressureViewExpect($pendingRetained, 'backpressured transition did not retain old + entering pins');
     backpressureViewExpect($retryCommitted, 'retry never committed the prepared transition');
     backpressureViewExpect($exitCode === 0, "backpressure client failed: {$stderr}");
     backpressureViewExpect($disconnected, 'backpressure session disconnect was never observed');

@@ -55,79 +55,7 @@ parameters:
 			path: src/Log/LoggerFactory.php
 
 		-
-			message: '#^Function cobblestone_core_runtime_id not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_disconnect not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
 			message: '#^Function cobblestone_session_poll_event not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_accept_login_world not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_commit_prepared_view not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_flush_world_changes not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_plan_chunk_radius not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_player_spawned not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_request_chunk_radius not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_send_initial_chunks not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_send_native_chunks not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_send_prepared_view_chunks not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Function cobblestone_session_track_move_player not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
@@ -139,7 +67,37 @@ parameters:
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_start not found\.$#'
+			message: '#^Function cobblestone_session_accept_login not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_next_chunk_work not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_mark_chunk_prepared not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_complete_chunk_work not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_flush_world_changes not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: src/Native/Session.php
+
+		-
+			message: '#^Function cobblestone_session_disconnect not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
@@ -147,102 +105,6 @@ parameters:
 		-
 			message: '#^Function cobblestone_session_stop not found\.$#'
 			identifier: function.notFound
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Session\:\:commitPreparedView\(\) should return bool but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Session\:\:flushWorldChanges\(\) should return int but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Session\:\:planChunkRadius\(\) should return string but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Session\:\:requestedChunkRadius\(\) should return int but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Session\:\:sendInitialChunks\(\) should return int but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Session\:\:sendInitialWorldChunks\(\) should return int but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Session\:\:trackPlayerMovement\(\) should return string but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$event of method Cobblestone\\Native\\Session\:\:connectedEvent\(\) expects array\<int, mixed\>, array given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$event of method Cobblestone\\Native\\Session\:\:disconnectedEvent\(\) expects array\<int, mixed\>, array given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$event of method Cobblestone\\Native\\Session\:\:packetEvent\(\) expects array\<int, mixed\>, array given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$runtimeId of class Cobblestone\\Native\\Session constructor expects int, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$sessionId of class Cobblestone\\Native\\Session\\Connected constructor expects int, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$sessionId of class Cobblestone\\Native\\Session\\Disconnected constructor expects int, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$sessionId of class Cobblestone\\Native\\Session\\Packet constructor expects int, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Parameter \#1 \$value of static method Cobblestone\\Native\\Session\\ViewSendResult\:\:tryFrom\(\) expects int\|string, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Native/Session.php
-
-		-
-			message: '#^Part \$abi \(mixed\) of encapsed string cannot be cast to string\.$#'
-			identifier: encapsedStringPart.nonString
 			count: 1
 			path: src/Native/Session.php
 
@@ -753,20 +615,8 @@ parameters:
 		-
 			message: '#^Using nullsafe method call on non\-nullable type Cobblestone\\Server\\Internal\\Runtime\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 2
-			path: src/Server/Server.php
-
-		-
-			message: '#^Binary operation "\*" between mixed and 8 results in an error\.$#'
-			identifier: binaryOp.invalid
 			count: 1
-			path: src/Session/Internal/Gameplay.php
-
-		-
-			message: '#^Parameter \#1 \$value of static method Cobblestone\\Session\\Internal\\Gameplay\:\:signedInt32\(\) expects int, mixed given\.$#'
-			identifier: argument.type
-			count: 8
-			path: src/Session/Internal/Gameplay.php
+			path: src/Server/Server.php
 
 		-
 			message: '#^Negated boolean expression is always false\.$#'

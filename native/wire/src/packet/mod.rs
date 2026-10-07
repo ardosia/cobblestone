@@ -41,6 +41,10 @@ pub mod packet_id {
     pub const ADVENTURE_SETTINGS: u8 = 0x31;
     /// World difficulty.
     pub const SET_DIFFICULTY: u8 = 0x35;
+    /// Client chunk-radius request.
+    pub const REQUEST_CHUNK_RADIUS: u8 = 0x3d;
+    /// Server effective chunk-radius acknowledgement.
+    pub const CHUNK_RADIUS_UPDATED: u8 = 0x3e;
 }
 
 /// Decoded protocol-84 Login envelope.

@@ -250,7 +250,7 @@ Current direction:
 
 - the PHP world FFI boundary is centralized in `Cobblestone\Native\World`; semantic World code contains no raw `cobblestone_world_*` calls;
 - the PHP session FFI boundary is centralized in `Cobblestone\Native\Session`;
-- ABI v2 replaces per-export capability probing for native adapters and omits the removed diagnostic/native-async surface;
+- native adapters declare/check the concrete extension entrypoints they require; there is no hand-maintained numeric ABI epoch;
 - typed projections/results stay under narrow `Cobblestone\Native\*` namespaces while 1:1 forwarding classes are removed;
 - owner-safe handles remain native implementation detail;
 - further batching and export-count reduction remain separate performance/API work;
@@ -694,19 +694,19 @@ Target direction:
 - adapters for external metrics systems later;
 - no management mutation through generic diagnostic property setters.
 
-### Native ABI capabilities
+### Native extension compatibility
 
-Status: versioned ABI identity implemented; typed result mapping started.
+Status: concrete required-surface checks implemented; numeric ABI versioning removed.
 
 Target design: DATA_API.md.
 
 Current direction:
 
-- `cobblestone_core_abi()` publishes ABI version 2;
-- PHP validates ABI once at native runtime startup instead of probing every export;
-- prepared-view send status is mapped to `ViewSendResult`;
-- add capability metadata only when optional native features actually require it;
-- continue centralizing other native result codes as touched.
+- PHP and the native extension are one release unit, so there is no synthetic ABI version integer to advance by hand;
+- each native adapter fails fast when a required extension entrypoint is missing, while the export smoke locks the intended exact surface and rejects removed compatibility names;
+- session chunk-work results cross the bridge as typed `ChunkWorkStatus` / `ChunkWorkResult` values rather than leaking raw status integers into server orchestration;
+- add capability metadata only if genuinely optional native features ever require staged rollout;
+- continue centralizing native result mapping as touched.
 
 ## Protocol-gated/reserved areas
 
