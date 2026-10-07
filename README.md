@@ -128,7 +128,7 @@ cargo +1.98.0 xtask native-build
 cargo +1.98.0 xtask test-php
 ```
 
-Composer keeps matching aliases such as `composer verify` and `composer serve` for convenience; it is no longer the orchestration implementation. Benchmarks remain available as `composer bench:scheduler` and `composer bench:storage`. `cargo +1.98.0 xtask setup` installs dependencies from the committed Composer lock file, while `cargo +1.98.0 xtask verify` is the canonical broad local validation command. GitHub Actions run the same quality gate on pull requests and pushes to `main`; manual dispatch additionally runs the Ubuntu/Windows platform matrix.
+Composer keeps matching aliases such as `composer verify` and `composer serve` for convenience; it is no longer the orchestration implementation. Benchmarks remain available as `composer bench:scheduler` and `composer bench:storage`. `cargo +1.98.0 xtask setup` installs dependencies from the committed Composer lock file, while `cargo +1.98.0 xtask verify` is the canonical broad local validation command. GitHub Actions run the Ubuntu quality gate and a dedicated Windows compatibility job on pull requests, pushes to `main`, and manual dispatches. The Windows job exercises the pinned nightly PHP adapter plus the same ZTS/native PHP integration surface instead of living behind a manual-only matrix.
 
 ## Architecture
 
