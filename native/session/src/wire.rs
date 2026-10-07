@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use cobblestone_protocol84::{
+use cobblestone_wire::{
     BootstrapPacket, CodecError, CodecLimits, decode_bootstrap_frame, decode_game_frame, packet_id,
 };
 
@@ -32,8 +32,8 @@ pub(crate) fn decode_connected_payload(
 
 #[cfg(test)]
 mod tests {
-    use cobblestone_protocol84::{BatchPacket, CodecLimits, RawPacket, encode_bootstrap_frame};
-    use cobblestone_runtime::NativeBuffer;
+    use bytes::Bytes;
+    use cobblestone_wire::{BatchPacket, CodecLimits, RawPacket, encode_bootstrap_frame};
 
     use super::decode_connected_payload;
     use crate::SessionPacket;
@@ -44,18 +44,18 @@ mod tests {
 
     #[test]
     fn batch_is_flattened_before_reaching_owner() {
-        let batch = cobblestone_protocol84::BootstrapPacket::Batch(BatchPacket::new(vec![
-            RawPacket::new(0x10, NativeBuffer::from_vec(vec![1, 2])),
-            RawPacket::new(0x20, NativeBuffer::from_vec(vec![3, 4, 5])),
+        let batch = cobblestone_wire::BootstrapPacket::Batch(BatchPacket::new(vec![
+            RawPacket::new(0x10, Bytes::from(vec![1, 2])),
+            RawPacket::new(0x20, Bytes::from(vec![3, 4, 5])),
         ]));
         let frame = encode_bootstrap_frame(&batch, limits()).expect("encode batch");
 
-        let packets = decode_connected_payload(frame.as_slice(), limits()).expect("decode batch");
+        let packets = decode_connected_payload(frame.as_ref(), limits()).expect("decode batch");
         assert_eq!(
             packets.into_iter().collect::<Vec<_>>(),
             vec![
-                SessionPacket::new(0x10, NativeBuffer::from_vec(vec![1, 2])),
-                SessionPacket::new(0x20, NativeBuffer::from_vec(vec![3, 4, 5])),
+                SessionPacket::new(0x10, Bytes::from(vec![1, 2])),
+                SessionPacket::new(0x20, Bytes::from(vec![3, 4, 5])),
             ]
         );
     }

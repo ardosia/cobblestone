@@ -4,8 +4,8 @@
 
 This document defines the intended architecture and public boundaries for:
 
-- native/transport;
-- native/protocol84;
+- native/raknet;
+- native/wire;
 - native/session;
 - the session-facing portions of native/extension;
 - src/Session;

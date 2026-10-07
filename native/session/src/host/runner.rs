@@ -26,14 +26,14 @@ pub(super) fn run_host(
     };
 
     let SessionHostConfig {
-        network,
+        raknet,
         limits,
         event_queue_capacity: _,
         session_command_capacity,
     } = config;
 
     runtime.block_on(async move {
-        let mut server = match SessionServer::bind(network, limits).await {
+        let mut server = match SessionServer::bind(raknet, limits).await {
             Ok(server) => server,
             Err(error) => {
                 let _ = startup.send(Err(SessionHostError::Startup {

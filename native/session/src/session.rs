@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 use std::net::SocketAddr;
 
 use bytes::Bytes;
-use cobblestone_protocol84::{CodecError, CodecLimits, encode_game_frame};
-use cobblestone_transport::Connection;
+use cobblestone_raknet::Connection;
+use cobblestone_wire::{CodecError, CodecLimits, encode_game_frame};
 use tracing::warn;
 
 use crate::wire::decode_connected_payload;
@@ -80,7 +80,7 @@ impl Session {
             .map_err(|source| SessionError::OutboundCodec { source })?;
         self.connection
             .send(
-                Bytes::copy_from_slice(frame.as_slice()),
+                Bytes::copy_from_slice(frame.as_ref()),
                 delivery.reliability(),
             )
             .await?;

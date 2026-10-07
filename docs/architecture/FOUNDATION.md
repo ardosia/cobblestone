@@ -31,8 +31,8 @@ Initial module families are:
 - `cobblestone-target`: generated flat Rust API for shared fixed-target identities/layout sourced from root `spec/`; it contains no gameplay algorithm or server policy.
 - `cobblestone-runtime`: runtime identity, generational handles, bounded workers, completion plumbing, cancellation, immutable buffers, ownership epochs, and generic region routing.
 - `cobblestone-world`: authoritative native chunk/world state, snapshots, revisions, residency, patches, and the bounded world change journal.
-- `cobblestone-transport`: protocol-8 RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
-- `cobblestone-protocol84`: protocol-84 binary codec, batch/compression, packet primitives, NBT where appropriate, and native-buffer integration.
+- `cobblestone-raknet`: fixed-target RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
+- `cobblestone-wire`: fixed-target binary codec, Batch/compression, packet primitives, chunk projection, movement decoding, and NBT. Wire byte ownership uses `bytes::Bytes` and does not depend on runtime worker/handle machinery.
 - `cobblestone-session`: stable gameplay-session identity and lifecycle above transport/codec; it hides RakNet connection objects and Batch envelopes from the owning runtime while preserving bounded backpressure and malformed-input behavior.
 - `cobblestone-storage`: custom world metadata/region/chunk persistence. The v1 record/region durability core is implemented; async save/load orchestration, metadata publication, and compaction remain isolated here rather than entering `core`.
 
@@ -57,9 +57,9 @@ Rust crate identities remain stable even when repository paths change. Cross-cra
 The initial source cleanup applies that rule concretely:
 - `cobblestone-runtime` separates generational handle/arena storage and worker public types from pool machinery;
 - `cobblestone-world` owns world/chunk state without pulling worker or Zend concerns into that domain;
-- `cobblestone-protocol84` separates packet/NBT data models from wire encode/decode implementation;
+- `cobblestone-wire` separates packet/NBT data models from wire encode/decode implementation;
 - `cobblestone-session` separates session identity, packet, delivery, error, listener/live-session, wire flattening, and host runner concerns;
-- `cobblestone-transport` separates the backend command/state surface from the RakNet event-loop runner;
+- `cobblestone-raknet` separates the backend command/state surface from the RakNet event-loop runner;
 - `cobblestone-extension` owns the panic/error boundary, runtime identity, diagnostics, session bridge, and fixed-target Zend integration while preserving the `cobblestone_core_php` PHP module/library name.
 
 These are internal source boundaries only. Public crate names, fixed-target behavior, and native PHP function names remain stable.
@@ -141,13 +141,13 @@ Semantic routing remains above `cobblestone-runtime`: higher layers may inspect 
 
 Immutable native values such as `NativeBuffer` may be cloned/shared across runtimes. Sharing immutable data never transfers mutable authority for the authoritative object that produced it.
 
-## C005 — protocol-8 RakNet transport
+## C005 — fixed-target RakNet transport
 
-C005 introduces `cobblestone-transport` as the transport boundary. The implementation pins the exact Ardosia RakNet consumer revision recorded in `docs/provenance/ARDOSIA_REUSE.md` instead of following a moving transport branch.
+C005 introduces `cobblestone-raknet` as the transport boundary. The implementation pins the exact Ardosia RakNet consumer revision recorded in `docs/provenance/ARDOSIA_REUSE.md` instead of following a moving transport branch.
 
 ### Transport boundary
 
-`cobblestone-transport` owns:
+`cobblestone-raknet` owns:
 
 - UDP/RakNet listener and connection lifecycle;
 - RakNet reliability selection;
@@ -160,7 +160,7 @@ It does not own game protocol 84, packet codecs, batch/compression, NBT, players
 
 ### Fixed compatibility profile
 
-The initial public configuration is deliberately narrow. `NetworkConfig::protocol8` selects RakNet protocol 8 and disables the newer handshake-cookie path so the transport matches the accepted MCPE 0.15.10 target. The server advertisement is treated as an opaque transport string supplied by the layer above.
+The initial public configuration is deliberately narrow. `RaknetConfig::new` fixes the listener to the target RakNet protocol and disables the newer handshake-cookie path so the transport matches the accepted MCPE 0.15.10 target. The server advertisement is treated as an opaque transport string supplied by the layer above.
 
 A generic protocol list or modern-Bedrock compatibility switch is not exposed. Expanding the transport target requires an accepted change.
 
@@ -172,11 +172,11 @@ Backend commands and per-peer inbound payloads use bounded queues. A peer that e
 
 C005 fixtures require raw protocol-8 Request1 acceptance, incompatible protocol rejection, completed protocol-8 connection establishment, bidirectional reliable-ordered payload flow, and reassembly of a payload large enough to exercise RakNet fragmentation.
 
-These fixtures validate transport mechanics only. Protocol-84 packet compatibility belongs to C006 and later end-to-end fixed-target evidence.
+These fixtures validate RakNet mechanics only. Game-wire compatibility belongs to C006 and later end-to-end fixed-target evidence.
 
 ## C006 — protocol-84 wire codec
 
-C006 introduces `cobblestone-protocol84` above the RakNet transport boundary. It is fixed to MCPE 0.15.10 game protocol 84 and derives compatibility-sensitive wire facts from the supplied fixed-target artifacts plus the pinned matching historical source recorded in `docs/provenance/PROTOCOL84.md`.
+C006 introduces `cobblestone-wire` above the RakNet transport boundary. It is fixed to MCPE 0.15.10 game protocol 84 and derives compatibility-sensitive wire facts from the supplied fixed-target artifacts plus the pinned matching historical source recorded in `docs/provenance/WIRE.md`.
 
 The codec owns the `0xfe` connected game marker, one-byte protocol-84 packet IDs, fixed-endian packet primitives, Login and Batch zlib framing, the initial login/session bootstrap packet subset, and the little-endian NBT dialect required by protocol-84 network data. It consumes and produces immutable native byte buffers and does not own RakNet reliability, sessions, players, worlds, plugins, authentication policy, or gameplay semantics.
 
@@ -188,7 +188,7 @@ The initial typed session subset covers Login, PlayStatus, Disconnect, Batch, Se
 
 ## C007 — single-runtime server/session foundation
 
-C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts protocol-84 payloads through `cobblestone-transport`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-protocol84`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
+C007 starts from the proven real-client boundary rather than rebuilding transport inside PHP. The production `cobblestone-session` layer assigns stable process-local session IDs, accepts fixed-target game payloads through `cobblestone-raknet`, removes the outer game marker, flattens bounded Batch/compression envelopes through `cobblestone-wire`, validates outbound frames before transport submission, closes malformed peers, and preserves typed transport backpressure/disconnect errors.
 
 The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session` adapter tracks local lifecycle state and converts native events into server-internal PHP values. Owner-runtime identity is enforced once at the actual native operation boundary by `cobblestone-extension`; PHP does not perform redundant native owner/running probes before every poll/send/disconnect call. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 

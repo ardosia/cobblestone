@@ -1,7 +1,7 @@
 mod projection;
 mod state;
 
-use cobblestone_protocol84::decode_protocol84_move_player;
+use cobblestone_wire::decode_move_player;
 use cobblestone_world::ChunkCoord;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
@@ -30,8 +30,8 @@ fn i32_field(field: &'static str, value: i64) -> PhpResult<i32> {
 
 /// Initializes post-spawn player position state without changing the streamed world view.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_player_spawned")]
-pub fn cobblestone_session_protocol84_player_spawned(
+#[php(name = "cobblestone_session_player_spawned")]
+pub fn cobblestone_session_player_spawned(
     session_id: i64,
     spawn_x: i64,
     spawn_y: i64,
@@ -56,8 +56,8 @@ pub fn cobblestone_session_protocol84_player_spawned(
 ///
 /// This deliberately does not recenter the current chunk view yet.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_track_move_player")]
-pub fn cobblestone_session_protocol84_track_move_player(
+#[php(name = "cobblestone_session_track_move_player")]
+pub fn cobblestone_session_track_move_player(
     session_id: i64,
     body: Binary<u8>,
 ) -> PhpResult<Binary<u8>> {
@@ -65,8 +65,7 @@ pub fn cobblestone_session_protocol84_track_move_player(
         let owner = current_runtime_id().map_err(php_error)?;
         let session_id = owner_session_id(session_id)?;
         let body: Vec<u8> = body.into();
-        let packet =
-            decode_protocol84_move_player(&body).map_err(|error| php_error(error.to_string()))?;
+        let packet = decode_move_player(&body).map_err(|error| php_error(error.to_string()))?;
         let mut state = state_from_move(packet).map_err(php_error)?;
 
         let desired_radius = {
@@ -94,8 +93,8 @@ pub fn cobblestone_session_protocol84_track_move_player(
 
 /// Plans one post-spawn effective-radius change around the latest player chunk.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_plan_chunk_radius")]
-pub fn cobblestone_session_protocol84_plan_chunk_radius(
+#[php(name = "cobblestone_session_plan_chunk_radius")]
+pub fn cobblestone_session_plan_chunk_radius(
     session_id: i64,
     effective_radius: i64,
 ) -> PhpResult<Binary<u8>> {
@@ -134,8 +133,8 @@ pub fn cobblestone_session_protocol84_plan_chunk_radius(
 
 /// Commits one already-queued view transition into native view ownership.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_commit_prepared_view")]
-pub fn cobblestone_session_protocol84_commit_prepared_view(
+#[php(name = "cobblestone_session_commit_prepared_view")]
+pub fn cobblestone_session_commit_prepared_view(
     session_id: i64,
     from_chunk_x: i64,
     from_chunk_z: i64,
@@ -192,8 +191,8 @@ pub fn cobblestone_session_protocol84_commit_prepared_view(
 
 /// Queues fully prepared entering chunks without recentering or releasing the old view.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_send_prepared_view_chunks")]
-pub fn cobblestone_session_protocol84_send_prepared_view_chunks(
+#[php(name = "cobblestone_session_send_prepared_view_chunks")]
+pub fn cobblestone_session_send_prepared_view_chunks(
     session_id: i64,
     from_chunk_x: i64,
     from_chunk_z: i64,
@@ -247,21 +246,13 @@ pub fn cobblestone_session_protocol84_send_prepared_view_chunks(
 
 pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
+        .function(wrap_function!(cobblestone_session_player_spawned))
+        .function(wrap_function!(cobblestone_session_track_move_player))
+        .function(wrap_function!(cobblestone_session_plan_chunk_radius))
         .function(wrap_function!(
-            cobblestone_session_protocol84_player_spawned
+            cobblestone_session_send_prepared_view_chunks
         ))
-        .function(wrap_function!(
-            cobblestone_session_protocol84_track_move_player
-        ))
-        .function(wrap_function!(
-            cobblestone_session_protocol84_plan_chunk_radius
-        ))
-        .function(wrap_function!(
-            cobblestone_session_protocol84_send_prepared_view_chunks
-        ))
-        .function(wrap_function!(
-            cobblestone_session_protocol84_commit_prepared_view
-        ))
+        .function(wrap_function!(cobblestone_session_commit_prepared_view))
 }
 
 #[cfg(test)]
@@ -281,7 +272,7 @@ mod tests {
 
     fn decode_state(position: [f32; 3]) -> Result<PlayerState, &'static str> {
         let body = move_packet_body(position);
-        let packet = decode_protocol84_move_player(&body).expect("valid MovePlayer fixture");
+        let packet = decode_move_player(&body).expect("valid MovePlayer fixture");
         state_from_move(packet)
     }
 

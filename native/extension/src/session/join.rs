@@ -1,13 +1,14 @@
 mod projection;
 
-use cobblestone_protocol84::{
+use bytes::Bytes;
+use cobblestone_runtime::RuntimeId;
+use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
+use cobblestone_target::ChunkShape;
+use cobblestone_wire::{
     AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, DimensionId,
     PlayStatusPacket, RawPacket, SetDifficultyPacket, SetSpawnPositionPacket, SetTimePacket,
     StartGamePacket, decode_bootstrap_packet, encode_bootstrap_packet, packet_id,
 };
-use cobblestone_runtime::{NativeBuffer, RuntimeId};
-use cobblestone_session::{SessionDelivery, SessionId, SessionPacket};
-use cobblestone_target::ChunkShape;
 use cobblestone_world::ChunkCoord;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::exception::PhpResult;
@@ -16,7 +17,7 @@ use ext_php_rs::prelude::*;
 use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 use crate::session::bridge::{codec_limits, owner_session_id, with_runtime};
-use crate::world::{protocol84_chunk, resolve_world};
+use crate::world::{chunk_wire_packet, resolve_world};
 
 const MAX_INITIAL_CHUNK_RADIUS: i32 = 3;
 pub(super) const CHUNK_RADIUS_UPDATED_ID: u8 = 0x3e;
@@ -39,7 +40,7 @@ pub(crate) fn bootstrap_session_packet(packet: BootstrapPacket) -> PhpResult<Ses
 }
 
 pub(crate) fn validate_login_body(body: Vec<u8>) -> PhpResult<()> {
-    let raw = RawPacket::new(packet_id::LOGIN, NativeBuffer::from_vec(body));
+    let raw = RawPacket::new(packet_id::LOGIN, Bytes::from(body));
     match decode_bootstrap_packet(raw, codec_limits())
         .map_err(|error| php_error(error.to_string()))?
     {
@@ -115,9 +116,9 @@ pub(crate) fn queue_reliable_ordered(
 
 /// Validates Login and queues protocol-84 bootstrap state projected from the PHP-owned World.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_accept_login_world")]
+#[php(name = "cobblestone_session_accept_login_world")]
 #[allow(clippy::too_many_arguments)]
-pub fn cobblestone_session_protocol84_accept_login_world(
+pub fn cobblestone_session_accept_login_world(
     session_id: i64,
     body: Binary<u8>,
     seed: i64,
@@ -170,8 +171,8 @@ pub fn cobblestone_session_protocol84_accept_login_world(
 
 /// Decodes one fixed-target RequestChunkRadius body without changing gameplay/world state.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_request_chunk_radius")]
-pub fn cobblestone_session_protocol84_request_chunk_radius(body: Binary<u8>) -> PhpResult<i64> {
+#[php(name = "cobblestone_session_request_chunk_radius")]
+pub fn cobblestone_session_request_chunk_radius(body: Binary<u8>) -> PhpResult<i64> {
     php_boundary(|| {
         let _owner = current_runtime_id().map_err(php_error)?;
         let body: Vec<u8> = body.into();
@@ -218,7 +219,7 @@ fn queue_initial_chunk_batch(
     let packets = vec![
         SessionPacket::new(
             CHUNK_RADIUS_UPDATED_ID,
-            NativeBuffer::copy_from_slice(&effective_radius.to_be_bytes()),
+            Bytes::copy_from_slice(&effective_radius.to_be_bytes()),
         ),
         batch,
         bootstrap_session_packet(BootstrapPacket::PlayStatus(PlayStatusPacket::new(
@@ -234,8 +235,8 @@ fn queue_initial_chunk_batch(
 ///
 /// Returns the compressed Batch packet size (packet id plus body) for owner-runtime observability.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_send_initial_chunks")]
-pub fn cobblestone_session_protocol84_send_initial_chunks(
+#[php(name = "cobblestone_session_send_initial_chunks")]
+pub fn cobblestone_session_send_initial_chunks(
     session_id: i64,
     effective_radius: i64,
     projection: Binary<u8>,
@@ -255,8 +256,8 @@ pub fn cobblestone_session_protocol84_send_initial_chunks(
 /// Reads immutable native world snapshots directly, reuses revision-keyed protocol-84 chunk
 /// packets, and queues ChunkRadiusUpdated + one compressed Batch + PLAYER_SPAWN.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_send_native_chunks")]
-pub fn cobblestone_session_protocol84_send_native_chunks(
+#[php(name = "cobblestone_session_send_native_chunks")]
+pub fn cobblestone_session_send_native_chunks(
     session_id: i64,
     effective_radius: i64,
     world_handle: i64,
@@ -289,7 +290,7 @@ pub fn cobblestone_session_protocol84_send_native_chunks(
         for x in min_x..=max_x {
             for z in min_z..=max_z {
                 let position = ChunkCoord::new(x, z);
-                chunks.push(protocol84_chunk(world_handle, position)?);
+                chunks.push(chunk_wire_packet(world_handle, position)?);
                 positions.push(position);
             }
         }
@@ -330,16 +331,8 @@ pub fn cobblestone_session_protocol84_send_native_chunks(
 
 pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     module
-        .function(wrap_function!(
-            cobblestone_session_protocol84_accept_login_world
-        ))
-        .function(wrap_function!(
-            cobblestone_session_protocol84_request_chunk_radius
-        ))
-        .function(wrap_function!(
-            cobblestone_session_protocol84_send_initial_chunks
-        ))
-        .function(wrap_function!(
-            cobblestone_session_protocol84_send_native_chunks
-        ))
+        .function(wrap_function!(cobblestone_session_accept_login_world))
+        .function(wrap_function!(cobblestone_session_request_chunk_radius))
+        .function(wrap_function!(cobblestone_session_send_initial_chunks))
+        .function(wrap_function!(cobblestone_session_send_native_chunks))
 }

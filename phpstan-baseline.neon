@@ -73,61 +73,61 @@ parameters:
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_accept_login_world not found\.$#'
+			message: '#^Function cobblestone_session_accept_login_world not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_commit_prepared_view not found\.$#'
+			message: '#^Function cobblestone_session_commit_prepared_view not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_flush_world_changes not found\.$#'
+			message: '#^Function cobblestone_session_flush_world_changes not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_plan_chunk_radius not found\.$#'
+			message: '#^Function cobblestone_session_plan_chunk_radius not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_player_spawned not found\.$#'
+			message: '#^Function cobblestone_session_player_spawned not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_request_chunk_radius not found\.$#'
+			message: '#^Function cobblestone_session_request_chunk_radius not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_send_initial_chunks not found\.$#'
+			message: '#^Function cobblestone_session_send_initial_chunks not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_send_native_chunks not found\.$#'
+			message: '#^Function cobblestone_session_send_native_chunks not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_send_prepared_view_chunks not found\.$#'
+			message: '#^Function cobblestone_session_send_prepared_view_chunks not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_session_protocol84_track_move_player not found\.$#'
+			message: '#^Function cobblestone_session_track_move_player not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: src/Native/Session.php

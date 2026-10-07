@@ -3,15 +3,14 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 
 use bytes::Bytes;
-use cobblestone_protocol84::{
+use cobblestone_raknet::{Connection, RaknetConfig, RaknetServer, Reliability};
+use cobblestone_target::ChunkShape;
+use cobblestone_wire::{
     AdventureFlags, AdventureSettingsPacket, BatchPacket, BootstrapPacket, CodecError, CodecLimits,
     DimensionId, LoginPacket, PlayStatusPacket, RawPacket, SetDifficultyPacket,
     SetSpawnPositionPacket, SetTimePacket, StartGamePacket, decode_bootstrap_frame,
     decode_game_frame, encode_bootstrap_frame, encode_game_frame, packet_id,
 };
-use cobblestone_runtime::NativeBuffer;
-use cobblestone_target::ChunkShape;
-use cobblestone_transport::{Connection, NetworkConfig, NetworkServer, Reliability};
 
 const DEFAULT_BIND: &str = "0.0.0.0:19132";
 const MAX_CONNECTIONS: usize = 20;
@@ -35,7 +34,7 @@ fn codec_limits() -> CodecLimits {
 fn advertisement() -> String {
     format!(
         "MCPE;Cobblestone;{};;0;{MAX_CONNECTIONS}",
-        cobblestone_protocol84::PROTOCOL_VERSION
+        cobblestone_target::GAME_PROTOCOL
     )
 }
 
@@ -46,7 +45,7 @@ fn raw_packets(payload: &[u8], limits: CodecLimits) -> Result<Vec<RawPacket>, Co
     }
 
     let frame = encode_game_frame(&raw, limits)?;
-    let BootstrapPacket::Batch(batch) = decode_bootstrap_frame(frame.as_slice(), limits)? else {
+    let BootstrapPacket::Batch(batch) = decode_bootstrap_frame(frame.as_ref(), limits)? else {
         return Ok(vec![raw]);
     };
 
@@ -60,7 +59,7 @@ fn find_login(payload: &[u8], limits: CodecLimits) -> Result<Option<LoginPacket>
         }
 
         let frame = encode_game_frame(&raw, limits)?;
-        if let BootstrapPacket::Login(login) = decode_bootstrap_frame(frame.as_slice(), limits)? {
+        if let BootstrapPacket::Login(login) = decode_bootstrap_frame(frame.as_ref(), limits)? {
             return Ok(Some(login));
         }
     }
@@ -81,7 +80,7 @@ fn requested_chunk_radius(payload: &[u8], limits: CodecLimits) -> Result<Option<
             continue;
         }
 
-        let bytes = raw.body().as_slice();
+        let bytes = raw.body().as_ref();
         if bytes.len() < 4 {
             return Err(CodecError::UnexpectedEof {
                 needed: 4,
@@ -108,7 +107,7 @@ async fn send_packet(
     limits: CodecLimits,
 ) -> Result<(), Box<dyn Error>> {
     let frame = encode_bootstrap_frame(&packet, limits)?;
-    send_frame(connection, frame.as_slice()).await
+    send_frame(connection, frame.as_ref()).await
 }
 
 async fn send_raw_packet(
@@ -117,7 +116,7 @@ async fn send_raw_packet(
     limits: CodecLimits,
 ) -> Result<(), Box<dyn Error>> {
     let frame = encode_game_frame(packet, limits)?;
-    send_frame(connection, frame.as_slice()).await
+    send_frame(connection, frame.as_ref()).await
 }
 
 async fn send_frame(connection: &Connection, frame: &[u8]) -> Result<(), Box<dyn Error>> {
@@ -192,11 +191,11 @@ async fn send_initial_bootstrap(
 fn chunk_radius_updated(radius: i32) -> RawPacket {
     RawPacket::new(
         CHUNK_RADIUS_UPDATED_ID,
-        NativeBuffer::copy_from_slice(&radius.to_be_bytes()),
+        Bytes::copy_from_slice(&radius.to_be_bytes()),
     )
 }
 
-fn empty_layered_chunk_payload() -> NativeBuffer {
+fn empty_layered_chunk_payload() -> Bytes {
     const BLOCK_IDS: usize = ChunkShape::BLOCK_COUNT;
     const NIBBLE_ARRAY: usize = ChunkShape::NIBBLE_BYTES;
     const HEIGHT_MAP: usize = ChunkShape::COLUMN_COUNT;
@@ -215,10 +214,10 @@ fn empty_layered_chunk_payload() -> NativeBuffer {
     payload.extend_from_slice(&0_u32.to_le_bytes());
 
     debug_assert_eq!(payload.len(), TOTAL);
-    NativeBuffer::from_vec(payload)
+    Bytes::from(payload)
 }
 
-fn full_chunk_packet(chunk_x: i32, chunk_z: i32, payload: &NativeBuffer) -> RawPacket {
+fn full_chunk_packet(chunk_x: i32, chunk_z: i32, payload: &Bytes) -> RawPacket {
     let mut body = Vec::with_capacity(13 + payload.len());
     body.extend_from_slice(&chunk_x.to_be_bytes());
     body.extend_from_slice(&chunk_z.to_be_bytes());
@@ -228,8 +227,8 @@ fn full_chunk_packet(chunk_x: i32, chunk_z: i32, payload: &NativeBuffer) -> RawP
             .expect("probe chunk payload fits protocol-84 length")
             .to_be_bytes(),
     );
-    body.extend_from_slice(payload.as_slice());
-    RawPacket::new(FULL_CHUNK_DATA_ID, NativeBuffer::from_vec(body))
+    body.extend_from_slice(payload.as_ref());
+    RawPacket::new(FULL_CHUNK_DATA_ID, Bytes::from(body))
 }
 
 async fn send_probe_chunks(
@@ -276,8 +275,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         NonZeroUsize::new(MAX_CONNECTIONS).expect("fixed nonzero max connections");
     let limits = codec_limits();
 
-    let config = NetworkConfig::protocol8(bind_addr, max_connections, advertisement());
-    let mut server = NetworkServer::bind(config).await?;
+    let config = RaknetConfig::new(bind_addr, max_connections, advertisement());
+    let mut server = RaknetServer::bind(config).await?;
 
     println!("cobblestone-client-bootstrap: listening={bind_addr} protocol=84 raknet=8");
     println!("cobblestone-client-bootstrap: waiting for one real client");
@@ -316,7 +315,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
                 Ok(None) => match packet_ids(&payload, limits) {
                     Ok(ids) => println!(
-                        "cobblestone-client-bootstrap: pre-login protocol84 packet_ids={ids:?}"
+                        "cobblestone-client-bootstrap: pre-login fixed-target packet_ids={ids:?}"
                     ),
                     Err(error) => println!(
                         "cobblestone-client-bootstrap: pre-login undecodable payload bytes={} error={error}",
@@ -394,6 +393,6 @@ mod tests {
 
         let radius = chunk_radius_updated(PROBE_CHUNK_RADIUS);
         assert_eq!(radius.id(), 0x3e);
-        assert_eq!(radius.body().as_slice(), &PROBE_CHUNK_RADIUS.to_be_bytes());
+        assert_eq!(radius.body().as_ref(), &PROBE_CHUNK_RADIUS.to_be_bytes());
     }
 }

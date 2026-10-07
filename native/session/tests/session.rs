@@ -3,10 +3,9 @@ use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use bytes::Bytes;
-use cobblestone_protocol84::{CodecLimits, RawPacket, encode_game_frame};
-use cobblestone_runtime::NativeBuffer;
+use cobblestone_raknet::RaknetConfig;
 use cobblestone_session::{SessionDelivery, SessionError, SessionPacket, SessionServer};
-use cobblestone_transport::NetworkConfig;
+use cobblestone_wire::{CodecLimits, RawPacket, encode_game_frame};
 use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
 use raknet_rust::low_level::protocol::Reliability as RaknetReliability;
 use tokio::time::timeout;
@@ -20,8 +19,8 @@ fn limits() -> CodecLimits {
     CodecLimits::new(4096, 4096, 4096, 4096, 2048, 32)
 }
 
-fn network_config(addr: SocketAddr) -> NetworkConfig {
-    NetworkConfig::protocol8(
+fn raknet_config(addr: SocketAddr) -> RaknetConfig {
+    RaknetConfig::new(
         addr,
         NonZeroUsize::new(8).expect("nonzero"),
         "MCPE;Cobblestone Session Test;84;;0;8",
@@ -53,14 +52,14 @@ async fn next_client_packet(client: &mut RaknetClient) -> Bytes {
 }
 
 #[tokio::test]
-async fn session_round_trips_protocol84_without_exposing_raknet_connection() {
+async fn session_round_trips_fixed_target_without_exposing_raknet_connection() {
     let addr = allocate_loopback_addr();
-    let mut server = SessionServer::bind(network_config(addr), limits())
+    let mut server = SessionServer::bind(raknet_config(addr), limits())
         .await
         .expect("start session server");
     let mut client = RaknetClient::connect_with_config(addr, client_config())
         .await
-        .expect("connect protocol8 client");
+        .expect("connect fixed-target RakNet client");
     let mut session = timeout(Duration::from_secs(2), server.accept())
         .await
         .expect("session accept timeout")
@@ -69,11 +68,11 @@ async fn session_round_trips_protocol84_without_exposing_raknet_connection() {
     assert_eq!(session.id().get(), 1);
     assert_eq!(session.peer_addr().ip(), addr.ip());
 
-    let inbound = RawPacket::new(0x10, NativeBuffer::from_vec(vec![1, 2, 3]));
+    let inbound = RawPacket::new(0x10, Bytes::from(vec![1, 2, 3]));
     let inbound_frame = encode_game_frame(&inbound, limits()).expect("encode inbound frame");
     client
         .send_with_options(
-            Bytes::copy_from_slice(inbound_frame.as_slice()),
+            Bytes::copy_from_slice(inbound_frame.as_ref()),
             ClientSendOptions {
                 reliability: RaknetReliability::ReliableOrdered,
                 ..ClientSendOptions::default()
@@ -87,33 +86,33 @@ async fn session_round_trips_protocol84_without_exposing_raknet_connection() {
         .expect("session receive timeout")
         .expect("session packet");
     assert_eq!(received.id(), 0x10);
-    assert_eq!(received.body().as_slice(), &[1, 2, 3]);
+    assert_eq!(received.body().as_ref(), &[1, 2, 3]);
 
-    let outbound = SessionPacket::new(0x20, NativeBuffer::from_vec(vec![4, 5, 6]));
+    let outbound = SessionPacket::new(0x20, Bytes::from(vec![4, 5, 6]));
     session
         .send(&outbound, SessionDelivery::ReliableOrdered)
         .await
         .expect("send session packet");
 
     let outbound_frame = next_client_packet(&mut client).await;
-    let decoded = cobblestone_protocol84::decode_game_frame(outbound_frame.as_ref(), limits())
+    let decoded = cobblestone_wire::decode_game_frame(outbound_frame.as_ref(), limits())
         .expect("decode server frame");
     assert_eq!(decoded.id(), 0x20);
-    assert_eq!(decoded.body().as_slice(), &[4, 5, 6]);
+    assert_eq!(decoded.body().as_ref(), &[4, 5, 6]);
 
     session.close().await.expect("close session");
     server.shutdown().await.expect("shutdown session server");
 }
 
 #[tokio::test]
-async fn malformed_protocol84_input_closes_at_session_boundary() {
+async fn malformed_fixed_target_input_closes_at_session_boundary() {
     let addr = allocate_loopback_addr();
-    let mut server = SessionServer::bind(network_config(addr), limits())
+    let mut server = SessionServer::bind(raknet_config(addr), limits())
         .await
         .expect("start session server");
     let mut client = RaknetClient::connect_with_config(addr, client_config())
         .await
-        .expect("connect protocol8 client");
+        .expect("connect fixed-target RakNet client");
     let mut session = timeout(Duration::from_secs(2), server.accept())
         .await
         .expect("session accept timeout")
@@ -143,18 +142,18 @@ async fn malformed_protocol84_input_closes_at_session_boundary() {
 async fn outbound_codec_limits_fail_before_transport_submission() {
     let addr = allocate_loopback_addr();
     let tight_limits = CodecLimits::new(8, 4096, 4096, 4096, 2048, 32);
-    let mut server = SessionServer::bind(network_config(addr), tight_limits)
+    let mut server = SessionServer::bind(raknet_config(addr), tight_limits)
         .await
         .expect("start session server");
     let _client = RaknetClient::connect_with_config(addr, client_config())
         .await
-        .expect("connect protocol8 client");
+        .expect("connect fixed-target RakNet client");
     let session = timeout(Duration::from_secs(2), server.accept())
         .await
         .expect("session accept timeout")
         .expect("accepted session");
 
-    let packet = SessionPacket::new(0x10, NativeBuffer::from_vec(vec![0; 32]));
+    let packet = SessionPacket::new(0x10, Bytes::from(vec![0; 32]));
     let error = session
         .send(&packet, SessionDelivery::ReliableOrdered)
         .await

@@ -195,7 +195,7 @@ Status: implemented protocol-8 RakNet backend.
 Current crate:
 
 ~~~text
-native/transport
+native/raknet
 ~~~
 
 Target design: TRANSPORT_API.md.
@@ -215,7 +215,7 @@ Status: implemented protocol-84 codec/bootstrap/batch foundation.
 Current crate:
 
 ~~~text
-native/protocol84
+native/wire
 ~~~
 
 Target design: TRANSPORT_API.md.

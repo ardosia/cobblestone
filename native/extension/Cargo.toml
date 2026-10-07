@@ -12,11 +12,12 @@ name = "cobblestone_core_php"
 crate-type = ["cdylib"]
 
 [dependencies]
+bytes = "1.8"
 cobblestone-target = { path = "../target" }
-cobblestone-protocol84 = { path = "../protocol84" }
+cobblestone-wire = { path = "../wire" }
 cobblestone-runtime = { path = "../runtime" }
 cobblestone-world = { path = "../world" }
-cobblestone-transport = { path = "../transport" }
+cobblestone-raknet = { path = "../raknet" }
 cobblestone-session = { path = "../session" }
 cobblestone-storage = { path = "../storage" }
 ext-php-rs = "=0.15.15"

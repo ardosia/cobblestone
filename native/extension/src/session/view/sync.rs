@@ -1,10 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 
-use cobblestone_protocol84::{
-    BatchPacket, BootstrapPacket, RawPacket, UPDATE_BLOCK_FLAG_ALL_PRIORITY,
-    encode_protocol84_update_block,
-};
 use cobblestone_session::SessionDelivery;
+use cobblestone_wire::{
+    BatchPacket, BootstrapPacket, RawPacket, UPDATE_BLOCK_FLAG_ALL_PRIORITY, encode_update_block,
+};
 use cobblestone_world::{
     ChunkCoord, MAX_POINT_BLOCK_CHANGES, WorldChangeKind, WorldChangeLogSnapshot,
 };
@@ -14,7 +13,7 @@ use ext_php_rs::prelude::*;
 use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 use crate::session::bridge::{QueueResult, try_queue};
-use crate::world::{protocol84_chunk, resolve_world};
+use crate::world::{chunk_wire_packet, resolve_world};
 
 use super::state::{WorldView, release_view, world_views};
 use crate::session::join::bootstrap_session_packet;
@@ -100,7 +99,7 @@ fn update_block_packet(position: ChunkCoord, index: u16, state: u16) -> PhpResul
         .and_then(|base| base.checked_add(local_z))
         .ok_or_else(|| php_error("UpdateBlock z coordinate overflow"))?;
 
-    encode_protocol84_update_block(x, y, z, state, UPDATE_BLOCK_FLAG_ALL_PRIORITY)
+    encode_update_block(x, y, z, state, UPDATE_BLOCK_FLAG_ALL_PRIORITY)
         .map_err(|error| php_error(error.to_string()))
 }
 
@@ -109,8 +108,8 @@ fn update_block_packet(position: ChunkCoord, index: u16, state: u16) -> PhpResul
 /// Backpressured viewers keep their previous cursor and retry on a later tick. A viewer that falls
 /// behind the bounded world change log is recovered by resending its complete current chunk view.
 #[php_function]
-#[php(name = "cobblestone_session_protocol84_flush_world_changes")]
-pub fn cobblestone_session_protocol84_flush_world_changes(world_handle: i64) -> PhpResult<i64> {
+#[php(name = "cobblestone_session_flush_world_changes")]
+pub fn cobblestone_session_flush_world_changes(world_handle: i64) -> PhpResult<i64> {
     php_boundary(|| {
         let owner = current_runtime_id().map_err(php_error)?;
         let store = resolve_world(world_handle)?;
@@ -158,7 +157,7 @@ pub fn cobblestone_session_protocol84_flush_world_changes(world_handle: i64) -> 
             for (position, change) in chunks {
                 match change {
                     PendingChunkSync::FullChunk => {
-                        packets.push(protocol84_chunk(world_handle, position)?);
+                        packets.push(chunk_wire_packet(world_handle, position)?);
                     }
                     PendingChunkSync::Blocks(blocks) => {
                         for (index, state) in blocks {
@@ -223,7 +222,5 @@ pub fn cobblestone_session_protocol84_flush_world_changes(world_handle: i64) -> 
 }
 
 pub(super) fn register(module: ModuleBuilder) -> ModuleBuilder {
-    module.function(wrap_function!(
-        cobblestone_session_protocol84_flush_world_changes
-    ))
+    module.function(wrap_function!(cobblestone_session_flush_world_changes))
 }

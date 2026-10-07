@@ -22,16 +22,16 @@ $required = [
     'cobblestone_session_running',
     'cobblestone_session_poll_event',
     'cobblestone_session_send',
-    'cobblestone_session_protocol84_accept_login_world',
-    'cobblestone_session_protocol84_request_chunk_radius',
-    'cobblestone_session_protocol84_send_initial_chunks',
-    'cobblestone_session_protocol84_send_native_chunks',
-    'cobblestone_session_protocol84_player_spawned',
-    'cobblestone_session_protocol84_track_move_player',
-    'cobblestone_session_protocol84_plan_chunk_radius',
-    'cobblestone_session_protocol84_send_prepared_view_chunks',
-    'cobblestone_session_protocol84_commit_prepared_view',
-    'cobblestone_session_protocol84_flush_world_changes',
+    'cobblestone_session_accept_login_world',
+    'cobblestone_session_request_chunk_radius',
+    'cobblestone_session_send_initial_chunks',
+    'cobblestone_session_send_native_chunks',
+    'cobblestone_session_player_spawned',
+    'cobblestone_session_track_move_player',
+    'cobblestone_session_plan_chunk_radius',
+    'cobblestone_session_send_prepared_view_chunks',
+    'cobblestone_session_commit_prepared_view',
+    'cobblestone_session_flush_world_changes',
     'cobblestone_world_create',
     'cobblestone_world_overworld_biomes',
     'cobblestone_world_overworld_spawn',
@@ -93,10 +93,18 @@ if (cobblestone_core_abi() !== 1) {
 }
 
 $forbidden = [
-    'cobblestone_session_protocol84_accept_login',
-    'cobblestone_session_protocol84_spawn_probe',
-    'cobblestone_session_protocol_84_accept_login',
-    'cobblestone_session_protocol_84_spawn_probe',
+    'cobblestone_session_accept_login',
+    'cobblestone_session_spawn_probe',
+    'cobblestone_session_protocol84_accept_login_world',
+    'cobblestone_session_protocol84_request_chunk_radius',
+    'cobblestone_session_protocol84_send_initial_chunks',
+    'cobblestone_session_protocol84_send_native_chunks',
+    'cobblestone_session_protocol84_player_spawned',
+    'cobblestone_session_protocol84_track_move_player',
+    'cobblestone_session_protocol84_plan_chunk_radius',
+    'cobblestone_session_protocol84_send_prepared_view_chunks',
+    'cobblestone_session_protocol84_commit_prepared_view',
+    'cobblestone_session_protocol84_flush_world_changes',
 ];
 
 foreach ($forbidden as $function) {
@@ -106,6 +114,6 @@ foreach ($forbidden as $function) {
 }
 
 printf(
-    "cobblestone-core-php: exports=%d protocol84_names=stable composer_namespace=independent\n",
+    "cobblestone-core-php: exports=%d wire_names=unversioned composer_namespace=independent\n",
     count($required),
 );

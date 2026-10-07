@@ -1,7 +1,7 @@
 use std::num::NonZeroU64;
 
-use cobblestone_protocol84::CodecLimits;
-use cobblestone_transport::{NetworkConfig, NetworkServer};
+use cobblestone_raknet::{RaknetConfig, RaknetServer};
+use cobblestone_wire::CodecLimits;
 use tracing::debug;
 
 use crate::{Session, SessionError, SessionId};
@@ -11,16 +11,16 @@ use crate::{Session, SessionError, SessionId};
 /// The owning runtime sees stable session IDs and decoded packets. RakNet lifecycle, bounded
 /// transport queues, game-frame markers, and Batch decompression remain below this API.
 pub struct SessionServer {
-    network: NetworkServer,
+    raknet: RaknetServer,
     limits: CodecLimits,
     next_id: u64,
 }
 
 impl SessionServer {
-    /// Binds a RakNet-8 listener and prepares fixed-target session decoding.
-    pub async fn bind(network: NetworkConfig, limits: CodecLimits) -> Result<Self, SessionError> {
+    /// Binds the fixed-target RakNet listener and prepares session decoding.
+    pub async fn bind(raknet: RaknetConfig, limits: CodecLimits) -> Result<Self, SessionError> {
         Ok(Self {
-            network: NetworkServer::bind(network).await?,
+            raknet: RaknetServer::bind(raknet).await?,
             limits,
             next_id: 1,
         })
@@ -28,7 +28,7 @@ impl SessionServer {
 
     /// Waits for and returns the next accepted session.
     pub async fn accept(&mut self) -> Result<Session, SessionError> {
-        let connection = self.network.accept().await?;
+        let connection = self.raknet.accept().await?;
         let id = match NonZeroU64::new(self.next_id) {
             Some(id) => SessionId(id),
             None => {
@@ -45,7 +45,7 @@ impl SessionServer {
 
     /// Gracefully shuts down the underlying listener/backend.
     pub async fn shutdown(self) -> Result<(), SessionError> {
-        self.network.shutdown().await?;
+        self.raknet.shutdown().await?;
         Ok(())
     }
 }

@@ -2,13 +2,14 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::sync::{Mutex, MutexGuard};
 
-use cobblestone_protocol84::CodecLimits;
-use cobblestone_runtime::{NativeBuffer, RuntimeId};
+use bytes::Bytes;
+use cobblestone_raknet::RaknetConfig;
+use cobblestone_runtime::RuntimeId;
 use cobblestone_session::{
     SessionDelivery, SessionHost, SessionHostConfig, SessionHostError, SessionHostEvent, SessionId,
     SessionPacket,
 };
-use cobblestone_transport::NetworkConfig;
+use cobblestone_wire::CodecLimits;
 use ext_php_rs::binary::Binary;
 use ext_php_rs::convert::IntoZval;
 use ext_php_rs::exception::PhpResult;
@@ -127,7 +128,7 @@ fn event_values(event: SessionHostEvent) -> PhpResult<Vec<Zval>> {
             zval("packet".to_owned())?,
             zval(session_id.get())?,
             zval(i64::from(packet.id()))?,
-            zval(Binary::new(packet.body().as_slice().to_vec()))?,
+            zval(Binary::new(packet.body().as_ref().to_vec()))?,
         ]),
         SessionHostEvent::Disconnected { session_id, reason } => Ok(vec![
             zval("disconnected".to_owned())?,
@@ -179,12 +180,12 @@ pub fn cobblestone_session_start(
 
         let advertisement = format!(
             "MCPE;{server_name};{};;0;{}",
-            cobblestone_protocol84::PROTOCOL_VERSION,
+            cobblestone_target::GAME_PROTOCOL,
             max_connections.get()
         );
-        let network = NetworkConfig::protocol8(bind_addr, max_connections, advertisement);
+        let raknet = RaknetConfig::new(bind_addr, max_connections, advertisement);
         let host = SessionHost::start(SessionHostConfig::new(
-            network,
+            raknet,
             codec_limits(),
             event_capacity,
             command_capacity,
@@ -231,7 +232,7 @@ pub fn cobblestone_session_poll_event() -> PhpResult<Option<Vec<Zval>>> {
     })
 }
 
-/// Queues one protocol-84 packet for a live session without blocking on network I/O.
+/// Queues one fixed-target packet for a live session without blocking on RakNet I/O.
 #[php_function]
 pub fn cobblestone_session_send(
     session_id: i64,
@@ -245,7 +246,8 @@ pub fn cobblestone_session_send(
         let packet_id =
             u8::try_from(packet_id).map_err(|_| php_error("packet id must fit one byte"))?;
         let delivery = delivery(delivery_mode)?;
-        let packet = SessionPacket::new(packet_id, NativeBuffer::from_vec(body.into()));
+        let body: Vec<u8> = body.into();
+        let packet = SessionPacket::new(packet_id, Bytes::from(body));
         with_runtime(owner, |host| host.try_send(session_id, packet, delivery))
     })
 }

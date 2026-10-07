@@ -42,8 +42,8 @@ native/
 ├── target/
 ├── runtime/
 ├── world/
-├── protocol84/
-├── transport/
+├── wire/
+├── raknet/
 ├── session/
 ├── storage/
 └── extension/
@@ -66,8 +66,8 @@ The native workspace is split by mechanism ownership:
 - `target`: generated flat API for cross-language fixed-target identities/layout from `spec/`
 - `runtime`: handles, ownership, workers, completion primitives, region routing
 - `world`: authoritative native chunk/world state, revisions, residency, snapshots, patches
-- `protocol84`: fixed-target packet, NBT, Batch, chunk, login, and gameplay wire logic
-- `transport`: RakNet 8 / UDP reliability and connection transport
+- `wire`: fixed-target packet, NBT, Batch, chunk, login, and gameplay wire logic
+- `raknet`: fixed-target RakNet / UDP reliability and connection transport
 - `session`: ordered native connection/session host
 - `storage`: world metadata, region files, async load/save, compaction
 - `extension`: narrow Zend bridge; the PHP module/library ABI name remains `cobblestone_core_php`

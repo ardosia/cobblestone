@@ -200,25 +200,27 @@ checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 name = "cobblestone-extension"
 version = "0.0.1"
 dependencies = [
- "cobblestone-protocol84",
+ "bytes",
+ "cobblestone-raknet",
  "cobblestone-runtime",
  "cobblestone-session",
  "cobblestone-storage",
  "cobblestone-target",
- "cobblestone-transport",
+ "cobblestone-wire",
  "cobblestone-world",
  "ext-php-rs",
 ]
 
 [[package]]
-name = "cobblestone-protocol84"
+name = "cobblestone-raknet"
 version = "0.0.1"
 dependencies = [
- "bitflags",
- "cobblestone-runtime",
+ "bytes",
  "cobblestone-target",
- "flate2",
+ "raknet-rust",
  "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -233,9 +235,8 @@ name = "cobblestone-session"
 version = "0.0.1"
 dependencies = [
  "bytes",
- "cobblestone-protocol84",
- "cobblestone-runtime",
- "cobblestone-transport",
+ "cobblestone-raknet",
+ "cobblestone-wire",
  "crossbeam-channel",
  "thiserror",
  "tokio",
@@ -258,15 +259,14 @@ name = "cobblestone-target"
 version = "0.0.1"
 
 [[package]]
-name = "cobblestone-transport"
+name = "cobblestone-wire"
 version = "0.0.1"
 dependencies = [
+ "bitflags",
  "bytes",
  "cobblestone-target",
- "raknet-rust",
+ "flate2",
  "thiserror",
- "tokio",
- "tracing",
 ]
 
 [[package]]

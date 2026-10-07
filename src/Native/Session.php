@@ -107,7 +107,7 @@ final class Session
         string $levelId,
     ): void {
         $this->assertRunning();
-        cobblestone_session_protocol84_accept_login_world(
+        cobblestone_session_accept_login_world(
             $sessionId,
             $body,
             $seed,
@@ -126,21 +126,21 @@ final class Session
     public function requestedChunkRadius(string $body): int
     {
         $this->assertRunning();
-        return cobblestone_session_protocol84_request_chunk_radius($body);
+        return cobblestone_session_request_chunk_radius($body);
     }
 
     /** @internal */
     public function initializePlayerPosition(int $sessionId, int $spawnX, int $spawnY, int $spawnZ): void
     {
         $this->assertRunning();
-        cobblestone_session_protocol84_player_spawned($sessionId, $spawnX, $spawnY, $spawnZ);
+        cobblestone_session_player_spawned($sessionId, $spawnX, $spawnY, $spawnZ);
     }
 
     /** @internal */
     public function trackPlayerMovement(int $sessionId, string $body): string
     {
         $this->assertRunning();
-        return cobblestone_session_protocol84_track_move_player($sessionId, $body);
+        return cobblestone_session_track_move_player($sessionId, $body);
     }
 
     /** @internal */
@@ -148,7 +148,7 @@ final class Session
     {
         $this->assertRunning();
 
-        return cobblestone_session_protocol84_plan_chunk_radius($sessionId, $effectiveRadius);
+        return cobblestone_session_plan_chunk_radius($sessionId, $effectiveRadius);
     }
 
     /** @internal */
@@ -163,7 +163,7 @@ final class Session
     ): ViewSendResult {
         $this->assertRunning();
 
-        $result = cobblestone_session_protocol84_send_prepared_view_chunks(
+        $result = cobblestone_session_send_prepared_view_chunks(
             $sessionId,
             $fromChunkX,
             $fromChunkZ,
@@ -189,7 +189,7 @@ final class Session
     ): bool {
         $this->assertRunning();
 
-        return cobblestone_session_protocol84_commit_prepared_view(
+        return cobblestone_session_commit_prepared_view(
             $sessionId,
             $fromChunkX,
             $fromChunkZ,
@@ -204,7 +204,7 @@ final class Session
     public function sendInitialChunks(int $sessionId, int $effectiveRadius, string $projection): int
     {
         $this->assertRunning();
-        return cobblestone_session_protocol84_send_initial_chunks(
+        return cobblestone_session_send_initial_chunks(
             $sessionId,
             $effectiveRadius,
             $projection,
@@ -221,7 +221,7 @@ final class Session
         int $centerChunkZ,
     ): int {
         $this->assertRunning();
-        return cobblestone_session_protocol84_send_native_chunks(
+        return cobblestone_session_send_native_chunks(
             $sessionId,
             $effectiveRadius,
             $worldHandle,
@@ -235,7 +235,7 @@ final class Session
     {
         $this->assertRunning();
 
-        return cobblestone_session_protocol84_flush_world_changes($worldHandle);
+        return cobblestone_session_flush_world_changes($worldHandle);
     }
 
     public function disconnect(int $sessionId): void

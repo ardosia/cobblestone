@@ -4,12 +4,11 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use bytes::Bytes;
-use cobblestone_protocol84::{
+use cobblestone_wire::{
     BootstrapPacket, CodecError, CodecLimits, DimensionId, LoginPacket, RawPacket,
     decode_bootstrap_frame, decode_game_frame, encode_bootstrap_frame, encode_game_frame,
     packet_id,
 };
-use cobblestone_runtime::NativeBuffer;
 use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
 use raknet_rust::low_level::protocol::Reliability;
 use tokio::time::timeout;
@@ -18,7 +17,7 @@ const REQUEST_CHUNK_RADIUS_ID: u8 = 0x3d;
 const CHUNK_RADIUS_UPDATED_ID: u8 = 0x3e;
 const UPDATE_BLOCK_ID: u8 = 0x13;
 
-fn move_player_body(position: [f32; 3]) -> NativeBuffer {
+fn move_player_body(position: [f32; 3]) -> Bytes {
     let mut body = Vec::with_capacity(34);
     body.extend_from_slice(&0_i64.to_be_bytes());
     for value in [position[0], position[1], position[2], 0.0, 0.0, 0.0] {
@@ -26,7 +25,7 @@ fn move_player_body(position: [f32; 3]) -> NativeBuffer {
     }
     body.push(0);
     body.push(1);
-    NativeBuffer::from_vec(body)
+    Bytes::from(body)
 }
 
 fn limits() -> CodecLimits {
@@ -47,7 +46,7 @@ fn raw_packets(payload: &[u8], limits: CodecLimits) -> Result<Vec<RawPacket>, Co
     }
 
     let frame = encode_game_frame(&raw, limits)?;
-    let BootstrapPacket::Batch(batch) = decode_bootstrap_frame(frame.as_slice(), limits)? else {
+    let BootstrapPacket::Batch(batch) = decode_bootstrap_frame(frame.as_ref(), limits)? else {
         return Ok(vec![raw]);
     };
     Ok(batch.packets().to_vec())
@@ -91,10 +90,10 @@ async fn send_radius_request(
 ) -> Result<(), Box<dyn Error>> {
     let request = RawPacket::new(
         REQUEST_CHUNK_RADIUS_ID,
-        NativeBuffer::copy_from_slice(&radius.to_be_bytes()),
+        Bytes::copy_from_slice(&radius.to_be_bytes()),
     );
     let frame = encode_game_frame(&request, limits)?;
-    send_frame(client, frame.as_slice()).await
+    send_frame(client, frame.as_ref()).await
 }
 
 async fn verify_radius_cycle(
@@ -113,17 +112,16 @@ async fn verify_radius_cycle(
             })?;
         for packet in raw_packets(&payload, limits)? {
             if packet.id() == CHUNK_RADIUS_UPDATED_ID {
-                if packet.body().as_slice() == 3_i32.to_be_bytes() {
+                if packet.body().as_ref() == 3_i32.to_be_bytes() {
                     saw_radius_three = true;
                 }
                 continue;
             }
-            if packet.id() != cobblestone_protocol84::FULL_CHUNK_DATA_ID || packet.body().len() < 8
-            {
+            if packet.id() != cobblestone_wire::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
                 continue;
             }
 
-            let body = packet.body().as_slice();
+            let body = packet.body().as_ref();
             let chunk_x = i32::from_be_bytes(body[0..4].try_into()?);
             let chunk_z = i32::from_be_bytes(body[4..8].try_into()?);
             let in_outer_square = (5..=11).contains(&chunk_x) && (5..=11).contains(&chunk_z);
@@ -148,7 +146,7 @@ async fn verify_radius_cycle(
         let mut saw_radius_one = false;
         for packet in raw_packets(&payload, limits)? {
             if packet.id() == CHUNK_RADIUS_UPDATED_ID
-                && packet.body().as_slice() == 1_i32.to_be_bytes()
+                && packet.body().as_ref() == 1_i32.to_be_bytes()
             {
                 saw_radius_one = true;
             }
@@ -170,7 +168,7 @@ async fn send_movement(
     let movement_frame = encode_game_frame(&movement, limits)?;
     client
         .send_with_options(
-            Bytes::copy_from_slice(movement_frame.as_slice()),
+            Bytes::copy_from_slice(movement_frame.as_ref()),
             ClientSendOptions {
                 reliability: Reliability::UnreliableSequenced,
                 ..ClientSendOptions::default()
@@ -193,11 +191,10 @@ async fn wait_for_chunk(
                 format!("waiting for {phase} chunk {expected:?}: {error}").into()
             })?;
         for packet in raw_packets(&payload, limits)? {
-            if packet.id() != cobblestone_protocol84::FULL_CHUNK_DATA_ID || packet.body().len() < 8
-            {
+            if packet.id() != cobblestone_wire::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
                 continue;
             }
-            let body = packet.body().as_slice();
+            let body = packet.body().as_ref();
             let chunk = (
                 i32::from_be_bytes(body[0..4].try_into()?),
                 i32::from_be_bytes(body[4..8].try_into()?),
@@ -247,7 +244,7 @@ async fn send_boundary_movement(
     let movement_frame = encode_game_frame(&movement, limits)?;
     client
         .send_with_options(
-            Bytes::copy_from_slice(movement_frame.as_slice()),
+            Bytes::copy_from_slice(movement_frame.as_ref()),
             ClientSendOptions {
                 reliability: Reliability::UnreliableSequenced,
                 ..ClientSendOptions::default()
@@ -262,11 +259,10 @@ async fn send_boundary_movement(
                 format!("waiting for entering chunks: {error}").into()
             })?;
         for packet in raw_packets(&payload, limits)? {
-            if packet.id() != cobblestone_protocol84::FULL_CHUNK_DATA_ID || packet.body().len() < 8
-            {
+            if packet.id() != cobblestone_wire::FULL_CHUNK_DATA_ID || packet.body().len() < 8 {
                 continue;
             }
-            let body = packet.body().as_slice();
+            let body = packet.body().as_ref();
             let chunk_x = i32::from_be_bytes(body[0..4].try_into()?);
             let chunk_z = i32::from_be_bytes(body[4..8].try_into()?);
             if chunk_x == 11 && (6..=10).contains(&chunk_z) {
@@ -319,12 +315,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .await?;
 
-    let login = BootstrapPacket::Login(LoginPacket::protocol84(
-        NativeBuffer::copy_from_slice(b"{}"),
-        NativeBuffer::copy_from_slice(b"test-skin"),
+    let login = BootstrapPacket::Login(LoginPacket::new(
+        Bytes::copy_from_slice(b"{}"),
+        Bytes::copy_from_slice(b"test-skin"),
     ));
     let frame = encode_bootstrap_frame(&login, limits)?;
-    send_frame(&mut client, frame.as_slice()).await?;
+    send_frame(&mut client, frame.as_ref()).await?;
 
     let mut saw_start_game = false;
     let mut saw_adventure = false;
@@ -334,7 +330,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if packet.id() == packet_id::START_GAME {
                 let frame = encode_game_frame(&packet, limits)?;
                 let BootstrapPacket::StartGame(start) =
-                    decode_bootstrap_frame(frame.as_slice(), limits)?
+                    decode_bootstrap_frame(frame.as_ref(), limits)?
                 else {
                     return Err("StartGame packet decoded as wrong bootstrap variant".into());
                 };
@@ -387,10 +383,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let requested_radius: i32 = if wide_initial { 3 } else { 2 };
     let request = RawPacket::new(
         REQUEST_CHUNK_RADIUS_ID,
-        NativeBuffer::copy_from_slice(&requested_radius.to_be_bytes()),
+        Bytes::copy_from_slice(&requested_radius.to_be_bytes()),
     );
     let request_frame = encode_game_frame(&request, limits)?;
-    send_frame(&mut client, request_frame.as_slice()).await?;
+    send_frame(&mut client, request_frame.as_ref()).await?;
 
     let mut spawned = false;
     let mut initial_radius_ack = false;
@@ -399,11 +395,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let payload = next_payload(&mut client).await?;
         for packet in raw_packets(&payload, limits)? {
             if packet.id() == CHUNK_RADIUS_UPDATED_ID {
-                initial_radius_ack |= packet.body().as_slice() == requested_radius.to_be_bytes();
+                initial_radius_ack |= packet.body().as_ref() == requested_radius.to_be_bytes();
             }
-            if packet.id() == cobblestone_protocol84::FULL_CHUNK_DATA_ID && packet.body().len() >= 8
-            {
-                let body = packet.body().as_slice();
+            if packet.id() == cobblestone_wire::FULL_CHUNK_DATA_ID && packet.body().len() >= 8 {
+                let body = packet.body().as_ref();
                 initial_chunks.insert((
                     i32::from_be_bytes(body[0..4].try_into()?),
                     i32::from_be_bytes(body[4..8].try_into()?),
@@ -412,7 +407,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if packet.id() == packet_id::PLAY_STATUS {
                 let frame = encode_game_frame(&packet, limits)?;
                 if let BootstrapPacket::PlayStatus(status) =
-                    decode_bootstrap_frame(frame.as_slice(), limits)?
+                    decode_bootstrap_frame(frame.as_ref(), limits)?
                 {
                     spawned |= status.status() == 3;
                 }
@@ -497,10 +492,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let expected = [
                 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x05, 0x01, 0xb0,
             ];
-            if packet.body().as_slice() != expected {
+            if packet.body().as_ref() != expected {
                 return Err(format!(
                     "unexpected UpdateBlock body: {:02x?}",
-                    packet.body().as_slice()
+                    packet.body().as_ref()
                 )
                 .into());
             }

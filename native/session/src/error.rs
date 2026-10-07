@@ -1,5 +1,5 @@
-use cobblestone_protocol84::CodecError;
-use cobblestone_transport::NetworkError;
+use cobblestone_raknet::RaknetError;
+use cobblestone_wire::CodecError;
 use thiserror::Error;
 
 /// Failures surfaced by the production session mechanism.
@@ -7,7 +7,7 @@ use thiserror::Error;
 pub enum SessionError {
     /// The underlying bounded RakNet transport rejected or lost the operation.
     #[error(transparent)]
-    Network(#[from] NetworkError),
+    Raknet(#[from] RaknetError),
 
     /// An inbound connected payload was not valid within the configured fixed-target limits.
     ///

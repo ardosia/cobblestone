@@ -1,5 +1,5 @@
-use cobblestone_protocol84::RawPacket;
-use cobblestone_runtime::NativeBuffer;
+use bytes::Bytes;
+use cobblestone_wire::RawPacket;
 
 /// One decoded fixed-target packet delivered to the owning runtime.
 ///
@@ -8,13 +8,13 @@ use cobblestone_runtime::NativeBuffer;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionPacket {
     id: u8,
-    body: NativeBuffer,
+    body: Bytes,
 }
 
 impl SessionPacket {
     /// Creates one packet from its packet ID and body bytes.
     #[must_use]
-    pub fn new(id: u8, body: NativeBuffer) -> Self {
+    pub fn new(id: u8, body: Bytes) -> Self {
         Self { id, body }
     }
 
@@ -26,7 +26,7 @@ impl SessionPacket {
 
     /// Returns the bytes after the packet ID.
     #[must_use]
-    pub const fn body(&self) -> &NativeBuffer {
+    pub const fn body(&self) -> &Bytes {
         &self.body
     }
 

@@ -1,7 +1,5 @@
-use cobblestone_protocol84::{
-    CHUNK_BLOCK_COUNT, CHUNK_COLUMN_COUNT, CHUNK_NIBBLE_BYTES, Protocol84ChunkSnapshot, RawPacket,
-    encode_protocol84_full_chunk_data,
-};
+use cobblestone_target::ChunkShape;
+use cobblestone_wire::{ChunkWireView, RawPacket, encode_full_chunk};
 use ext_php_rs::exception::PhpResult;
 
 use crate::boundary::php_error;
@@ -90,22 +88,22 @@ pub(super) fn decode_initial_chunk_projection(
     for _ in 0..declared_chunks {
         let chunk_x = reader.read_i32_le()?;
         let chunk_z = reader.read_i32_le()?;
-        let block_ids = reader.read_exact(CHUNK_BLOCK_COUNT)?;
-        let block_data = reader.read_exact(CHUNK_NIBBLE_BYTES)?;
-        let sky_light = reader.read_exact(CHUNK_NIBBLE_BYTES)?;
-        let block_light = reader.read_exact(CHUNK_NIBBLE_BYTES)?;
-        let biome_bytes = reader.read_exact(CHUNK_COLUMN_COUNT * 4)?;
+        let block_ids = reader.read_exact(ChunkShape::BLOCK_COUNT)?;
+        let block_data = reader.read_exact(ChunkShape::NIBBLE_BYTES)?;
+        let sky_light = reader.read_exact(ChunkShape::NIBBLE_BYTES)?;
+        let block_light = reader.read_exact(ChunkShape::NIBBLE_BYTES)?;
+        let biome_bytes = reader.read_exact(ChunkShape::COLUMN_COUNT * 4)?;
         let biome_words = biome_bytes
             .as_chunks::<4>()
             .0
             .iter()
             .map(|bytes| u32::from_be_bytes(*bytes))
             .collect::<Vec<_>>();
-        let height_map = reader.read_exact(CHUNK_COLUMN_COUNT)?;
+        let height_map = reader.read_exact(ChunkShape::COLUMN_COUNT)?;
 
         let extra_count = usize::try_from(reader.read_u32_le()?)
             .map_err(|_| php_error("chunk extra-data count exceeds platform size"))?;
-        if extra_count > CHUNK_BLOCK_COUNT {
+        if extra_count > ChunkShape::BLOCK_COUNT {
             return Err(php_error(
                 "chunk extra-data count exceeds fixed-target block count",
             ));
@@ -115,7 +113,7 @@ pub(super) fn decode_initial_chunk_projection(
             extra_data.push((reader.read_u32_le()?, reader.read_u16_le()?));
         }
 
-        let snapshot = Protocol84ChunkSnapshot {
+        let snapshot = ChunkWireView {
             chunk_x,
             chunk_z,
             block_ids,
@@ -127,10 +125,7 @@ pub(super) fn decode_initial_chunk_projection(
             extra_data: &extra_data,
             block_entities: &[],
         };
-        packets.push(
-            encode_protocol84_full_chunk_data(snapshot)
-                .map_err(|error| php_error(error.to_string()))?,
-        );
+        packets.push(encode_full_chunk(snapshot).map_err(|error| php_error(error.to_string()))?);
     }
     reader.finish()?;
     Ok(packets)

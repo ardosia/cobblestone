@@ -7,7 +7,7 @@ use ext_php_rs::prelude::*;
 use crate::boundary::{php_boundary, php_error};
 use crate::runtime::current_runtime_id;
 
-use super::{NativeWorld, NativeWorldState, handle, protocol84, storage, world_arena};
+use super::{NativeWorld, NativeWorldState, handle, storage, wire, world_arena};
 
 #[php_function]
 pub fn cobblestone_world_create() -> PhpResult<i64> {
@@ -18,7 +18,7 @@ pub fn cobblestone_world_create() -> PhpResult<i64> {
                 owner,
                 state: Arc::new(NativeWorldState {
                     store: Arc::new(WorldStore::new()),
-                    protocol84_cache: Mutex::new(protocol84::Protocol84Cache::default()),
+                    chunk_wire_cache: Mutex::new(wire::ChunkWireCache::default()),
                     persistence: Mutex::new(None),
                     infinite: Mutex::new(None),
                 }),

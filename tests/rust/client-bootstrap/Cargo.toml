@@ -10,9 +10,8 @@ publish = false
 [dependencies]
 cobblestone-target.workspace = true
 bytes.workspace = true
-cobblestone-protocol84 = { path = "../../../native/protocol84" }
-cobblestone-runtime = { path = "../../../native/runtime" }
-cobblestone-transport = { path = "../../../native/transport" }
+cobblestone-wire = { path = "../../../native/wire" }
+cobblestone-raknet = { path = "../../../native/raknet" }
 raknet-rust.workspace = true
 tokio.workspace = true
 

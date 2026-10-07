@@ -6,12 +6,12 @@ mod infinite;
 mod lifecycle;
 mod light;
 mod patch;
-mod protocol84;
 mod registration;
 mod residency;
 mod revision;
 mod snapshot;
 mod storage;
+mod wire;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -33,7 +33,7 @@ struct NativeWorld {
 
 struct NativeWorldState {
     store: Arc<WorldStore>,
-    protocol84_cache: Mutex<protocol84::Protocol84Cache>,
+    chunk_wire_cache: Mutex<wire::ChunkWireCache>,
     persistence: Mutex<Option<storage::NativeWorldPersistence>>,
     infinite: Mutex<Option<infinite::NativeInfiniteGenerator>>,
 }
@@ -131,7 +131,7 @@ pub(crate) fn resolve_world(handle_value: i64) -> PhpResult<Arc<WorldStore>> {
     Ok(Arc::clone(&resolve_world_state(handle_value)?.store))
 }
 
-pub(crate) use protocol84::protocol84_chunk;
+pub(crate) use wire::chunk_wire_packet;
 
 pub(crate) fn register(module: ModuleBuilder) -> ModuleBuilder {
     registration::register(module)

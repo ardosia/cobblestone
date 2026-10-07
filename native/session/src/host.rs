@@ -6,8 +6,8 @@ use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex, MutexGuard, mpsc as std_mpsc};
 use std::thread::{self, JoinHandle};
 
-use cobblestone_protocol84::CodecLimits;
-use cobblestone_transport::NetworkConfig;
+use cobblestone_raknet::RaknetConfig;
+use cobblestone_wire::CodecLimits;
 use crossbeam_channel::{Receiver, TryRecvError, bounded};
 use tokio::sync::mpsc;
 
@@ -25,7 +25,7 @@ pub(super) enum SessionCommand {
 /// Configuration for the native session host attached to one owning runtime.
 #[derive(Debug, Clone)]
 pub struct SessionHostConfig {
-    network: NetworkConfig,
+    raknet: RaknetConfig,
     limits: CodecLimits,
     event_queue_capacity: NonZeroUsize,
     session_command_capacity: NonZeroUsize,
@@ -35,13 +35,13 @@ impl SessionHostConfig {
     /// Creates an explicit bounded host configuration.
     #[must_use]
     pub const fn new(
-        network: NetworkConfig,
+        raknet: RaknetConfig,
         limits: CodecLimits,
         event_queue_capacity: NonZeroUsize,
         session_command_capacity: NonZeroUsize,
     ) -> Self {
         Self {
-            network,
+            raknet,
             limits,
             event_queue_capacity,
             session_command_capacity,
@@ -255,15 +255,15 @@ mod tests {
     use std::net::{Ipv4Addr, SocketAddr};
     use std::num::NonZeroUsize;
 
-    use cobblestone_protocol84::CodecLimits;
-    use cobblestone_transport::NetworkConfig;
+    use cobblestone_raknet::RaknetConfig;
+    use cobblestone_wire::CodecLimits;
 
     use super::SessionHostConfig;
 
     #[test]
     fn host_config_keeps_explicit_bounds() {
         let config = SessionHostConfig::new(
-            NetworkConfig::protocol8(
+            RaknetConfig::new(
                 SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 19132),
                 NonZeroUsize::new(8).expect("nonzero"),
                 "host-config-test",

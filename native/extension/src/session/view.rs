@@ -1,12 +1,13 @@
-use cobblestone_protocol84::{BatchPacket, BootstrapPacket, RawPacket};
-use cobblestone_runtime::{NativeBuffer, RuntimeId};
+use bytes::Bytes;
+use cobblestone_runtime::RuntimeId;
 use cobblestone_session::{SessionDelivery, SessionId};
+use cobblestone_wire::{BatchPacket, BootstrapPacket, RawPacket};
 use ext_php_rs::exception::PhpResult;
 use ext_php_rs::prelude::*;
 
 use crate::boundary::php_error;
 use crate::session::bridge::{QueueResult, try_queue};
-use crate::world::protocol84_chunk;
+use crate::world::chunk_wire_packet;
 
 use super::join::{CHUNK_RADIUS_UPDATED_ID, bootstrap_session_packet};
 
@@ -53,11 +54,11 @@ pub(crate) fn queue_view_delta_chunks(
     if radius_changed {
         packets.push(RawPacket::new(
             CHUNK_RADIUS_UPDATED_ID,
-            NativeBuffer::copy_from_slice(&delta.to_radius.to_be_bytes()),
+            Bytes::copy_from_slice(&delta.to_radius.to_be_bytes()),
         ));
     }
     for &position in &delta.entering {
-        packets.push(protocol84_chunk(world_handle, position)?);
+        packets.push(chunk_wire_packet(world_handle, position)?);
     }
     if packets.is_empty() {
         return Ok(ViewChunkQueueResult::Sent);

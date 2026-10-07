@@ -169,7 +169,7 @@ pub fn cobblestone_world_try_evict_chunk(
             .map_err(|error| php_error(error.to_string()))?;
 
         if result == ChunkEviction::Evicted {
-            let mut cache = match state.protocol84_cache.lock() {
+            let mut cache = match state.chunk_wire_cache.lock() {
                 Ok(guard) => guard,
                 Err(poisoned) => poisoned.into_inner(),
             };

@@ -3,12 +3,11 @@ use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use bytes::Bytes;
-use cobblestone_protocol84::{CodecLimits, RawPacket, decode_game_frame, encode_game_frame};
-use cobblestone_runtime::NativeBuffer;
+use cobblestone_raknet::RaknetConfig;
 use cobblestone_session::{
     SessionDelivery, SessionHost, SessionHostConfig, SessionHostEvent, SessionPacket,
 };
-use cobblestone_transport::NetworkConfig;
+use cobblestone_wire::{CodecLimits, RawPacket, decode_game_frame, encode_game_frame};
 use raknet_rust::client::{ClientSendOptions, RaknetClient, RaknetClientConfig, RaknetClientEvent};
 use raknet_rust::low_level::protocol::Reliability as RaknetReliability;
 use tokio::time::{sleep, timeout};
@@ -24,7 +23,7 @@ fn limits() -> CodecLimits {
 
 fn host_config(addr: SocketAddr) -> SessionHostConfig {
     SessionHostConfig::new(
-        NetworkConfig::protocol8(
+        RaknetConfig::new(
             addr,
             NonZeroUsize::new(8).expect("nonzero"),
             "MCPE;Cobblestone Host Test;84;;0;8",
@@ -78,7 +77,7 @@ async fn host_routes_packets_without_zend_or_raknet_objects_at_owner_boundary() 
     let host = SessionHost::start(host_config(addr)).expect("start session host");
     let mut client = RaknetClient::connect_with_config(addr, client_config())
         .await
-        .expect("connect protocol8 client");
+        .expect("connect fixed-target RakNet client");
 
     let session_id = match next_host_event(&host).await {
         SessionHostEvent::Connected {
@@ -88,11 +87,11 @@ async fn host_routes_packets_without_zend_or_raknet_objects_at_owner_boundary() 
         event => panic!("expected connected event, got {event:?}"),
     };
 
-    let inbound = RawPacket::new(0x10, NativeBuffer::from_vec(vec![1, 2, 3]));
+    let inbound = RawPacket::new(0x10, Bytes::from(vec![1, 2, 3]));
     let frame = encode_game_frame(&inbound, limits()).expect("encode inbound frame");
     client
         .send_with_options(
-            Bytes::copy_from_slice(frame.as_slice()),
+            Bytes::copy_from_slice(frame.as_ref()),
             ClientSendOptions {
                 reliability: RaknetReliability::ReliableOrdered,
                 ..ClientSendOptions::default()
@@ -108,14 +107,14 @@ async fn host_routes_packets_without_zend_or_raknet_objects_at_owner_boundary() 
         } => {
             assert_eq!(observed, session_id);
             assert_eq!(packet.id(), 0x10);
-            assert_eq!(packet.body().as_slice(), &[1, 2, 3]);
+            assert_eq!(packet.body().as_ref(), &[1, 2, 3]);
         }
         event => panic!("expected packet event, got {event:?}"),
     }
 
     host.try_send(
         session_id,
-        SessionPacket::new(0x20, NativeBuffer::from_vec(vec![4, 5, 6])),
+        SessionPacket::new(0x20, Bytes::from(vec![4, 5, 6])),
         SessionDelivery::ReliableOrdered,
     )
     .expect("queue owner packet");
@@ -123,7 +122,7 @@ async fn host_routes_packets_without_zend_or_raknet_objects_at_owner_boundary() 
     let outbound = next_client_packet(&mut client).await;
     let decoded = decode_game_frame(outbound.as_ref(), limits()).expect("decode host frame");
     assert_eq!(decoded.id(), 0x20);
-    assert_eq!(decoded.body().as_slice(), &[4, 5, 6]);
+    assert_eq!(decoded.body().as_ref(), &[4, 5, 6]);
 
     host.try_disconnect(session_id)
         .expect("queue owner disconnect");

@@ -1,4 +1,4 @@
-use cobblestone_transport::Reliability;
+use cobblestone_raknet::Reliability;
 
 /// Delivery semantics requested by the session layer.
 ///
