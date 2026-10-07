@@ -1,7 +1,7 @@
 #![cfg_attr(windows, feature(abi_vectorcall))]
 
 mod boundary;
-mod diagnostics;
+mod identity;
 mod runtime;
 mod session;
 mod world;
@@ -13,7 +13,6 @@ use ext_php_rs::prelude::*;
 #[allow(unsafe_code)]
 unsafe extern "C" fn cobblestone_core_shutdown(_type: i32, _module_number: i32) -> i32 {
     match catch_unwind(AssertUnwindSafe(|| {
-        diagnostics::shutdown();
         session::shutdown();
         world::shutdown();
     })) {
@@ -29,5 +28,5 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .version(env!("CARGO_PKG_VERSION"))
         .shutdown_function(cobblestone_core_shutdown);
 
-    world::register(session::register(diagnostics::register(module)))
+    world::register(session::register(identity::register(module)))
 }

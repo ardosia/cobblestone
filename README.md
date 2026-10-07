@@ -64,7 +64,7 @@ PHP is one Composer package. The root autoloader maps `Cobblestone\\` to `src/`.
 The native workspace is split by mechanism ownership:
 
 - `target`: generated flat API for cross-language fixed-target identities/layout from `spec/`
-- `runtime`: handles, ownership, workers, completion primitives, region routing
+- `runtime`: runtime identity, generational handles, ownership epochs, and region routing
 - `world`: authoritative native chunk/world state, revisions, residency, snapshots, patches
 - `wire`: fixed-target packet, NBT, Batch, chunk, login, and gameplay wire logic
 - `raknet`: fixed-target RakNet / UDP reliability and connection transport

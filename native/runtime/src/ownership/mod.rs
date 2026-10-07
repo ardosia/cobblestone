@@ -330,7 +330,9 @@ fn assert_owner_and_epoch<T>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{NativeBuffer, RuntimeId};
+    use std::sync::Arc;
+
+    use crate::RuntimeId;
 
     use super::{OwnedArena, OwnershipEpoch, OwnershipError};
 
@@ -444,7 +446,7 @@ mod tests {
         let one = runtime(1);
         let two = runtime(2);
         let mut arena = OwnedArena::new();
-        let buffer = NativeBuffer::from_vec(vec![1, 2, 3]);
+        let buffer: Arc<[u8]> = Arc::from([1_u8, 2, 3]);
         let (handle, epoch) = arena.insert(one, buffer).expect("slot available");
 
         let shared = arena
@@ -460,7 +462,7 @@ mod tests {
             Err(OwnershipError::WrongOwner { .. })
         ));
         let authoritative = arena.get(handle, two, next).expect("new owner can read");
-        assert!(authoritative.shares_storage_with(&shared));
-        assert_eq!(shared.as_slice(), &[1, 2, 3]);
+        assert!(Arc::ptr_eq(authoritative, &shared));
+        assert_eq!(shared.as_ref(), &[1, 2, 3]);
     }
 }

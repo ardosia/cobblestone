@@ -15,9 +15,6 @@ if (!extension_loaded('cobblestone_core_php')) {
 $required = [
     'cobblestone_core_abi',
     'cobblestone_core_runtime_id',
-    'cobblestone_core_async_submit',
-    'cobblestone_core_async_ready',
-    'cobblestone_core_async_take',
     'cobblestone_session_start',
     'cobblestone_session_running',
     'cobblestone_session_poll_event',
@@ -88,11 +85,20 @@ foreach ($required as $function) {
     }
 }
 
-if (cobblestone_core_abi() !== 1) {
+if (cobblestone_core_abi() !== 2) {
     export_fail('unexpected native ABI version');
 }
 
 $forbidden = [
+    'cobblestone_core_async_submit',
+    'cobblestone_core_async_ready',
+    'cobblestone_core_async_take',
+    'cobblestone_core_probe_create',
+    'cobblestone_core_probe_valid',
+    'cobblestone_core_probe_drop',
+    'cobblestone_core_probe_panic',
+    'cobblestone_core_ping',
+    'cobblestone_core_buffer_copy_len',
     'cobblestone_session_accept_login',
     'cobblestone_session_spawn_probe',
     'cobblestone_session_protocol84_accept_login_world',

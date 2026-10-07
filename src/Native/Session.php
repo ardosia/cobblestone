@@ -12,7 +12,7 @@ use Cobblestone\World\Dimension;
 
 final class Session
 {
-    private const ABI_VERSION = 1;
+    private const ABI_VERSION = 2;
 
     public const DELIVERY_UNRELIABLE = 0;
     public const DELIVERY_UNRELIABLE_SEQUENCED = 1;

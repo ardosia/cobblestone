@@ -106,7 +106,7 @@ Current direction:
 
 ### Tasks / scheduler
 
-Status: implemented delayed work, repeating work, Fibers, native awaits.
+Status: implemented delayed work, repeating work, and owner-runtime Fibers.
 
 Current source:
 
@@ -120,10 +120,9 @@ Current direction:
 
 - scheduling returns TaskHandle objects;
 - task() starts Fibers on the scheduler boundary rather than inline;
-- due-time heap, sleep marker, and native-await marker implementations live under `Task\Internal`;
-- raw async-ready/take FFI calls are centralized in `Cobblestone\Native\Tasks`;
+- due-time heap and Fiber sleep marker implementations live under `Task\Internal`;
 - cancellation is explicit and failed/repeating work does not remain active;
-- batched native-ready completion retrieval remains separate performance work.
+- native I/O/storage completion mechanisms remain below their owning native subsystem instead of exposing a generic PHP await API.
 
 ### Plugins
 
@@ -250,32 +249,20 @@ Target design: API_STYLE.md, RUNTIME_API.md, TRANSPORT_API.md, DATA_API.md, WORL
 Current direction:
 
 - the PHP world FFI boundary is centralized in `Cobblestone\Native\World`; semantic World code contains no raw `cobblestone_world_*` calls;
-- the PHP session FFI boundary is centralized in `Cobblestone\Native\Session`, and scheduler completion probes in `Cobblestone\Native\Tasks`;
-- ABI v1 replaces per-export capability probing for native adapters;
+- the PHP session FFI boundary is centralized in `Cobblestone\Native\Session`;
+- ABI v2 replaces per-export capability probing for native adapters and omits the removed diagnostic/native-async surface;
 - typed projections/results stay under narrow `Cobblestone\Native\*` namespaces while 1:1 forwarding classes are removed;
 - owner-safe handles remain native implementation detail;
 - further batching and export-count reduction remain separate performance/API work;
 - no arbitrary Zend calls from worker threads.
 
-### Worker/completion runtime
+### Native asynchronous mechanisms
 
-Status: implemented bounded native worker pool.
+Status: subsystem-owned; no generic runtime worker/completion API.
 
-Current crate:
-
-~~~text
-native/runtime
-~~~
-
-Target design: RUNTIME_API.md.
-
-Target direction:
-
-- bounded queues;
-- immutable/owned job inputs;
-- cooperative/native cancellation;
-- completion delivery to owner runtime;
-- no public generic plugin thread pool.
+Session and storage own the bounded threads/queues required by their concrete mechanisms. The former
+generic `cobblestone-runtime` worker pool and PHP native-await bridge were diagnostic scaffolding with
+no production caller and have been removed rather than promoted into a speculative executor API.
 
 ### World semantic model
 
@@ -715,7 +702,7 @@ Target design: DATA_API.md.
 
 Current direction:
 
-- `cobblestone_core_abi()` publishes ABI version 1;
+- `cobblestone_core_abi()` publishes ABI version 2;
 - PHP validates ABI once at native runtime startup instead of probing every export;
 - prepared-view send status is mapped to `ViewSendResult`;
 - add capability metadata only when optional native features actually require it;

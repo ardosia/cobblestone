@@ -111,7 +111,7 @@ The owner runtime is responsible for:
 
 Subsystems should expose bounded work to the tick owner rather than each owning hidden unbounded loops.
 
-Native network threads and worker pools may run independently, but they communicate with the owner through bounded queues and immutable/owned values.
+Native session/storage threads may run independently, but they communicate with the owner through bounded queues and immutable/owned values.
 
 ## Server API surface
 
@@ -564,4 +564,4 @@ It never becomes arbitrary cross-thread Zend object access.
 
 The runtime layer should converge on this shape:
 
-> Server owns lifecycle. Event subscriptions, tasks, commands, and plugin registrations have explicit owners. Plugins register behavior through one owned scope. Fibers are cooperative owner-runtime tasks. Native workers are bounded mechanisms, not a userland threading API.
+> Server owns lifecycle. Event subscriptions, tasks, commands, and plugin registrations have explicit owners. Plugins register behavior through one owned scope. Fibers are cooperative owner-runtime tasks. Native concurrency is subsystem-owned and is not a userland threading API.

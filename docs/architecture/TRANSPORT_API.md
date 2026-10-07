@@ -200,7 +200,7 @@ Moving compression work off the session owner must preserve:
 
 ## Buffer ownership
 
-NativeBuffer/Bytes-style values should be cheap to clone when immutable.
+`bytes::Bytes`-style values should be cheap to clone when immutable.
 
 Avoid converting through a full copy merely to cross crate boundaries.
 

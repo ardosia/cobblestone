@@ -226,9 +226,6 @@ dependencies = [
 [[package]]
 name = "cobblestone-runtime"
 version = "0.0.1"
-dependencies = [
- "crossbeam-channel",
-]
 
 [[package]]
 name = "cobblestone-session"

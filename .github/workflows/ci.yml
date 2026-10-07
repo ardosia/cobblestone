@@ -82,7 +82,6 @@ jobs:
         run: |
           cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin runtime-torture
           cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin ownership-torture
-          cargo +1.98.0 run --locked --release -p cobblestone-runtime-probe --bin completion-gc-torture
       - name: Install pinned nightly Rust for Windows adapter
         if: runner.os == 'Windows'
         shell: bash

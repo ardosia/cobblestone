@@ -34,7 +34,6 @@ const PHP_NATIVE_TESTS: &[&str] = &[
     "native-biome-source-smoke.php",
     "native-infinite-smoke.php",
     "native-storage-smoke.php",
-    "fiber-smoke.php",
     "session-runtime-smoke.php",
 ];
 

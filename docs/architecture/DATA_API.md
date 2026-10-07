@@ -409,7 +409,7 @@ Do not create a generic setProperty(name, mixed) control plane.
 
 The PHP extension exposes one stable ABI version through `cobblestone_core_abi()` rather than requiring PHP to manually check a growing list of function names.
 
-The session Runtime adapter validates that ABI once at startup. ABI version 1 is the current contract.
+The session Runtime adapter validates that ABI once at startup. ABI version 2 is the current contract; version 2 removes the former diagnostic/probe and generic native-async exports.
 
 Capability bits/metadata may be added later if optional native features need staged rollout; they are not required while the extension is one fixed feature set.
 

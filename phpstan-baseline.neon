@@ -247,30 +247,6 @@ parameters:
 			path: src/Native/Session.php
 
 		-
-			message: '#^Function cobblestone_core_async_ready not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Tasks.php
-
-		-
-			message: '#^Function cobblestone_core_async_take not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: src/Native/Tasks.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Tasks\:\:ready\(\) should return bool but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Tasks.php
-
-		-
-			message: '#^Method Cobblestone\\Native\\Tasks\:\:take\(\) should return int but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Native/Tasks.php
-
-		-
 			message: '#^Function cobblestone_world_apply_patch not found\.$#'
 			identifier: function.notFound
 			count: 1

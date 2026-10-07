@@ -61,28 +61,6 @@ if ((ServerSmokePlugin::$state['scheduled'] ?? false) !== true) {
     server_fail('scheduled owner-runtime task did not run');
 }
 
-$nativeTask = cobblestone_core_async_submit(21);
-$fiberResult = null;
-
-$server->task(
-    static function () use ($nativeTask, &$fiberResult): void {
-        $fiberResult = Scheduler::awaitNative($nativeTask);
-    },
-);
-
-$deadline = hrtime(true) + 5_000_000_000;
-while ($fiberResult === null) {
-    $server->tick(1);
-    if (hrtime(true) >= $deadline) {
-        server_fail('Fiber native completion did not arrive before deadline');
-    }
-    usleep(1_000);
-}
-
-if ($fiberResult !== 42) {
-    server_fail('Fiber native completion returned the wrong value');
-}
-
 $slept = false;
 $server->task(
     static function () use (&$slept): void {

@@ -29,7 +29,7 @@ Immutable/native shared values such as packet buffers, snapshots, chunk snapshot
 Initial module families are:
 
 - `cobblestone-target`: generated flat Rust API for shared fixed-target identities/layout sourced from root `spec/`; it contains no gameplay algorithm or server policy.
-- `cobblestone-runtime`: runtime identity, generational handles, bounded workers, completion plumbing, cancellation, immutable buffers, ownership epochs, and generic region routing.
+- `cobblestone-runtime`: runtime identity, generational handles, ownership epochs, and generic region routing. Concrete session/storage concurrency remains owned by those subsystems.
 - `cobblestone-world`: authoritative native chunk/world state, snapshots, revisions, residency, patches, and the bounded world change journal.
 - `cobblestone-raknet`: fixed-target RakNet state machines and network-shard orchestration. It does not know about Player, World, plugins, or gameplay regions.
 - `cobblestone-wire`: fixed-target binary codec, Batch/compression, packet primitives, chunk projection, movement decoding, and NBT. Wire byte ownership uses `bytes::Bytes` and does not depend on runtime worker/handle machinery.
@@ -87,17 +87,24 @@ This slice deliberately contains no Zend calls. It proves ownership primitives i
 
 ### C002 extension boundary slice
 
-A following slice must load as a PHP 8.5 ZTS extension on Linux and Windows and expose only diagnostic/proof surfaces, not the final plugin API. The extension adapter must define PHP/Zend ownership and thread-affinity rules, panic containment, safe error conversion, allocation ownership, runtime identity attachment, and invalid/stale-handle handling.
+The early extension proof established PHP/Zend ownership, thread-affinity, panic containment, safe
+error conversion, runtime identity, and stale-handle behavior. Production retains the ABI/runtime
+identity contract and internal panic boundary; synthetic probe, deliberate-panic, buffer-copy, and
+integer-doubling async exports used only by that proof have been removed.
 
-The underlying Rust mechanism crate remains independently testable. No third-party PHP threading substrate becomes part of the public Cobblestone API.
+No third-party PHP threading substrate is part of the public Cobblestone API.
 
 ### C002 worker/completion slice
 
-The worker proof uses a bounded native pool. Workers accept immutable/owned inputs, never invoke arbitrary Zend APIs, and publish completions to an owning-runtime queue. Cancellation and shutdown are explicit. PHP Fibers may suspend while awaiting work, but a suspended Fiber never blocks the server thread.
+The early bounded-worker/Fiber-completion experiment did not acquire a production consumer. The
+generic `cobblestone-runtime` worker/completion API and PHP native-await bridge were therefore
+removed. Concrete session and storage concurrency is owned by those subsystems instead.
 
 ### C002 measurement
 
-Benchmarks must eventually cover empty PHP-to-native calls, handle lookup, native-buffer handoff sizes, worker submission, completion delivery/Fiber wake, queue saturation/backpressure, and bytes copied across the boundary. Performance conclusions remain pending until these benchmarks actually run.
+The remaining runtime benchmark covers the production generational-handle lookup mechanism.
+Subsystem-specific queue/backpressure and wire-byte behavior are measured and tested at their
+actual owners rather than through a synthetic generic worker/buffer layer.
 
 ## C003 — multi-runtime PHP torture prototype
 
@@ -139,7 +146,7 @@ A successful ownership transfer advances the epoch before the new owner may muta
 
 Semantic routing remains above `cobblestone-runtime`: higher layers may inspect current metadata and route an operation to the owner when API semantics permit, but runtime primitives never silently perform cross-runtime mutation. The C003 ownership torture now wraps the production arena so the stress oracle and production mechanism do not diverge.
 
-Immutable native values such as `NativeBuffer` may be cloned/shared across runtimes. Sharing immutable data never transfers mutable authority for the authoritative object that produced it.
+Immutable value clones do not transfer mutable authority for the authoritative object that produced them; ownership checks remain attached to the authoritative handle/value.
 
 ## C005 — fixed-target RakNet transport
 
@@ -192,7 +199,7 @@ C007 starts from the proven real-client boundary rather than rebuilding transpor
 
 The session layer is still internal wire/session infrastructure. A dedicated `SessionHost` thread owns the async mechanism and communicates with the PHP owner only through bounded native event/command queues. The PHP-side `Cobblestone\\Native\\Session` adapter tracks local lifecycle state and converts native events into server-internal PHP values. Owner-runtime identity is enforced once at the actual native operation boundary by `cobblestone-extension`; PHP does not perform redundant native owner/running probes before every poll/send/disconnect call. PHP remains the owner of gameplay semantics, lifecycle callbacks, events, commands, plugin loading, scheduler state, and Fiber resumption. RakNet connection objects, transport queues, native worker primitives, and protocol packet structs do not become ordinary plugin APIs.
 
-The ordinary PHP server surfaces are deliberately synchronous and owner-local. Event dispatch, command compilation, and plugin hosting live behind `Event\Internal\Dispatcher`, `Command\Internal\CommandTree`, and `Plugin\Internal\Plugins`; `Scheduler` remains the owner-runtime task mechanism. Plugins receive an owned `PluginScope`; event subscriptions, command bindings, tasks, and cleanup registered through that scope are released deterministically, including rollback after failed enable. `Server` construction is side-effect free until explicit `start()`, then translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, and applies a finite native-event budget per tick. Scheduled callbacks and sleeping Fibers are indexed by stable due-time binary min-heaps; the heap plus native-await/sleep marker objects live under `Task\\Internal`, so a tick visits due work rather than the entire live set. Fiber waits on native completions remain a compact active-wait set and are polled only during the owner-runtime scheduler tick; the current diagnostic worker ABI exposes per-task `ready`/`take` operations and no batch ready-set. The fixed-target real-client bootstrap is orchestrated by an internal PHP state machine while Login validation, packet encoding, and compression remain native wire mechanisms; obsolete compatibility-only synthetic bootstrap exports have been removed under ABI version 1.
+The ordinary PHP server surfaces are deliberately synchronous and owner-local. Event dispatch, command compilation, and plugin hosting live behind `Event\Internal\Dispatcher`, `Command\Internal\CommandTree`, and `Plugin\Internal\Plugins`; `Scheduler` remains the owner-runtime task mechanism. Plugins receive an owned `PluginScope`; event subscriptions, command bindings, tasks, and cleanup registered through that scope are released deterministically, including rollback after failed enable. `Server` construction is side-effect free until explicit `start()`, then translates native connect/disconnect state into semantic PHP events, keeps raw wire packets on an internal handler, and applies a finite native-event budget per tick. Scheduled callbacks and sleeping Fibers are indexed by stable due-time binary min-heaps; the heap and sleep marker live under `Task\\Internal`, so a tick visits due work rather than the entire live set. There is no generic PHP native-await API: session and storage completion behavior remains inside their concrete native mechanisms. The fixed-target real-client bootstrap is orchestrated by an internal PHP state machine while Login validation, packet encoding, and compression remain native wire mechanisms; obsolete compatibility-only synthetic bootstrap exports have been removed under ABI version 2.
 
 ## World substrate and Flat generation
 

@@ -11,8 +11,5 @@ publish = false
 name = "runtime"
 harness = false
 
-[dependencies]
-crossbeam-channel.workspace = true
-
 [lints]
 workspace = true

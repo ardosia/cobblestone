@@ -7,9 +7,7 @@ namespace Cobblestone\Task;
 use Closure;
 use Fiber;
 use Cobblestone\Task\Internal\DueQueue;
-use Cobblestone\Task\Internal\NativeAwait;
 use Cobblestone\Task\Internal\Sleep;
-use Cobblestone\Native\Tasks;
 use InvalidArgumentException;
 use LogicException;
 use Throwable;
@@ -18,12 +16,8 @@ use Throwable;
  * Single-owner tick scheduler with Fiber integration.
  *
  * Scheduled work and sleeping fibers live in due-time min-heaps, so dormant entries do not add
- * fixed work to every tick. Native waits remain in a compact active-wait set because the current
- * native completion proof exposes only per-task readiness polling.
- *
- * Fibers are started and resumed only from tick() on the owning PHP runtime. Native workers publish
- * completion state through the existing bounded native completion mechanism and never invoke Zend
- * directly.
+ * fixed work to every tick. Fibers are started and resumed only from tick() on the owning PHP
+ * runtime.
  */
 final class Scheduler
 {
@@ -45,9 +39,6 @@ final class Scheduler
 
     /** @var array<int, int> fiber id => wake tick */
     private array $sleeping = [];
-
-    /** @var array<int, NativeAwait> */
-    private array $nativeWaiting = [];
 
     public function __construct()
     {
@@ -103,11 +94,6 @@ final class Scheduler
         );
     }
 
-    public static function awaitNative(int $taskId): mixed
-    {
-        return Fiber::suspend(new NativeAwait($taskId));
-    }
-
     public static function sleep(int $ticks): void
     {
         Fiber::suspend(new Sleep($ticks));
@@ -119,7 +105,6 @@ final class Scheduler
         $this->runDueTasks();
         $this->startPendingFibers();
         $this->wakeSleepingFibers();
-        $this->pollNativeFibers();
     }
 
     public function shutdown(): void
@@ -127,7 +112,6 @@ final class Scheduler
         $this->tasks = [];
         $this->pendingFibers = [];
         $this->sleeping = [];
-        $this->nativeWaiting = [];
         $this->fibers = [];
         $this->staleTaskEntries = 0;
         $this->taskQueue->clear();
@@ -223,29 +207,6 @@ final class Scheduler
         }
     }
 
-    private function pollNativeFibers(): void
-    {
-        foreach (array_keys($this->nativeWaiting) as $fiberId) {
-            $wait = $this->nativeWaiting[$fiberId] ?? null;
-            $fiber = $this->fibers[$fiberId] ?? null;
-            if ($wait === null || $fiber === null) {
-                continue;
-            }
-            if (!Tasks::ready($wait->taskId)) {
-                continue;
-            }
-
-            unset($this->nativeWaiting[$fiberId]);
-            try {
-                $yielded = $fiber->resume(Tasks::take($wait->taskId));
-            } catch (Throwable $error) {
-                $this->forgetFiber($fiberId);
-                throw $error;
-            }
-            $this->captureFiberState($fiberId, $yielded);
-        }
-    }
-
     private function captureFiberState(int $fiberId, mixed $yielded): void
     {
         $fiber = $this->fibers[$fiberId] ?? null;
@@ -258,15 +219,7 @@ final class Scheduler
             return;
         }
 
-        if ($yielded instanceof NativeAwait) {
-            unset($this->sleeping[$fiberId]);
-            $this->nativeWaiting[$fiberId] = $yielded;
-
-            return;
-        }
-
         if ($yielded instanceof Sleep) {
-            unset($this->nativeWaiting[$fiberId]);
             $wake = $this->tick + $yielded->ticks;
             $this->sleeping[$fiberId] = $wake;
             $this->sleepQueue->push($wake, $fiberId);
@@ -276,7 +229,7 @@ final class Scheduler
 
         $this->forgetFiber($fiberId);
         throw new LogicException(
-            'Cobblestone Fiber suspended without Scheduler::awaitNative() or Scheduler::sleep()',
+            'Cobblestone Fiber suspended without Scheduler::sleep()',
         );
     }
 
@@ -318,7 +271,6 @@ final class Scheduler
             $this->fibers[$fiberId],
             $this->pendingFibers[$fiberId],
             $this->sleeping[$fiberId],
-            $this->nativeWaiting[$fiberId],
         );
     }
 
