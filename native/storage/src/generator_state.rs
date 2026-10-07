@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::StorageError;
+use crate::{StorageError, sync_directory};
 
 pub const GENERATOR_STATE_FILENAME: &str = "generator.cgs";
 pub const GENERATOR_STATE_VERSION: u16 = 1;
@@ -54,7 +54,7 @@ pub fn write_generator_state(
         let _ = std::fs::remove_file(&temporary);
         return Err(error.into());
     }
-    File::open(root)?.sync_all()?;
+    sync_directory(root)?;
     Ok(())
 }
 

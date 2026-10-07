@@ -198,16 +198,10 @@ pub(super) fn index_page_offset(page: usize) -> u64 {
     (REGION_HEADER_BYTES + page * INDEX_PAGE_BYTES) as u64
 }
 
-#[cfg(unix)]
 pub(super) fn sync_parent_directory(path: &Path) -> Result<(), StorageError> {
     if let Some(parent) = path.parent() {
-        File::open(parent)?.sync_all()?;
+        crate::sync_directory(parent)?;
     }
-    Ok(())
-}
-
-#[cfg(not(unix))]
-pub(super) fn sync_parent_directory(_path: &Path) -> Result<(), StorageError> {
     Ok(())
 }
 

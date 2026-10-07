@@ -7,6 +7,7 @@ mod record;
 mod region;
 
 use std::io;
+use std::path::Path;
 
 use thiserror::Error;
 
@@ -48,6 +49,18 @@ pub const BIOME_WORD_SEMANTIC_PAYLOAD_VERSION: u16 = 2;
 pub const SEMANTIC_PAYLOAD_VERSION: u16 = 3;
 pub const MAX_CHUNK_PAYLOAD_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_CHUNK_RECORD_BYTES: usize = MAX_CHUNK_PAYLOAD_BYTES + 64 * 1024;
+
+pub(crate) fn sync_directory(path: &Path) -> Result<(), StorageError> {
+    #[cfg(unix)]
+    {
+        std::fs::File::open(path)?.sync_all()?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+    }
+    Ok(())
+}
 
 #[derive(Debug, Error)]
 pub enum StorageError {

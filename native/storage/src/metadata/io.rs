@@ -7,7 +7,7 @@ use super::{
     MAX_WORLD_METADATA_PAYLOAD_BYTES, WORLD_METADATA_ENVELOPE_BYTES, WORLD_METADATA_FILENAME,
     WorldMetadata, decode_world_metadata, encode_world_metadata,
 };
-use crate::StorageError;
+use crate::{StorageError, sync_directory};
 
 static TEMP_FILE_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -58,11 +58,6 @@ pub(super) fn publish_metadata(
         return Err(error.into());
     }
     sync_directory(root)?;
-    Ok(())
-}
-
-fn sync_directory(path: &Path) -> Result<(), StorageError> {
-    File::open(path)?.sync_all()?;
     Ok(())
 }
 
