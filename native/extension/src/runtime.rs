@@ -11,7 +11,7 @@ thread_local! {
 
 fn allocate_runtime_id() -> Result<RuntimeId, &'static str> {
     let raw = NEXT_RUNTIME_ID
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+        .try_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
             current.checked_add(1)
         })
         .map_err(|_| "Cobblestone runtime identity space exhausted")?;

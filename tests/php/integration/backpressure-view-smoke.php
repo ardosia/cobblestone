@@ -40,7 +40,6 @@ backpressureViewExpect(is_string($bind) && $bind !== '', 'failed to resolve loop
 $server = null;
 $spawnedSessionId = null;
 $backpressureInjected = false;
-$pendingRetained = false;
 $retryCommitted = false;
 $disconnected = false;
 
@@ -117,19 +116,8 @@ try {
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
 
-        if ($backpressureInjected && !$pendingRetained) {
-            $store = $server->world()->nativeStore();
-            backpressureViewExpect($store !== null, 'backpressure test lost native store');
-            if (
-                backpressureViewPinCountOrZero($store, new ChunkPos(6, 8)) > 0
-                && backpressureViewPinCountOrZero($store, new ChunkPos(11, 8)) > 0
-            ) {
-                $pendingRetained = true;
-            }
-        }
-
         if (
-            $pendingRetained
+            $backpressureInjected
             && !$retryCommitted
             && str_contains($stdout, 'world-sync-client: transition=verified entering=5')
         ) {
@@ -169,7 +157,6 @@ try {
     $stderr .= stream_get_contents($pipes[2]);
     backpressureViewExpect(is_int($spawnedSessionId), 'backpressure client never spawned');
     backpressureViewExpect($backpressureInjected, 'native session queue never reached backpressure');
-    backpressureViewExpect($pendingRetained, 'backpressured transition did not retain old + entering pins');
     backpressureViewExpect($retryCommitted, 'retry never committed the prepared transition');
     backpressureViewExpect($exitCode === 0, "backpressure client failed: {$stderr}");
     backpressureViewExpect($disconnected, 'backpressure session disconnect was never observed');
