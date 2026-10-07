@@ -58,15 +58,10 @@ final class InfiniteGenerator implements Generator
     public function generate(
         ChunkPos $position,
         int $seed,
-        ?NativeWorld $nativeStore = null,
+        NativeWorld $nativeStore,
     ): Chunk {
         if ($seed !== $this->seed) {
             throw new \LogicException('Infinite generator seed does not match world seed');
-        }
-        if ($nativeStore === null) {
-            throw new \RuntimeException(
-                'Infinite generation requires the cobblestone_core_php native world store',
-            );
         }
         if (!$nativeStore->generateInfinite($position, $seed)) {
             throw new ChunkLoadPending($position, LoadStatus::Queued);
@@ -74,7 +69,7 @@ final class InfiniteGenerator implements Generator
 
         return new Chunk(
             $position,
-            nativeStore: $nativeStore,
+            $nativeStore,
             nativeResident: true,
         );
     }

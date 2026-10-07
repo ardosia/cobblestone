@@ -78,7 +78,7 @@ The native workspace is split by mechanism ownership:
 
 Commands, events, plugins, tasks, and world operations are exposed as direct semantic operations rather than manager/registry chains. Server-owned session bootstrap/gameplay state and scheduler implementation markers are internal.
 
-`World` owns fixed 16×16×128 MCPE 0.15.10 world semantics. Generation, lighting, and mutation live under the same World domain. `Chunk` is backend-agnostic through an internal two-implementation state boundary: native `WorldStore` state when the extension is available, or the parity-tested PHP fallback.
+`World` owns fixed 16×16×128 MCPE 0.15.10 world semantics. Generation, lighting, and mutation live under the same World domain. Every production `Chunk` is a PHP semantic facade over the authoritative native `WorldStore`; world creation requires `cobblestone_core_php` instead of switching to a second PHP chunk backend.
 
 The PHP/native boundary stays coarse. Native snapshots and atomic patches avoid per-cell marshaling where possible; world/session/task raw FFI calls are centralized under `Cobblestone\Native`.
 

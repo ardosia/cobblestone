@@ -305,7 +305,7 @@ final class ChunkPatch
 
     private function primeSnapshotForPrepare(): void
     {
-        if ($this->snapshot !== null || !$this->chunk->prefersSnapshotReads()) {
+        if ($this->snapshot !== null) {
             return;
         }
 

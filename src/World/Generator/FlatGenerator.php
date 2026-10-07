@@ -47,9 +47,9 @@ final class FlatGenerator implements Generator
     public function generate(
         ChunkPos $position,
         int $seed,
-        ?NativeWorld $nativeStore = null,
+        NativeWorld $nativeStore,
     ): Chunk {
-        $chunk = new Chunk($position, $this->preset->biome(), $nativeStore);
+        $chunk = new Chunk($position, $nativeStore, $this->preset->biome());
         $y = 0;
 
         foreach ($this->preset->layers() as $layer) {

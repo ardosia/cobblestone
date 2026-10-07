@@ -15,7 +15,7 @@ The goal is one-for-one behavior where the PHP ownership model permits it, not a
 | fixed `CHUNK_EDGE`, `SECTION_EDGE`, `SECTION_COUNT`, `WORLD_HEIGHT`, max Y | `WorldBounds` | semantic parity |
 | `BlockPos`, `ChunkPos` | same concepts plus `BlockPos::sectionY/localY` | semantic parity |
 | `SectionY` | `SectionY` | semantic parity |
-| `Section` | `ChunkSection` | semantic parity; Cobblestone also stores protocol-era nibble/light planes |
+| `Section` | native `WorldStore` section planes projected through `ChunkSnapshot` | semantic parity; Cobblestone also stores protocol-era nibble/light planes |
 | `ChunkData` | native `WorldStore` chunk data behind the PHP `Chunk` facade | semantic parity; Cobblestone also retains height/extra-data/light planes required by the fixed target |
 | `ChunkRevision` | `ChunkRevision` + `Chunk::terrainRevision()` | semantic parity |
 | `ChunkTerrain` | `ChunkTerrain` facade over one resident `Chunk` | semantic parity |
@@ -95,7 +95,7 @@ Chunk-layout oracle:
 
 Default generation colors use the matching fixed-target grass-color interpolation for the registered biome temperature/rainfall values, with binary-confirmed fixed overrides for swamp and mesa and the historical roofed-forest transform. These defaults are used only when creating a new biome column. Stored RGB is authoritative afterward and is never recomputed by the protocol encoder.
 
-Cobblestone exposes this as `BiomeId` + immutable `BiomeColumn`, stores full `u32` words in both PHP/native chunk backends, preserves the biome-word layout introduced by semantic payload v2 in the current v3 write format, migrates old payload-v1 ID bytes explicitly, and projects the stored words unchanged to protocol 84.
+Cobblestone exposes this as `BiomeId` + immutable `BiomeColumn`, stores full `u32` words in the native chunk store, preserves the biome-word layout introduced by semantic payload v2 in the current v3 write format, migrates old payload-v1 ID bytes explicitly, and projects the stored words unchanged to protocol 84.
 
 ## Fixed-target Overworld biome-source parity
 

@@ -117,7 +117,7 @@ try {
         'Infinite center skylight remained empty',
     );
 } finally {
-    $memory->nativeStore()?->destroy();
+    $memory->nativeStore()->destroy();
 }
 
 $root = sys_get_temp_dir()
@@ -170,7 +170,7 @@ try {
             'reloaded Infinite lifecycle flags changed',
         );
     } finally {
-        $reopened->nativeStore()?->destroy();
+        $reopened->nativeStore()->destroy();
     }
 } finally {
     infiniteRemoveTree($root);
@@ -219,7 +219,7 @@ try {
             'legacy Infinite spawn did not migrate to target-resolved surface position',
         );
     } finally {
-        $migrated->nativeStore()?->destroy();
+        $migrated->nativeStore()->destroy();
     }
 
     $probeStore = NativeWorld::create();
@@ -293,7 +293,7 @@ foreach ([2, 3] as $legacyVersion) {
                 "v{$legacyVersion} Infinite spawn recovery did not recompute target X/Z/Y",
             );
         } finally {
-            $recovered->nativeStore()?->destroy();
+            $recovered->nativeStore()->destroy();
         }
 
         $probeStore = NativeWorld::create();
@@ -411,7 +411,7 @@ try {
         );
 
     } finally {
-        $reopenedVillage->nativeStore()?->destroy();
+        $reopenedVillage->nativeStore()->destroy();
     }
 } finally {
     infiniteRemoveTree($villageRoot);

@@ -201,9 +201,11 @@ final class WorldFactory
         Generator $generator,
         Dimension $dimension = Dimension::Overworld,
     ): World {
-        $nativeStore = NativeWorld::available() ? NativeWorld::create() : null;
+        if (!NativeWorld::available()) {
+            throw new \RuntimeException('worlds require cobblestone_core_php native world storage');
+        }
 
-        return self::compose($name, $seed, $dimension, $generator, $nativeStore);
+        return self::compose($name, $seed, $dimension, $generator, NativeWorld::create());
     }
 
     private static function resolvePersistentInfiniteSpawn(
@@ -249,7 +251,7 @@ final class WorldFactory
         int $seed,
         Dimension $dimension,
         Generator $generator,
-        ?NativeWorld $nativeStore,
+        NativeWorld $nativeStore,
     ): World {
         $chunks = new MainChunkSource($generator, $seed, $nativeStore);
         $regions = new RegionMap();

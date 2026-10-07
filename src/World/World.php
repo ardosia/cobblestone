@@ -24,7 +24,7 @@ final class World
         private readonly Generator $generator,
         private readonly MainChunkSource $chunks,
         private readonly MutationCoordinator $mutations,
-        private readonly ?NativeWorld $nativeStore = null,
+        private readonly NativeWorld $nativeStore,
     ) {
         if ($name === '') {
             throw new ValueError('world name cannot be empty');
@@ -65,7 +65,7 @@ final class World
     }
 
     /** @internal */
-    public function nativeStore(): ?NativeWorld
+    public function nativeStore(): NativeWorld
     {
         return $this->nativeStore;
     }

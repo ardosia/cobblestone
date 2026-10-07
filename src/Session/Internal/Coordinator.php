@@ -55,8 +55,7 @@ final readonly class Coordinator
                 continue;
             }
 
-            $native = $this->world->nativeStore()
-                ?? throw new LogicException('native session chunk work requires the native world store');
+            $native = $this->world->nativeStore();
             $result = $this->sessions->completeChunkWork($work->sessionId, $native->handle());
             if ($result->status === ChunkWorkStatus::Spawned) {
                 $completed[] = $this->spawnCompletion($work, $result);
@@ -72,8 +71,7 @@ final readonly class Coordinator
             return true;
         }
 
-        $native = $this->world->nativeStore()
-            ?? throw new LogicException('native session chunk work requires the native world store');
+        $native = $this->world->nativeStore();
 
         $statuses = null;
         if ($native->hasStorage()) {

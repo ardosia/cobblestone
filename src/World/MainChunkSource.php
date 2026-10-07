@@ -29,7 +29,7 @@ final class MainChunkSource
     public function __construct(
         private readonly Generator $generator,
         private readonly int $seed,
-        private readonly ?NativeWorld $nativeStore = null,
+        private readonly NativeWorld $nativeStore,
     ) {
         $this->evictionQueue = new \SplQueue();
     }
@@ -46,7 +46,7 @@ final class MainChunkSource
             return $this->completeInfiniteChunk($existing);
         }
 
-        if ($this->nativeStore !== null && $this->nativeStore->hasStorage()) {
+        if ($this->nativeStore->hasStorage()) {
             $status = $this->nativeStore->requestStorageLoad($position);
             if ($status === LoadStatus::Resident) {
                 return $this->completeInfiniteChunk($this->adoptNativeResident($position));
@@ -98,13 +98,9 @@ final class MainChunkSource
         if ($existing !== null) {
             return $existing;
         }
-        if ($this->nativeStore === null) {
-            throw new \LogicException('cannot adopt native residency without a native world store');
-        }
-
         $chunk = new Chunk(
             $position,
-            nativeStore: $this->nativeStore,
+            $this->nativeStore,
             nativeResident: true,
         );
         $this->put($chunk);
@@ -113,7 +109,7 @@ final class MainChunkSource
     }
 
     /** @internal */
-    public function nativeStore(): ?NativeWorld
+    public function nativeStore(): NativeWorld
     {
         return $this->nativeStore;
     }

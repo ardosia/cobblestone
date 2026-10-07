@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Cobblestone\World;
 
 use Cobblestone\Native\World as NativeWorld;
-use Cobblestone\World\Internal\ChunkState;
-use Cobblestone\World\Internal\FallbackChunkState;
-use Cobblestone\World\Internal\NativeChunkState;
+use Cobblestone\Native\World\SnapshotDecoder;
 use ValueError;
 
 final class Chunk
@@ -16,18 +14,15 @@ final class Chunk
     public const LIFECYCLE_POPULATED = 0x02;
     public const LIFECYCLE_LIGHT_POPULATED = 0x04;
 
-    private readonly ChunkState $state;
-
     public function __construct(
         private readonly ChunkPos $position,
+        private readonly NativeWorld $nativeStore,
         ?BiomeId $biome = null,
-        ?NativeWorld $nativeStore = null,
         bool $nativeResident = false,
     ) {
-        $biome ??= new BiomeId(1);
-        $this->state = $nativeStore === null
-            ? new FallbackChunkState($this->position, $biome)
-            : new NativeChunkState($nativeStore, $this->position, $biome, $nativeResident);
+        if (!$nativeResident) {
+            $this->nativeStore->ensureChunk($this->position, $biome ?? new BiomeId(1));
+        }
     }
 
     public function position(): ChunkPos
@@ -37,7 +32,7 @@ final class Chunk
 
     public function revision(): int
     {
-        return $this->state->revision();
+        return $this->nativeStore->terrainRevision($this->position);
     }
 
     public function terrainRevision(): ChunkRevision
@@ -57,26 +52,26 @@ final class Chunk
 
     public function lightRevision(): LightRevision
     {
-        return new LightRevision($this->state->lightRevision());
+        return new LightRevision($this->nativeStore->lightRevision($this->position));
     }
 
     /** @internal Mutation commit primitive. */
     public function commitRevision(int $expected, int $next): void
     {
-        $this->state->commitRevision($expected, $next);
+        $this->nativeStore->commitTerrainRevision($this->position, $expected, $next);
     }
 
     /** @internal Light-commit primitive. */
     public function commitLightRevision(int $expected, int $next): void
     {
-        $this->state->commitLightRevision($expected, $next);
+        $this->nativeStore->commitLightRevision($this->position, $expected, $next);
     }
 
     public function blockStateId(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
 
-        return $this->state->blockStateId($x, $y, $z);
+        return $this->nativeStore->blockStateId($this->position, $x, $y, $z);
     }
 
     public function block(int $x, int $y, int $z): BlockState
@@ -90,7 +85,7 @@ final class Chunk
         BlockStateId::assert($stateId);
         self::assertBlockCoordinates($x, $y, $z);
 
-        return $this->state->setBlockStateId($x, $y, $z, $stateId);
+        return $this->nativeStore->setBlockStateId($this->position, $x, $y, $z, $stateId);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -117,14 +112,14 @@ final class Chunk
             return;
         }
 
-        $this->state->fillBlockLayers($startY, $count, $stateId);
+        $this->nativeStore->fillLayers($this->position, $startY, $count, $stateId);
     }
 
     public function skyLight(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
 
-        return $this->state->skyLight($x, $y, $z);
+        return $this->nativeStore->skyLight($this->position, $x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -132,7 +127,7 @@ final class Chunk
     {
         self::assertBlockCoordinates($x, $y, $z);
 
-        return $this->state->setSkyLight($x, $y, $z, $level);
+        return $this->nativeStore->setSkyLight($this->position, $x, $y, $z, $level);
     }
 
     /**
@@ -149,14 +144,14 @@ final class Chunk
             throw new ValueError('fixed-target light level must be in range 0..15');
         }
 
-        $this->state->fillSkyLightFrom($y, $level);
+        $this->nativeStore->fillSkyLightFrom($this->position, $y, $level);
     }
 
     public function blockLight(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
 
-        return $this->state->blockLight($x, $y, $z);
+        return $this->nativeStore->blockLight($this->position, $x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -164,14 +159,14 @@ final class Chunk
     {
         self::assertBlockCoordinates($x, $y, $z);
 
-        return $this->state->setBlockLight($x, $y, $z, $level);
+        return $this->nativeStore->setBlockLight($this->position, $x, $y, $z, $level);
     }
 
     public function biomeColumn(int $x, int $z): BiomeColumn
     {
         self::assertColumnCoordinates($x, $z);
 
-        return $this->state->biomeColumn($x, $z);
+        return BiomeColumn::fromWord($this->nativeStore->biomeWord($this->position, $x, $z));
     }
 
     public function biome(int $x, int $z): BiomeId
@@ -189,7 +184,9 @@ final class Chunk
     {
         self::assertColumnCoordinates($x, $z);
 
-        return $this->state->setBiomeColumn($x, $z, $biome);
+        return BiomeColumn::fromWord(
+            $this->nativeStore->setBiomeWord($this->position, $x, $z, $biome->word()),
+        );
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -214,26 +211,26 @@ final class Chunk
     {
         self::assertColumnCoordinates($x, $z);
 
-        return $this->state->highestBlockAt($x, $z);
+        return $this->nativeStore->heightMap($this->position, $x, $z);
     }
 
     public function heightMap(int $x, int $z): int
     {
         self::assertColumnCoordinates($x, $z);
 
-        return $this->state->heightMap($x, $z);
+        return $this->nativeStore->heightMap($this->position, $x, $z);
     }
 
     public function recalculateHeightMap(): void
     {
-        $this->state->recalculateHeightMap();
+        $this->nativeStore->recalculateHeightMap($this->position);
     }
 
     public function blockExtraData(int $x, int $y, int $z): int
     {
         self::assertBlockCoordinates($x, $y, $z);
 
-        return $this->state->blockExtraData($x, $y, $z);
+        return $this->nativeStore->blockExtraData($this->position, $x, $y, $z);
     }
 
     /** @internal Initialization or prepared-mutation commit primitive. */
@@ -244,24 +241,27 @@ final class Chunk
             throw new ValueError('fixed-target block extra data must be in range 0..65535');
         }
 
-        return $this->state->setBlockExtraData($x, $y, $z, $data);
+        return $this->nativeStore->setBlockExtraData($this->position, $x, $y, $z, $data);
     }
 
     /** @return array<int, int> */
     public function extraData(): array
     {
-        return $this->state->extraData();
+        return $this->snapshot()->extraData;
     }
 
     /** Captures immutable semantic chunk state. */
     public function snapshot(): ChunkSnapshot
     {
-        return $this->state->snapshot();
+        return SnapshotDecoder::decode(
+            $this->position,
+            $this->nativeStore->snapshotProjection($this->position),
+        );
     }
 
     public function lightSnapshot(): LightSnapshot
     {
-        return $this->state->lightSnapshot();
+        return $this->snapshot()->light();
     }
 
     /**
@@ -284,7 +284,8 @@ final class Chunk
         array $skyLight,
         array $blockLight,
     ): void {
-        $this->state->applyPatch(
+        $this->nativeStore->applyPatch(
+            $this->position,
             $expectedTerrainRevision,
             $nextTerrainRevision,
             $expectedLightRevision,
@@ -299,7 +300,7 @@ final class Chunk
 
     public function lifecycleFlags(): int
     {
-        return $this->state->lifecycleFlags();
+        return $this->nativeStore->lifecycleFlags($this->position);
     }
 
     public function isGenerated(): bool
@@ -350,7 +351,7 @@ final class Chunk
     /** @internal Persistence/lifecycle primitive. */
     public function isDirty(): bool
     {
-        return $this->state->isDirty();
+        return $this->nativeStore->chunkDirty($this->position);
     }
 
     /** @internal Persistence completion primitive. */
@@ -359,7 +360,8 @@ final class Chunk
         int $lightRevision,
         int $lifecycleFlags,
     ): void {
-        $this->state->markPersisted(
+        $this->nativeStore->markPersisted(
+            $this->position,
             $terrainRevision,
             $lightRevision,
             $lifecycleFlags,
@@ -379,36 +381,36 @@ final class Chunk
     /** @internal */
     public function pinBacking(): void
     {
-        $this->state->pin();
+        $this->nativeStore->pinChunk($this->position);
     }
 
     /** @internal */
     public function unpinBacking(): void
     {
-        $this->state->unpin();
+        $this->nativeStore->unpinChunk($this->position);
     }
 
     /** @internal */
-    public function tryEvictBacking(int $localPinCount): ChunkUnloadStatus
+    public function tryEvictBacking(int $_localPinCount): ChunkUnloadStatus
     {
-        return $this->state->tryEvict($localPinCount);
+        return match ($this->nativeStore->tryEvictChunk($this->position)) {
+            0 => ChunkUnloadStatus::Missing,
+            1 => ChunkUnloadStatus::Pinned,
+            2 => ChunkUnloadStatus::Dirty,
+            3 => ChunkUnloadStatus::Unloaded,
+            default => throw new \UnexpectedValueException('invalid native chunk eviction status'),
+        };
     }
 
     /** @internal */
-    public function matchesNativeStore(?NativeWorld $store): bool
+    public function matchesNativeStore(NativeWorld $store): bool
     {
-        return $this->state->matchesNativeStore($store);
-    }
-
-    /** @internal Mutation prepare optimization hint. */
-    public function prefersSnapshotReads(): bool
-    {
-        return $this->state->prefersSnapshotReads();
+        return $store === $this->nativeStore;
     }
 
     private function setLifecycleFlags(int $flags): void
     {
-        $this->state->setLifecycleFlags($flags);
+        $this->nativeStore->setLifecycleFlags($this->position, $flags);
     }
 
     private static function assertBlockCoordinates(int $x, int $y, int $z): void

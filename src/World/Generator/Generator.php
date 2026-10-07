@@ -21,7 +21,7 @@ interface Generator
     public function generate(
         ChunkPos $position,
         int $seed,
-        ?NativeWorld $nativeStore = null,
+        NativeWorld $nativeStore,
     ): Chunk;
 
     public function populate(Chunk $chunk, int $seed): void;

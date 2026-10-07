@@ -115,7 +115,7 @@ $process = proc_open($command, $descriptors, $pipes, $root);
 if (!is_resource($process)) {
     $server->stop('persistent-infinite-join-client-start-failed');
     $server->shutdown();
-    $world->nativeStore()?->destroy();
+    $world->nativeStore()->destroy();
     persistentInfiniteJoinRemoveTree($storageRoot);
     throw new RuntimeException('failed to start persistent Infinite loopback client');
 }
@@ -185,7 +185,7 @@ try {
         $server->stop('persistent-infinite-join-smoke');
         $server->shutdown();
     }
-    $world->nativeStore()?->destroy();
+    $world->nativeStore()->destroy();
     persistentInfiniteJoinRemoveTree($storageRoot);
 }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use Cobblestone\Native\World as NativeWorld;
 use Cobblestone\Server\WorldFactory;
 use Cobblestone\World\BiomeColumn;
 use Cobblestone\World\BiomeId;
@@ -32,17 +33,21 @@ nativeWorldExpect(
 
 $world = WorldFactory::flat('Native World Smoke', 4242);
 $store = $world->nativeStore();
-nativeWorldExpect($store !== null, 'WorldFactory did not select the native world store');
 nativeWorldExpect($store->handle() !== 0, 'native world handle was zero');
 
+$foreignStore = NativeWorld::create();
 try {
-    $world->chunks()->put(new Chunk(new ChunkPos(99, 99)));
-    throw new RuntimeException('native chunk source accepted a chunk from a different store');
-} catch (LogicException $error) {
-    nativeWorldExpect(
-        str_contains($error->getMessage(), 'source/store mismatch'),
-        'native chunk source rejected mismatched storage for the wrong reason',
-    );
+    try {
+        $world->chunks()->put(new Chunk(new ChunkPos(99, 99), $foreignStore));
+        throw new RuntimeException('native chunk source accepted a chunk from a different store');
+    } catch (LogicException $error) {
+        nativeWorldExpect(
+            str_contains($error->getMessage(), 'source/store mismatch'),
+            'native chunk source rejected mismatched storage for the wrong reason',
+        );
+    }
+} finally {
+    $foreignStore->destroy();
 }
 
 for ($chunkX = -1; $chunkX <= 1; ++$chunkX) {

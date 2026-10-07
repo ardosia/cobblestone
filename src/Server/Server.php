@@ -284,7 +284,7 @@ final class Server
         $phases['scheduler'] = fn() => $this->scheduler->shutdown();
         $phases['world-storage'] = function (): void {
             $native = $this->world->nativeStore();
-            if ($native !== null && $native->hasStorage()) {
+            if ($native->hasStorage()) {
                 $native->flushStorage();
             }
         };

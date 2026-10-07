@@ -18,13 +18,16 @@ const PHP_UNIT_TESTS: &[&str] = &[
     "plugin-smoke.php",
     "scheduler-smoke.php",
     "tick-smoke.php",
-    "world-composition-smoke.php",
     "world-block-catalog-smoke.php",
-    "world-light-smoke.php",
-    "world-parity-smoke.php",
     "world-seed-smoke.php",
-    "world-smoke.php",
+];
+
+const PHP_NATIVE_WORLD_TESTS: &[&str] = &[
+    "world-composition-smoke.php",
+    "world-light-smoke.php",
     "world-mutation-smoke.php",
+    "world-parity-smoke.php",
+    "world-smoke.php",
 ];
 
 const PHP_NATIVE_TESTS: &[&str] = &[
@@ -124,6 +127,9 @@ pub fn test_php(root: &Path) -> Result<(), Box<dyn Error>> {
 
     for test in PHP_UNIT_TESTS {
         php(root, root.join("tests/php/unit").join(test), &[], None)?;
+    }
+    for test in PHP_NATIVE_WORLD_TESTS {
+        php_with_extension(root, root.join("tests/php/unit").join(test), &[])?;
     }
     for test in PHP_NATIVE_TESTS {
         php_with_extension(root, root.join("tests/php/native").join(test), &[])?;

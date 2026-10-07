@@ -233,7 +233,7 @@ final class Runtime
     private function tickStorage(): void
     {
         $native = $this->world->nativeStore();
-        if ($native === null || !$native->hasStorage()) {
+        if (!$native->hasStorage()) {
             return;
         }
 
@@ -256,10 +256,6 @@ final class Runtime
     private function flushWorldChanges(): void
     {
         $native = $this->world->nativeStore();
-        if ($native === null) {
-            return;
-        }
-
         $this->sessions->flushWorldChanges($native->handle());
         if ($native->hasStorage()) {
             $this->world->chunks()->evictCleanUnpinned(self::CHUNK_EVICTION_BUDGET);
