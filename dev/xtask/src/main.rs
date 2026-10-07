@@ -7,9 +7,11 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?;
+    let root = portable_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()?,
+    );
     let mut args = env::args_os().skip(1);
     let Some(command) = args.next() else {
         usage();
@@ -41,6 +43,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn portable_root(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let rendered = path.to_string_lossy();
+        if let Some(rest) = rendered.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{rest}"));
+        }
+        if let Some(rest) = rendered.strip_prefix(r"\\?\") {
+            return PathBuf::from(rest);
+        }
+    }
+    path
 }
 
 fn no_args<F>(mut args: impl Iterator<Item = OsString>, run: F) -> Result<(), Box<dyn Error>>
