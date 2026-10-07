@@ -291,6 +291,13 @@ where
         args.extend(arguments.into_iter().map(|arg| arg.as_ref().to_owned()));
         return run(root, root, php_binary(), args);
     }
+    if cfg!(windows) {
+        // Composer is commonly exposed by setup-php as a .bat/.cmd shim. Windows CreateProcess
+        // does not resolve those scripts directly, so route the shim through cmd.exe.
+        let mut args = vec![OsString::from("/C"), OsString::from("composer")];
+        args.extend(arguments.into_iter().map(|arg| arg.as_ref().to_owned()));
+        return run(root, root, OsString::from("cmd.exe"), args);
+    }
     run(root, root, OsString::from("composer"), arguments)
 }
 
