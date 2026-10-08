@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Cobblestone\Tick;
+namespace Cobblestone\Server\Internal\Timing;
 
 use InvalidArgumentException;
 

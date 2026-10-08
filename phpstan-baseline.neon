@@ -622,7 +622,7 @@ parameters:
 			message: '#^Negated boolean expression is always false\.$#'
 			identifier: booleanNot.alwaysFalse
 			count: 1
-			path: src/Tick/TickLoop.php
+			path: src/Server/Internal/Timing/TickLoop.php
 
 		-
 			message: '#^Parameter \#1 \$word of static method Cobblestone\\World\\BiomeColumn\:\:fromWord\(\) expects int, mixed given\.$#'

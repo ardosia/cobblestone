@@ -9,7 +9,7 @@ use std::path::PathBuf;
 fn main() -> Result<(), Box<dyn Error>> {
     let root = portable_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../..")
+            .join("..")
             .canonicalize()?,
     );
     let mut args = env::args_os().skip(1);
