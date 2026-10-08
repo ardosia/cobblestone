@@ -16,6 +16,7 @@ const PHP_UNIT_TESTS: &[&str] = &[
     "config-smoke.php",
     "log-smoke.php",
     "plugin-smoke.php",
+    "process-output-smoke.php",
     "scheduler-smoke.php",
     "tick-smoke.php",
     "world-block-catalog-smoke.php",

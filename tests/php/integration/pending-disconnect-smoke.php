@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/ClientOutput.php';
 
 use Cobblestone\Config\StorageConfig;
 use Cobblestone\Native\Session\Packet;
@@ -123,6 +124,7 @@ $server->on(
 $server->start();
 
 $root = dirname(__DIR__, 3);
+$output = new ClientOutput();
 $process = proc_open(
     [
         'cargo',
@@ -136,14 +138,12 @@ $process = proc_open(
         $bind,
         '--pending-disconnect',
     ],
-    [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+    $output->descriptors(),
     $pipes,
     $root,
 );
 pendingDisconnectExpect(is_resource($process), 'failed to start pending-disconnect client');
 fclose($pipes[0]);
-stream_set_blocking($pipes[1], false);
-stream_set_blocking($pipes[2], false);
 
 $stdout = '';
 $stderr = '';
@@ -153,8 +153,8 @@ $deadline = hrtime(true) + 20_000_000_000;
 try {
     while (hrtime(true) < $deadline) {
         $server->tick(256);
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= $output->readStdout();
+        $stderr .= $output->readStderr();
 
         if ($pendingObserved && !$cleanupTriggered) {
             $prepared = true;
@@ -197,8 +197,8 @@ try {
         usleep(1_000);
     }
 
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= $output->readStdout();
+    $stderr .= $output->readStderr();
 
     pendingDisconnectExpect($spawned, 'pending-disconnect client never spawned');
     pendingDisconnectExpect($pendingObserved, 'pending transition was never observed');
@@ -233,14 +233,10 @@ try {
     }
     $baselineHandles = [];
 
-    foreach ([1, 2] as $pipe) {
-        if (isset($pipes[$pipe]) && is_resource($pipes[$pipe])) {
-            fclose($pipes[$pipe]);
-        }
-    }
     if (is_resource($process)) {
         proc_close($process);
     }
+    $output->close();
     if ($server instanceof Server && $server->state() === ServerState::Running) {
         $server->stop('pending-disconnect-smoke');
         $server->shutdown();

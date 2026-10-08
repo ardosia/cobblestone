@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/ClientOutput.php';
 
 $transitionOnly = in_array('--transition-only', $argv, true);
 $radiusCycle = in_array('--radius-cycle', $argv, true);
@@ -121,11 +122,8 @@ $command = [
 if ($wideInitial) {
     $command[] = '--initial-radius=3';
 }
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['pipe', 'w'],
-    2 => ['pipe', 'w'],
-];
+$output = new ClientOutput();
+$descriptors = $output->descriptors();
 $process = proc_open($command, $descriptors, $pipes, $root);
 if (!is_resource($process)) {
     $server->stop('world-sync-client-start-failed');
@@ -133,8 +131,6 @@ if (!is_resource($process)) {
     throw new RuntimeException('failed to start world-sync loopback client');
 }
 fclose($pipes[0]);
-stream_set_blocking($pipes[1], false);
-stream_set_blocking($pipes[2], false);
 
 $stdout = '';
 $stderr = '';
@@ -147,8 +143,8 @@ $streamTortureCommitted = false;
 try {
     while (hrtime(true) < $deadline) {
         $server->tick(256);
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= $output->readStdout();
+        $stderr .= $output->readStderr();
 
         if ($transitionOnly && !$transitionCommitted) {
             $store = $server->world()->nativeStore();
@@ -248,8 +244,8 @@ try {
         );
     }
 
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= $output->readStdout();
+    $stderr .= $output->readStderr();
 
     worldSyncExpect($exitCode === 0, "world-sync client failed: {$stderr}");
     worldSyncExpect($spawned, 'world-sync session never reached spawned state');
@@ -295,14 +291,10 @@ try {
         );
     }
 } finally {
-    foreach ([1, 2] as $pipe) {
-        if (isset($pipes[$pipe]) && is_resource($pipes[$pipe])) {
-            fclose($pipes[$pipe]);
-        }
-    }
     if (is_resource($process)) {
         proc_close($process);
     }
+    $output->close();
     if ($server->state() === ServerState::Running) {
         $server->stop('world-sync-smoke');
         $server->shutdown();

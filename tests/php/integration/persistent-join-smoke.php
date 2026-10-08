@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/ClientOutput.php';
 
 use Cobblestone\Config\StorageConfig;
 use Cobblestone\Server\Server;
@@ -256,11 +257,8 @@ $command = [
     '--persistent-stream',
     '--expect-nether',
 ];
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['pipe', 'w'],
-    2 => ['pipe', 'w'],
-];
+$output = new ClientOutput();
+$descriptors = $output->descriptors();
 $process = proc_open($command, $descriptors, $pipes, $root);
 if (!is_resource($process)) {
     $server->stop('persistent-join-client-start-failed');
@@ -270,8 +268,6 @@ if (!is_resource($process)) {
     throw new RuntimeException('failed to start persistent-join loopback client');
 }
 fclose($pipes[0]);
-stream_set_blocking($pipes[1], false);
-stream_set_blocking($pipes[2], false);
 
 $stdout = '';
 $stderr = '';
@@ -282,8 +278,8 @@ $persistentStreamVerified = false;
 try {
     while (hrtime(true) < $deadline) {
         $server->tick(256);
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= $output->readStdout();
+        $stderr .= $output->readStderr();
 
         if (
             !$persistentStreamVerified
@@ -323,8 +319,8 @@ try {
         );
     }
 
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= $output->readStdout();
+    $stderr .= $output->readStderr();
 
     persistentJoinExpect($exitCode === 0, "persistent-join client failed: {$stderr}");
     persistentJoinExpect($spawned, 'persistent-join session never reached spawned state');
@@ -445,14 +441,10 @@ try {
     $centerHandle->release();
     $stopFlushDirty = true;
 } finally {
-    foreach ([1, 2] as $pipe) {
-        if (isset($pipes[$pipe]) && is_resource($pipes[$pipe])) {
-            fclose($pipes[$pipe]);
-        }
-    }
     if (is_resource($process)) {
         proc_close($process);
     }
+    $output->close();
     if ($server->state() === ServerState::Running) {
         $server->stop('persistent-join-smoke');
         $server->shutdown();
