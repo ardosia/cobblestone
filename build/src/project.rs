@@ -173,7 +173,7 @@ pub fn serve(root: &Path, arguments: Vec<OsString>) -> Result<(), Box<dyn Error>
     native_build(root)?;
     php(
         root,
-        root.join("app/server.php"),
+        root.join("src/Cobblestone.php"),
         &arguments,
         Some(extension_path(root)),
     )

@@ -6,7 +6,7 @@ namespace Cobblestone\Server\Internal;
 
 use Cobblestone\Server\Server;
 use Cobblestone\Server\ServerState;
-use Cobblestone\Tick\TickLoop;
+use Cobblestone\Server\Internal\Timing\TickLoop;
 use Psr\Log\LoggerInterface;
 use Throwable;
 

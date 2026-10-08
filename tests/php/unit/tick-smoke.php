@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
 
-use Cobblestone\Tick\Clock;
-use Cobblestone\Tick\TickLoop;
-use Cobblestone\Tick\TickLoopConfig;
+use Cobblestone\Server\Internal\Timing\Clock;
+use Cobblestone\Server\Internal\Timing\TickLoop;
+use Cobblestone\Server\Internal\Timing\TickLoopConfig;
 use Psr\Log\AbstractLogger;
 
 $clock = new class implements Clock {

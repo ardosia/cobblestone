@@ -16,15 +16,13 @@ PHP owns gameplay semantics and the ordinary plugin/developer API. Rust owns tra
 Code is organized by responsibility rather than language package bureaucracy:
 
 ```text
-app/
-└── server.php
-
 spec/
 ├── target.toml
 ├── blocks.toml
 └── biomes.toml
 
 src/
+├── Cobblestone.php (PHP launcher)
 ├── Application/
 ├── Config/
 ├── Command/
@@ -35,7 +33,6 @@ src/
 ├── Server/
 ├── Session/
 ├── Task/
-├── Tick/
 └── World/
 
 native/
@@ -48,8 +45,8 @@ native/
 ├── storage/
 └── extension/
 
-dev/
-└── xtask/
+build/
+└── src/ (Rust xtask driver)
 
 tests/php/
 ├── unit/
@@ -84,7 +81,7 @@ The PHP/native boundary stays coarse. Native snapshots and atomic patches avoid 
 
 ## Persistence
 
-The production application entry point is `app/server.php`; it uses the MCPE 0.15.10-targeted Infinite Overworld generator with the custom persistent world store at `worlds/world` by default. Compatibility-sensitive generation is driven by executable/offline-world evidence rather than modern Minecraft behavior; unresolved parity gaps stay in GitHub Issues instead of being hidden in documentation.
+The production application entry point is `src/Cobblestone.php`; it uses the MCPE 0.15.10-targeted Infinite Overworld generator with the custom persistent world store at `worlds/world` by default. Compatibility-sensitive generation is driven by executable/offline-world evidence rather than modern Minecraft behavior; unresolved parity gaps stay in GitHub Issues instead of being hidden in documentation.
 
 Useful environment variables:
 
