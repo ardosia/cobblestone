@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/ClientOutput.php';
 
 use Cobblestone\Config\ServerConfig;
 use Cobblestone\Native\Session\Packet;
@@ -82,6 +83,7 @@ $server->on(
 
 $server->start();
 $root = dirname(__DIR__, 3);
+$output = new ClientOutput();
 $process = proc_open(
     [
         'cargo',
@@ -95,14 +97,12 @@ $process = proc_open(
         $bind,
         '--transition-only',
     ],
-    [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+    $output->descriptors(),
     $pipes,
     $root,
 );
 backpressureViewExpect(is_resource($process), 'failed to start backpressure loopback client');
 fclose($pipes[0]);
-stream_set_blocking($pipes[1], false);
-stream_set_blocking($pipes[2], false);
 
 $stdout = '';
 $stderr = '';
@@ -113,8 +113,8 @@ $deadline = hrtime(true) + 30_000_000_000;
 try {
     while (hrtime(true) < $deadline) {
         $server->tick(256);
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= $output->readStdout();
+        $stderr .= $output->readStderr();
 
         if (
             $backpressureInjected
@@ -153,22 +153,18 @@ try {
         usleep(1_000);
     }
 
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= $output->readStdout();
+    $stderr .= $output->readStderr();
     backpressureViewExpect(is_int($spawnedSessionId), 'backpressure client never spawned');
     backpressureViewExpect($backpressureInjected, 'native session queue never reached backpressure');
     backpressureViewExpect($retryCommitted, 'retry never committed the prepared transition');
     backpressureViewExpect($exitCode === 0, "backpressure client failed: {$stderr}");
     backpressureViewExpect($disconnected, 'backpressure session disconnect was never observed');
 } finally {
-    foreach ([1, 2] as $pipe) {
-        if (isset($pipes[$pipe]) && is_resource($pipes[$pipe])) {
-            fclose($pipes[$pipe]);
-        }
-    }
     if (is_resource($process)) {
         proc_close($process);
     }
+    $output->close();
     if ($server instanceof Server && $server->state() === ServerState::Running) {
         $server->stop('backpressure-view-smoke');
         $server->shutdown();

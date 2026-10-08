@@ -52,7 +52,8 @@ impl RaknetConfig {
         }
     }
 
-    /// Overrides the transport's automatic worker-shard count.
+    /// Overrides the transport's automatic worker-shard count on platforms with
+    /// reuse-port sharding. Windows always uses one worker to preserve handshake affinity.
     #[must_use]
     pub fn with_worker_shards(mut self, worker_shards: NonZeroUsize) -> Self {
         self.worker_shards = Some(worker_shards);
@@ -63,8 +64,16 @@ impl RaknetConfig {
         self.max_connections
     }
 
-    pub(crate) const fn worker_shards(&self) -> Option<NonZeroUsize> {
-        self.worker_shards
+    pub(crate) const fn listener_worker_shards(&self) -> Option<NonZeroUsize> {
+        // The pinned RakNet transport clones a shared UDP socket across shards on Windows.
+        // Each worker owns independent handshake state, so datagrams from one peer can land on
+        // different workers before the session is established. A single shard keeps that state
+        // coherent until the transport can provide peer-affine shared-socket dispatch.
+        if cfg!(windows) {
+            NonZeroUsize::new(1)
+        } else {
+            self.worker_shards
+        }
     }
 
     pub(crate) fn to_transport_config(&self) -> Result<TransportConfig, RaknetConfigError> {
@@ -113,6 +122,19 @@ mod tests {
     }
 
     #[test]
+    fn default_worker_shards_respect_platform_socket_affinity() {
+        let config = RaknetConfig::new(
+            SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 19132),
+            NonZeroUsize::new(20).expect("nonzero"),
+            "cobblestone-raknet-test",
+        );
+        assert_eq!(
+            config.listener_worker_shards().map(NonZeroUsize::get),
+            if cfg!(windows) { Some(1) } else { None },
+        );
+    }
+
+    #[test]
     fn explicit_worker_shards_are_retained() {
         let config = RaknetConfig::new(
             SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 19132),
@@ -121,6 +143,9 @@ mod tests {
         )
         .with_worker_shards(NonZeroUsize::new(4).expect("nonzero"));
 
-        assert_eq!(config.worker_shards().map(NonZeroUsize::get), Some(4));
+        assert_eq!(
+            config.listener_worker_shards().map(NonZeroUsize::get),
+            Some(if cfg!(windows) { 1 } else { 4 }),
+        );
     }
 }

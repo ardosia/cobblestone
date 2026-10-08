@@ -95,6 +95,11 @@ jobs:
         env:
           LIBCLANG_PATH: C:\Program Files\LLVM\bin
         run: cargo +1.98.0 xtask native-build
+      - name: Verify Windows RakNet loopback and session host
+        shell: pwsh
+        run: |
+          cargo +1.98.0 test --locked -p cobblestone-raknet --test public_api
+          cargo +1.98.0 test --locked -p cobblestone-session --test host
       - name: Validate Windows PHP adapter
         shell: pwsh
         env:

@@ -16,6 +16,7 @@ const PHP_UNIT_TESTS: &[&str] = &[
     "config-smoke.php",
     "log-smoke.php",
     "plugin-smoke.php",
+    "process-output-smoke.php",
     "scheduler-smoke.php",
     "tick-smoke.php",
     "world-block-catalog-smoke.php",
@@ -123,6 +124,19 @@ pub fn native_check(root: &Path) -> Result<(), Box<dyn Error>> {
 
 pub fn test_php(root: &Path) -> Result<(), Box<dyn Error>> {
     ensure_autoload(root)?;
+    cargo(
+        root,
+        root,
+        WORKSPACE_TOOLCHAIN,
+        [
+            "build",
+            "--locked",
+            "-p",
+            "cobblestone-client-bootstrap",
+            "--bin",
+            "world-sync-client",
+        ],
+    )?;
     php(root, root.join("tests/php/zts-probe.php"), &[], None)?;
 
     for test in PHP_UNIT_TESTS {

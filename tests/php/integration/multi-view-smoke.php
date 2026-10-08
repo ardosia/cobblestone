@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/ClientOutput.php';
 
 use Cobblestone\Server\Server;
 use Cobblestone\Config\ServerConfig;
@@ -72,9 +73,10 @@ foreach (['east' => '--hold-east', 'west' => '--hold-west'] as $name => $mode) {
         $bind,
         $mode,
     ];
+    $output = new ClientOutput();
     $process = proc_open(
         $command,
-        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $output->descriptors(),
         $pipes,
         $root,
     );
@@ -82,11 +84,9 @@ foreach (['east' => '--hold-east', 'west' => '--hold-west'] as $name => $mode) {
         throw new RuntimeException("failed to start {$name} loopback client");
     }
     fclose($pipes[0]);
-    stream_set_blocking($pipes[1], false);
-    stream_set_blocking($pipes[2], false);
     $clients[$name] = [
         'process' => $process,
-        'pipes' => $pipes,
+        'output' => $output,
         'stdout' => '',
         'stderr' => '',
         'exit' => null,
@@ -102,8 +102,8 @@ try {
         $server->tick(256);
 
         foreach ($clients as $name => &$client) {
-            $client['stdout'] .= stream_get_contents($client['pipes'][1]);
-            $client['stderr'] .= stream_get_contents($client['pipes'][2]);
+            $client['stdout'] .= $client['output']->readStdout();
+            $client['stderr'] .= $client['output']->readStderr();
             if ($client['exit'] !== null) {
                 continue;
             }
@@ -187,8 +187,8 @@ try {
     multiViewExpect($disconnected === 2, "expected two disconnected clients, got {$disconnected}{$diagnostic}");
 
     foreach ($clients as $name => &$client) {
-        $client['stdout'] .= stream_get_contents($client['pipes'][1]);
-        $client['stderr'] .= stream_get_contents($client['pipes'][2]);
+        $client['stdout'] .= $client['output']->readStdout();
+        $client['stderr'] .= $client['output']->readStderr();
         multiViewExpect(
             $client['exit'] === 0,
             "{$name} client failed: {$client['stderr']}",
@@ -208,14 +208,10 @@ try {
     }
 } finally {
     foreach ($clients as &$client) {
-        foreach ([1, 2] as $pipe) {
-            if (isset($client['pipes'][$pipe]) && is_resource($client['pipes'][$pipe])) {
-                fclose($client['pipes'][$pipe]);
-            }
-        }
         if (is_resource($client['process'])) {
             proc_close($client['process']);
         }
+        $client['output']->close();
     }
     unset($client);
 
