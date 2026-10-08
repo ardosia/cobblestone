@@ -21,7 +21,7 @@ impl RaknetServer {
     pub async fn bind(config: RaknetConfig) -> Result<Self, RaknetError> {
         let transport = config.to_transport_config()?;
         let mut builder = BackendServer::builder().transport_config(transport);
-        if let Some(worker_shards) = config.worker_shards() {
+        if let Some(worker_shards) = config.listener_worker_shards() {
             builder = builder.shard_count(worker_shards.get());
         }
         let server = builder.start().await?;
